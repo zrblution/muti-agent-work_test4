@@ -24,6 +24,7 @@ This phase now contains two related records:
 - a follow-up block-list parser for `validate-config` inventory checks, so multi-line YAML `required_files` cannot bypass the same safety gate.
 - a follow-up read-only benchmark inventory discovery CLI that writes reviewable candidate files without modifying config or running a benchmark.
 - a follow-up read-only model inventory discovery CLI that writes reviewable metadata candidates without modifying config, downloading, or loading weights.
+- a follow-up Phase 5 readiness bundle CLI that consolidates safe validation, inventory discovery, and execution-gate status without running a model, benchmark, remote job, or raw-output writer.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -51,6 +52,8 @@ This phase now contains two related records:
 - `stable_core.cli discover-benchmark-inventory`
 - `stable_core.validation.inventory_discovery.discover_model_inventory`
 - `stable_core.cli discover-model-inventory`
+- `stable_core.validation.phase5_readiness.build_phase5_readiness_bundle`
+- `stable_core.cli phase5-readiness`
 - recorded run validation for manifests, declared outputs, failure artifacts, and artifact hashes
 - `run-landmark` `failure.json` now includes log tails, reproduction command, config snapshot, and state snapshot
 - `RemoteRunner.submit()` now reports `runner_mode`, `allow_real_gpu_jobs`, and `allow_process_submission` gate failures from config
@@ -150,6 +153,15 @@ This phase now contains two related records:
 - `discover-model-inventory qwen3_vl_2b_instruct` with a temporary Qwen directory containing shallow metadata and a weight placeholder
   - status: `passed`
   - report records metadata candidates, excludes the weight file, and `write_config: false`
+- `phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_readiness_cli_smoke`
+  - status: `needs_attention`
+  - missing env vars: `REMOTE_MODEL_ROOT`, `REMOTE_BENCHMARK_ROOT`
+  - execution gate failures: `runner_mode`, `real_gpu_budget`, `process_submission`
+  - safety flags: no real model execution, no real benchmark execution, no remote job submission, no raw outputs, no config write
+- `phase5-readiness` with temporary valid model `config.json` and POPE `samples.jsonl`
+  - model and benchmark validation: `passed`
+  - top-level readiness: `needs_attention`
+  - execution plan: `submits_process: false`
 
 ## Artifacts Added
 
@@ -160,6 +172,7 @@ This phase now contains two related records:
 - `runs/qwen3vl_pope_limit8_gate_diagnostics/`
 - `runs/needs_attention/phase_5_needs_human_decision.md`
 - `docs/verification/phase_5_acceptance_report.md`
+- optional readiness bundles written outside the repo for smoke checks, such as `/tmp/phase5_readiness_cli_smoke/`
 
 ## Verification
 
@@ -198,6 +211,13 @@ This phase now contains two related records:
 - `python -m stable_core.cli discover-benchmark-inventory pope --output /tmp/phase5_pope_inventory_discovery.json`: `needs_setup`, missing `REMOTE_BENCHMARK_ROOT`, no config write.
 - `python -m pytest tests/test_config_cli.py::test_discover_model_inventory_cli_reports_missing_env tests/test_config_cli.py::test_discover_model_inventory_cli_writes_reviewable_candidates -q`: initially `2 failed`, then `2 passed` after adding `discover-model-inventory`.
 - `python -m pytest tests/test_config_cli.py -q`: `9 passed` after adding `discover-model-inventory`.
+- `python -m pytest tests/test_config_cli.py -q -k phase5_readiness`: initially `2 failed` because the CLI command was absent, then `2 passed` after adding the readiness bundle.
+- `python -m pytest tests/test_config_cli.py -q`: `11 passed` after adding `phase5-readiness`.
+- `python -m pytest tests/test_fake_adapters.py tests/test_runner.py tests/test_landmark_gate.py -q`: `30 passed` after adding `phase5-readiness`.
+- `python -m pytest -q`: `74 passed` after adding `phase5-readiness`.
+- `python -m stable_core.cli phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_readiness_cli_smoke`: `needs_attention`, with safety flags all false.
+- Expanded secret scan after adding `phase5-readiness`: `passed`, no findings.
+- Large-file scan after adding `phase5-readiness`: no files over 5 MB found.
 - `python -m stable_core.cli discover-model-inventory qwen3_vl_2b_instruct --output /tmp/phase5_qwen_inventory_discovery.json`: `needs_setup`, missing `REMOTE_MODEL_ROOT`, no config write, no load attempted.
 - `python -m pytest tests/test_fake_adapters.py -q`: `11 passed` after adding `discover-model-inventory`.
 - `python -m pytest tests/test_runner.py tests/test_landmark_gate.py -q`: `19 passed` after adding `discover-model-inventory`.
@@ -239,3 +259,5 @@ This phase now contains two related records:
 - No `.env` file was read.
 - No model was downloaded or loaded.
 - No real benchmark or GPU job was run.
+- No remote job or process was submitted by `phase5-readiness`.
+- No raw output was written by `phase5-readiness`.

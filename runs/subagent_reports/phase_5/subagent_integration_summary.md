@@ -97,3 +97,11 @@ The worker is deliberately still a gate: direct invocation records a `needs_atte
 ## Process Submission Gate Follow-Up
 
 `project_config/experiment_budget.yaml` now includes `allow_process_submission: false` by default. `RemoteRunner.submit()` reports this as a distinct `process_submission` gate failure before any process could be submitted. When remote mode, GPU budget, and process submission are all opened in tests, the runner still stops at `remote_executor` with `submits_process: false` because no reviewed process-submitting executor exists.
+
+## Phase 5 Readiness Bundle Follow-Up
+
+`phase5-readiness` now consolidates the safe Phase 5 checks into one auditable bundle. It collects `validate-config`, read-only model and benchmark inventory discovery, validate-only model and benchmark checks, and the current `RemoteRunner.submit()` authorization gate.
+
+The bundle writes `phase5_readiness.json` and `phase5_readiness.md` to the requested output directory. It explicitly records `executed_real_model: false`, `executed_real_benchmark: false`, `submitted_remote_job: false`, `raw_outputs_written: false`, and `write_config: false`.
+
+This does not resolve the Phase 5 blocker. With temporary valid inventory, model and benchmark validation can pass, but top-level readiness still remains `needs_attention` because the remote execution gate is closed and the reviewed execution plan still has `submits_process: false`.

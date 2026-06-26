@@ -27,6 +27,8 @@ Benchmark discovery update: `discover-benchmark-inventory <benchmark_id>` now wr
 
 Model discovery update: `discover-model-inventory <model_id>` now writes a read-only JSON report of shallow model metadata candidates when the configured model path resolves. It does not modify `project_config`, does not download or load model weights, excludes weight-like files, and reports `needs_setup` when the model root env var is missing.
 
+Readiness bundle update: `phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir <dir>` now writes a consolidated read-only JSON and Markdown bundle for Phase 5. It collects config validation, model and benchmark inventory discovery, model and benchmark validation, and the current RemoteRunner execution gate. It records `executed_real_model: false`, `executed_real_benchmark: false`, `submitted_remote_job: false`, `raw_outputs_written: false`, and `write_config: false`.
+
 Run-validation update: `validate-run --run-id` now validates recorded run directories without executing models or benchmarks. It checks safe run IDs, manifests, declared outputs, failure artifacts for `failed`/`needs_attention` runs, and artifact hashes.
 
 Run-lifecycle CLI update: top-level `poll --run-id` and `parse-results --run-id` commands now inspect recorded run directories without submitting jobs, loading models, running benchmarks, or recomputing metrics. `poll` reports the recorded manifest status; `parse-results` validates the artifact bundle and reads the declared metrics file when one exists, while preserving `needs_attention` when the real-smoke gate has no outputs to score.
@@ -63,6 +65,8 @@ Remote-gate diagnostics update: `run-landmark` now has separate next-action guid
 - `discover-benchmark-inventory pope` with a temporary POPE directory containing shallow `.json` and `.jsonl` files: `passed`, report records candidate `discovered_files` and `write_config: false`
 - `discover-model-inventory qwen3_vl_2b_instruct` with `REMOTE_MODEL_ROOT` unset: `needs_setup`, report records the missing env var, `load_attempted: false`, and writes no config
 - `discover-model-inventory qwen3_vl_2b_instruct` with a temporary Qwen directory containing shallow `.json` metadata and a `.safetensors` placeholder: `passed`, report records metadata candidates, excludes the weight file, and writes no config
+- `phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_readiness_cli_smoke` with model and benchmark root env vars unset: `needs_attention`, report records missing `REMOTE_MODEL_ROOT`, missing `REMOTE_BENCHMARK_ROOT`, closed `runner_mode`, `real_gpu_budget`, and `process_submission` gates, with no real execution or raw outputs
+- `phase5-readiness` in tests with temporary model `config.json` and POPE `samples.jsonl`: model and benchmark validation pass, but top-level status remains `needs_attention` because remote execution authorization is still closed and the execution plan has `submits_process: false`
 - `validate-run --run-id qwen3vl_pope_limit8_gate`: `passed`, validating the recorded `needs_attention` artifact bundle
 - `validate-run --run-id fake_phase4_acceptance`: `passed`, validating the recorded fake acceptance artifact bundle
 - temporary diagnostic `run-landmark` rerun with missing env vars: exit code `1`, JSON status `needs_attention`, no real model or benchmark execution
@@ -103,6 +107,7 @@ The human decision record is stored in `runs/needs_attention/phase_5_needs_human
 - Preserve all run/failure artifacts for any future real smoke attempt.
 - Keep using `validate-run --run-id <run_id>` before accepting any recorded run artifact bundle.
 - Use `poll --run-id <run_id>` and `parse-results --run-id <run_id>` only as recorded-artifact inspection steps until a reviewed process-submitting remote executor exists.
+- Use `phase5-readiness --output-dir <dir>` as the consolidated safe readiness report before any future real-smoke attempt.
 - Explicitly approve real GPU execution only after validation gates pass.
 
 ## Why Work Stops Here
@@ -115,4 +120,6 @@ The user instruction requires stopping at `needs_attention`. Continuing to Phase
 - No model was downloaded or loaded.
 - No real benchmark was executed.
 - No GPU job was started.
+- No remote job or process was submitted by the readiness bundle.
+- No raw output was written by the readiness bundle.
 - No large artifact was committed.

@@ -261,6 +261,106 @@ def test_discover_model_inventory_cli_writes_reviewable_candidates(tmp_path: Pat
     assert written["discovered_files"] == payload["discovered_files"]
 
 
+def test_phase5_readiness_cli_writes_needs_attention_bundle_without_env(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env.pop("REMOTE_MODEL_ROOT", None)
+    env.pop("REMOTE_BENCHMARK_ROOT", None)
+
+    result = run_cli(
+        "phase5-readiness",
+        "--model",
+        "qwen3_vl_2b_instruct",
+        "--benchmark",
+        "pope",
+        "--limit",
+        "8",
+        "--instrumentation",
+        "none",
+        "--output-dir",
+        str(tmp_path),
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["command"] == "phase5-readiness"
+    assert payload["status"] == "needs_attention"
+    assert payload["executed_real_model"] is False
+    assert payload["executed_real_benchmark"] is False
+    assert payload["submitted_remote_job"] is False
+    assert payload["raw_outputs_written"] is False
+
+    report_path = tmp_path / "phase5_readiness.json"
+    summary_path = tmp_path / "phase5_readiness.md"
+    assert report_path.exists()
+    assert summary_path.exists()
+    assert "raw_outputs.jsonl" not in {path.name for path in tmp_path.iterdir()}
+
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report["status"] == "needs_attention"
+    assert report["checks"]["model_inventory_discovery"]["missing_env_var"] == "REMOTE_MODEL_ROOT"
+    assert report["checks"]["benchmark_inventory_discovery"]["missing_env_var"] == "REMOTE_BENCHMARK_ROOT"
+    assert report["checks"]["model_validation"]["status"] == "needs_setup"
+    assert report["checks"]["benchmark_validation"]["status"] == "needs_setup"
+    assert report["execution_authorization"]["status"] == "needs_attention"
+    assert {failure["name"] for failure in report["execution_authorization"]["gate_failures"]} == {
+        "runner_mode",
+        "real_gpu_budget",
+        "process_submission",
+    }
+    assert report["safety_flags"] == {
+        "executed_real_model": False,
+        "executed_real_benchmark": False,
+        "submitted_remote_job": False,
+        "raw_outputs_written": False,
+        "write_config": False,
+    }
+
+
+def test_phase5_readiness_cli_keeps_execution_closed_after_inventory_passes(tmp_path: Path) -> None:
+    model_root = tmp_path / "models"
+    model_path = model_root / "Qwen3-VL-2B-Instruct"
+    model_path.mkdir(parents=True)
+    (model_path / "config.json").write_text("{}\n", encoding="utf-8")
+    benchmark_root = tmp_path / "benchmarks"
+    benchmark_path = benchmark_root / "POPE"
+    benchmark_path.mkdir(parents=True)
+    (benchmark_path / "samples.jsonl").write_text("{}\n", encoding="utf-8")
+    output_dir = tmp_path / "readiness"
+    env = {
+        **os.environ,
+        "REMOTE_MODEL_ROOT": str(model_root),
+        "REMOTE_BENCHMARK_ROOT": str(benchmark_root),
+    }
+
+    result = run_cli(
+        "phase5-readiness",
+        "--model",
+        "qwen3_vl_2b_instruct",
+        "--benchmark",
+        "pope",
+        "--limit",
+        "8",
+        "--instrumentation",
+        "none",
+        "--output-dir",
+        str(output_dir),
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    report = json.loads((output_dir / "phase5_readiness.json").read_text(encoding="utf-8"))
+    assert report["checks"]["model_validation"]["status"] == "passed"
+    assert report["checks"]["benchmark_validation"]["status"] == "passed"
+    assert report["checks"]["model_inventory_discovery"]["status"] == "passed"
+    assert report["checks"]["benchmark_inventory_discovery"]["status"] == "passed"
+    assert report["status"] == "needs_attention"
+    assert report["execution_authorization"]["execution_plan"]["submits_process"] is False
+    assert "job_id" not in report["execution_authorization"]
+    assert report["safety_flags"]["submitted_remote_job"] is False
+    assert not (output_dir / "raw_outputs.jsonl").exists()
+
+
 def test_export_schemas_cli_writes_json_files(tmp_path: Path) -> None:
     output_dir = tmp_path / "schemas"
     result = run_cli("export-schemas", "--output", str(output_dir))
