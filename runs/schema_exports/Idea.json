@@ -1,0 +1,26 @@
+{
+  "title": "Idea",
+  "type": "object",
+  "properties": {
+    "idea_id": {
+      "type": "object"
+    },
+    "title": {
+      "type": "object"
+    },
+    "hypothesis": {
+      "type": "object"
+    },
+    "evidence_refs": {
+      "type": "object"
+    },
+    "metadata": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "idea_id",
+    "title",
+    "hypothesis"
+  ]
+}

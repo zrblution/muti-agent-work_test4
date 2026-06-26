@@ -1,0 +1,26 @@
+{
+  "title": "ExperimentResult",
+  "type": "object",
+  "properties": {
+    "experiment_id": {
+      "type": "object"
+    },
+    "status": {
+      "type": "object"
+    },
+    "metrics": {
+      "type": "object"
+    },
+    "evidence_refs": {
+      "type": "object"
+    },
+    "run_id": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "experiment_id",
+    "status",
+    "metrics"
+  ]
+}

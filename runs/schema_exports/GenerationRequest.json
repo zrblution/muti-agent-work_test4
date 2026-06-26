@@ -1,0 +1,31 @@
+{
+  "title": "GenerationRequest",
+  "type": "object",
+  "properties": {
+    "request_id": {
+      "type": "object"
+    },
+    "image_path": {
+      "type": "object"
+    },
+    "prompt": {
+      "type": "object"
+    },
+    "benchmark_id": {
+      "type": "object"
+    },
+    "sample_id": {
+      "type": "object"
+    },
+    "metadata": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "request_id",
+    "image_path",
+    "prompt",
+    "benchmark_id",
+    "sample_id"
+  ]
+}

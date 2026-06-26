@@ -1,0 +1,27 @@
+{
+  "title": "AgentReview",
+  "type": "object",
+  "properties": {
+    "agent_id": {
+      "type": "object"
+    },
+    "decision": {
+      "type": "object"
+    },
+    "rationale": {
+      "type": "object"
+    },
+    "evidence_refs": {
+      "type": "object"
+    },
+    "scores": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "agent_id",
+    "decision",
+    "rationale",
+    "evidence_refs"
+  ]
+}

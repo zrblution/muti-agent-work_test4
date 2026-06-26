@@ -1,0 +1,4 @@
+git_policy:
+  require_clean_tree_for_experiments: true
+  forbid_large_artifacts: true
+  require_secret_scan_before_commit: true

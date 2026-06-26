@@ -1,0 +1,11 @@
+server:
+  runner_mode: local_only
+  allowed_remote_actions:
+    - validate_paths
+    - collect_env
+    - run_fake_benchmark
+    - run_model_smoke_test
+    - run_benchmark_adapter
+    - parse_results
+    - cancel_job
+    - poll_job

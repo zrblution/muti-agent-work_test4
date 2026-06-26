@@ -1,0 +1,8 @@
+instrumentation:
+  default_mode: none
+  allow_full_tensors: false
+  allowed_probe_types:
+    - attention_summary
+    - hidden_state_summary
+    - logit_summary
+    - visual_token_summary

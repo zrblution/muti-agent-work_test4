@@ -1,0 +1,19 @@
+{
+  "title": "ConvergenceDecision",
+  "type": "object",
+  "properties": {
+    "decision": {
+      "type": "object"
+    },
+    "rationale": {
+      "type": "object"
+    },
+    "evidence_refs": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "decision",
+    "rationale"
+  ]
+}

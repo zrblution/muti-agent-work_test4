@@ -1,0 +1,26 @@
+{
+  "title": "PhenomenonObservation",
+  "type": "object",
+  "properties": {
+    "observation_id": {
+      "type": "object"
+    },
+    "run_id": {
+      "type": "object"
+    },
+    "summary": {
+      "type": "object"
+    },
+    "evidence_refs": {
+      "type": "object"
+    },
+    "metadata": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "observation_id",
+    "run_id",
+    "summary"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "title": "ArtifactManifest",
+  "type": "object",
+  "properties": {
+    "run_id": {
+      "type": "object"
+    },
+    "artifacts": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "run_id"
+  ]
+}

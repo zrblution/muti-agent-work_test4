@@ -1,0 +1,27 @@
+{
+  "title": "EvidenceRef",
+  "type": "object",
+  "properties": {
+    "evidence_id": {
+      "type": "object"
+    },
+    "source_type": {
+      "type": "object"
+    },
+    "uri": {
+      "type": "object"
+    },
+    "summary": {
+      "type": "object"
+    },
+    "metadata": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "evidence_id",
+    "source_type",
+    "uri",
+    "summary"
+  ]
+}

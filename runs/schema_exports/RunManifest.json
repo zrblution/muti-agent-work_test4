@@ -1,0 +1,32 @@
+{
+  "title": "RunManifest",
+  "type": "object",
+  "properties": {
+    "run_id": {
+      "type": "object"
+    },
+    "run_type": {
+      "type": "object"
+    },
+    "status": {
+      "type": "object"
+    },
+    "model_id": {
+      "type": "object"
+    },
+    "benchmark_id": {
+      "type": "object"
+    },
+    "idea_id": {
+      "type": "object"
+    },
+    "outputs": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "run_id",
+    "run_type",
+    "status"
+  ]
+}

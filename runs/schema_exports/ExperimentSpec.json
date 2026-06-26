@@ -1,0 +1,34 @@
+{
+  "title": "ExperimentSpec",
+  "type": "object",
+  "properties": {
+    "experiment_id": {
+      "type": "object"
+    },
+    "model_id": {
+      "type": "object"
+    },
+    "benchmark_id": {
+      "type": "object"
+    },
+    "limit": {
+      "type": "object"
+    },
+    "instrumentation_mode": {
+      "type": "object"
+    },
+    "idea_id": {
+      "type": "object"
+    },
+    "metadata": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "experiment_id",
+    "model_id",
+    "benchmark_id",
+    "limit",
+    "instrumentation_mode"
+  ]
+}
