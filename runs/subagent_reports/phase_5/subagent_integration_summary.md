@@ -66,6 +66,10 @@ Configured model and benchmark `required_files` entries now must be relative pat
 
 `validate-config` now performs the same safety check as an `inventory` subreport, so unsafe `required_files` are rejected before path templates, model roots, or benchmark roots are resolved. The check covers both inline YAML lists and block-list YAML entries.
 
+## Benchmark Inventory Discovery Follow-Up
+
+`discover-benchmark-inventory <benchmark_id>` now performs read-only shallow discovery of benchmark metadata/sample candidates when the configured benchmark path resolves. It writes an optional JSON report with `discovered_files` and `write_config: false`, and returns `needs_setup` when required path environment variables are missing. This supports the spec requirement that benchmark `required_files` can be discovered and reviewed before being copied into config, without guessing POPE-specific filenames or executing a benchmark.
+
 ## Run Artifact Validation Follow-Up
 
 The framework now exposes `validate-run --run-id <run_id>` for recorded run directories. It validates safe run IDs, run manifests, declared output paths, required failure artifacts for `failed` or `needs_attention` runs, and `artifact_manifest.json` hashes.

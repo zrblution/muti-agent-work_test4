@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -9,10 +10,11 @@ from stable_core import config as config_module
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
-def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
+def run_cli(*args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, "-m", "stable_core.cli", *args],
         cwd=REPO_ROOT,
+        env=env,
         text=True,
         capture_output=True,
         check=False,
@@ -178,6 +180,44 @@ def test_list_model_benchmark_and_agent_clis_read_config() -> None:
     assert models["models"] == ["fake_model", "internvl3_5_4b", "qwen3_vl_2b_instruct"]
     assert benchmarks["benchmarks"] == ["amber", "chair", "fake_benchmark", "mme", "pope"]
     assert agents["providers"] == ["deepseek_v4_pro", "opus4_8_proxy"]
+
+
+def test_discover_benchmark_inventory_cli_reports_missing_env(tmp_path: Path) -> None:
+    output_path = tmp_path / "pope_inventory.json"
+    env = os.environ.copy()
+    env.pop("REMOTE_BENCHMARK_ROOT", None)
+
+    result = run_cli("discover-benchmark-inventory", "pope", "--output", str(output_path), env=env)
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["command"] == "discover-benchmark-inventory"
+    assert payload["status"] == "needs_setup"
+    assert payload["benchmark_id"] == "pope"
+    assert payload["missing_env_var"] == "REMOTE_BENCHMARK_ROOT"
+    assert json.loads(output_path.read_text(encoding="utf-8"))["status"] == "needs_setup"
+
+
+def test_discover_benchmark_inventory_cli_writes_reviewable_candidates(tmp_path: Path) -> None:
+    benchmark_root = tmp_path / "benchmarks"
+    pope_path = benchmark_root / "POPE"
+    (pope_path / "annotations").mkdir(parents=True)
+    (pope_path / "samples.jsonl").write_text("{}\n", encoding="utf-8")
+    (pope_path / "annotations" / "random.json").write_text("[]\n", encoding="utf-8")
+    (pope_path / "image.jpg").write_text("not metadata\n", encoding="utf-8")
+    output_path = tmp_path / "pope_inventory.json"
+    env = {**os.environ, "REMOTE_BENCHMARK_ROOT": str(benchmark_root)}
+
+    result = run_cli("discover-benchmark-inventory", "pope", "--output", str(output_path), env=env)
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "passed"
+    assert payload["benchmark_id"] == "pope"
+    assert set(payload["discovered_files"]) == {"samples.jsonl", "annotations/random.json"}
+    assert payload["write_config"] is False
+    written = json.loads(output_path.read_text(encoding="utf-8"))
+    assert written["discovered_files"] == payload["discovered_files"]
 
 
 def test_export_schemas_cli_writes_json_files(tmp_path: Path) -> None:

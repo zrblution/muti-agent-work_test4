@@ -14,6 +14,7 @@ from stable_core.runner.local import LocalRunner
 from stable_core.state_machine.state_manager import StateManager
 from stable_core.storage.run_results import parse_recorded_results, poll_recorded_run
 from stable_core.storage.run_validator import validate_run_artifacts
+from stable_core.validation.inventory_discovery import discover_benchmark_inventory
 from stable_core.validation.preflight import run_preflight
 
 DEFAULT_REGISTRY = Path("evidence/registry.jsonl")
@@ -90,6 +91,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     validate_benchmark_parser = subparsers.add_parser("validate-benchmark", help="Validate a configured benchmark without running it.")
     validate_benchmark_parser.add_argument("benchmark_id")
+
+    discover_benchmark_inventory_parser = subparsers.add_parser("discover-benchmark-inventory", help="Discover benchmark metadata/sample candidates without modifying config.")
+    discover_benchmark_inventory_parser.add_argument("benchmark_id")
+    discover_benchmark_inventory_parser.add_argument("--output", default=None, help="Optional JSON report path.")
+    discover_benchmark_inventory_parser.add_argument("--max-files", type=int, default=20)
 
     run_eval = subparsers.add_parser("run-eval", help="Run a controlled evaluation path.")
     run_eval.add_argument("--model", required=True)
@@ -195,6 +201,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "validate-benchmark":
         report = validate_benchmark(args.benchmark_id)
         print(json.dumps({"command": "validate-benchmark", **report}, ensure_ascii=False))
+        return _exit_code(str(report["status"]))
+    if args.command == "discover-benchmark-inventory":
+        report = discover_benchmark_inventory(args.benchmark_id, output=args.output, max_files=args.max_files)
+        print(json.dumps({"command": "discover-benchmark-inventory", **report}, ensure_ascii=False))
         return _exit_code(str(report["status"]))
     if args.command == "run-eval":
         run_id = args.run_id or f"{args.model}_{args.benchmark}_fake_eval"
