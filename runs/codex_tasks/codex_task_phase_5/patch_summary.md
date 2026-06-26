@@ -67,6 +67,7 @@ This phase now contains two related records:
 - `runs/subagent_reports/phase_5/`
 - `runs/qwen3vl_pope_limit8_needs_attention/`
 - `runs/qwen3vl_pope_limit8_gate/`
+- `runs/needs_attention/phase_5_needs_human_decision.md`
 - `docs/verification/phase_5_acceptance_report.md`
 
 ## Verification

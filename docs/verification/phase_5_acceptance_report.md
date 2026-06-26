@@ -40,6 +40,8 @@ Logs are stored in `runs/phase_5_gate_logs/`.
 
 Current structured gate artifacts are stored in `runs/qwen3vl_pope_limit8_gate/`.
 
+The human decision record is stored in `runs/needs_attention/phase_5_needs_human_decision.md`.
+
 ## Root Cause Hypothesis
 
 - `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` are not configured in the server execution environment.
