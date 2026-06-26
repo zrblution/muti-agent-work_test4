@@ -21,6 +21,8 @@ Inventory update: model validation now requires an offline `config.json` in the 
 
 Inventory safety update: configured model and benchmark `required_files` must now be relative paths that remain inside the resolved inventory root. Absolute paths, Windows absolute paths, empty entries, and `..` parent traversal are rejected with `status: failed` before any file existence check is attempted.
 
+Config validation update: `validate-config` now includes an `inventory` subreport and rejects unsafe model or benchmark `required_files` entries even before model or benchmark paths are resolved.
+
 Run-validation update: `validate-run --run-id` now validates recorded run directories without executing models or benchmarks. It checks safe run IDs, manifests, declared outputs, failure artifacts for `failed`/`needs_attention` runs, and artifact hashes.
 
 Run-lifecycle CLI update: top-level `poll --run-id` and `parse-results --run-id` commands now inspect recorded run directories without submitting jobs, loading models, running benchmarks, or recomputing metrics. `poll` reports the recorded manifest status; `parse-results` validates the artifact bundle and reads the declared metrics file when one exists, while preserving `needs_attention` when the real-smoke gate has no outputs to score.
@@ -51,6 +53,7 @@ Remote-gate diagnostics update: `run-landmark` now has separate next-action guid
 - `POPEAdapter({"required_files": ["annotations/random.json"]})` with the file present: `passed`
 - `Qwen3VLAdapter({"required_files": ["../outside-config.json"]})` with a root-external file present: `failed`, unsafe configured inventory path rejected
 - `POPEAdapter({"required_files": ["/absolute/outside.json"]})` with a root-external file present: `failed`, unsafe configured inventory path rejected
+- `validate-config` with temporary unsafe model and benchmark `required_files`: `failed`, inventory findings identify the unsafe entries
 - `validate-run --run-id qwen3vl_pope_limit8_gate`: `passed`, validating the recorded `needs_attention` artifact bundle
 - `validate-run --run-id fake_phase4_acceptance`: `passed`, validating the recorded fake acceptance artifact bundle
 - temporary diagnostic `run-landmark` rerun with missing env vars: exit code `1`, JSON status `needs_attention`, no real model or benchmark execution

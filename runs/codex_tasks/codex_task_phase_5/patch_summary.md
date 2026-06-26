@@ -20,6 +20,7 @@ This phase now contains two related records:
 - a follow-up explicit `allow_process_submission` budget gate before any remote runner process could be submitted.
 - a follow-up config-driven benchmark inventory gate that honors `required_files` when populated.
 - a follow-up inventory safety gate that rejects absolute or parent-traversing `required_files` before checking the filesystem.
+- a follow-up `validate-config` inventory subreport that catches unsafe `required_files` before path resolution.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -41,6 +42,7 @@ This phase now contains two related records:
 - offline benchmark inventory discovery for shallow metadata/sample files
 - offline benchmark inventory validation now honors configured `required_files` before falling back to metadata/sample discovery
 - configured model and benchmark inventory entries now fail fast when `required_files` contains an absolute path, a Windows absolute path, an empty entry, or `..` parent traversal
+- `validate-config` now reports an `inventory` subreport and fails when model or benchmark config contains unsafe `required_files`
 - recorded run validation for manifests, declared outputs, failure artifacts, and artifact hashes
 - `run-landmark` `failure.json` now includes log tails, reproduction command, config snapshot, and state snapshot
 - `RemoteRunner.submit()` now reports `runner_mode`, `allow_real_gpu_jobs`, and `allow_process_submission` gate failures from config
@@ -122,6 +124,9 @@ This phase now contains two related records:
 - `POPEAdapter({"required_files": ["/absolute/outside.json"]})`
   - root-external file present: `failed`
   - unsafe path reported in `unsafe_files`
+- `validate-config` with temporary unsafe model and benchmark `required_files`
+  - status: `failed`
+  - inventory findings identify each unsafe entry before any path resolution
 
 ## Artifacts Added
 
@@ -159,6 +164,9 @@ This phase now contains two related records:
 - `python -m pytest tests/test_fake_adapters.py -q`: `11 passed` after adding unsafe inventory path validation.
 - `python -m pytest tests/test_runner.py tests/test_landmark_gate.py -q`: `19 passed` after adding unsafe inventory path validation.
 - `python -m pytest -q`: `66 passed` after adding unsafe inventory path validation.
+- `python -m pytest tests/test_config_cli.py::test_validate_config_rejects_unsafe_required_files -q`: initially `1 failed`, then `1 passed` after adding config-level unsafe inventory validation.
+- `python -m pytest tests/test_config_cli.py -q`: `4 passed` after adding config-level unsafe inventory validation.
+- `python -m stable_core.cli validate-config`: `passed` with `inventory.status` `passed`.
 - `python -m stable_core.cli validate-run --run-id qwen_worker_manual_check --runs-root /tmp/qwen_worker_manual_check_runs`: `passed`.
 - `python -m stable_core.cli parse-results --run-id qwen_worker_manual_check --runs-root /tmp/qwen_worker_manual_check_runs`: `needs_attention` with artifact validation `passed`.
 - `python -m stable_core.cli validate-config`: `passed`.

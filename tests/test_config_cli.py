@@ -3,6 +3,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from stable_core import config as config_module
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -25,6 +27,75 @@ def test_validate_config_cli_reports_passed() -> None:
     assert payload["command"] == "validate-config"
     assert payload["status"] == "passed"
     assert payload["providers"]["status"] == "passed"
+
+
+def test_validate_config_rejects_unsafe_required_files(monkeypatch, tmp_path: Path) -> None:
+    for name in [
+        "paths.yaml",
+        "security.yaml",
+        "server.yaml",
+        "experiment_budget.yaml",
+        "instrumentation.yaml",
+        "git_policy.yaml",
+    ]:
+        (tmp_path / name).write_text("{}\n", encoding="utf-8")
+    (tmp_path / "agents.yaml").write_text(
+        "\n".join(
+            [
+                "providers:",
+                "  test_provider:",
+                "    provider_type: openai_compatible",
+                "    model: test-model",
+                "    api_key_env: TEST_PROVIDER_API_KEY",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "models.yaml").write_text(
+        "\n".join(
+            [
+                "models:",
+                "  unsafe_model:",
+                "    adapter: adapters.models.qwen3_vl.Qwen3VLAdapter",
+                "    required_files: [\"../escape.json\"]",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "benchmarks.yaml").write_text(
+        "\n".join(
+            [
+                "benchmarks:",
+                "  unsafe_benchmark:",
+                "    adapter: adapters.benchmarks.pope.POPEAdapter",
+                "    required_files: [\"/tmp/escape.json\"]",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(config_module, "CONFIG_DIR", tmp_path)
+
+    report = config_module.validate_config()
+
+    assert report["status"] == "failed"
+    assert report["inventory"]["status"] == "failed"
+    assert {
+        "section": "models",
+        "id": "unsafe_model",
+        "field": "required_files",
+        "value": "../escape.json",
+        "message": "required_files entries must be relative paths inside the configured root",
+    } in report["inventory"]["findings"]
+    assert {
+        "section": "benchmarks",
+        "id": "unsafe_benchmark",
+        "field": "required_files",
+        "value": "/tmp/escape.json",
+        "message": "required_files entries must be relative paths inside the configured root",
+    } in report["inventory"]["findings"]
 
 
 def test_list_model_benchmark_and_agent_clis_read_config() -> None:
