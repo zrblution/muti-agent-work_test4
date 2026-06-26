@@ -14,6 +14,7 @@ This phase now contains two related records:
 - a follow-up failure-diagnostics improvement for `run-landmark` `needs_attention` bundles.
 - a follow-up config-driven remote execution gate that keeps real execution closed by default.
 - a follow-up reviewable remote execution plan for open config gates, still with no process submission.
+- a follow-up branch-specific diagnostic for the path where model and benchmark validation pass but remote execution remains closed.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -37,6 +38,7 @@ This phase now contains two related records:
 - `run-landmark` `failure.json` now includes log tails, reproduction command, config snapshot, and state snapshot
 - `RemoteRunner.submit()` now reports `runner_mode` and `allow_real_gpu_jobs` gate failures from config
 - `RemoteRunner.submit()` now returns a whitelisted `execution_plan` with `submits_process: false` when config gates are open in tests
+- `run-landmark` now records remote-gate-specific recommended next actions once model and benchmark validation pass
 
 ## Gate Commands
 
@@ -96,12 +98,12 @@ This phase now contains two related records:
 - Expanded secret scan over docs, config, code, tests, scripts, runs, adapters, experiments, idea plugins, instrumentation, and top-level metadata passed.
 - `python -m pytest tests/test_landmark_gate.py tests/test_fake_runner.py tests/test_runner.py tests/test_state_machine.py -q`: `14 passed`.
 - `python -m pytest tests/test_fake_adapters.py -q`: `7 passed`.
-- `python -m pytest tests/test_landmark_gate.py -q`: `2 passed`.
+- `python -m pytest tests/test_landmark_gate.py -q`: `3 passed`.
 - `python -m pytest tests/test_runner.py tests/test_landmark_gate.py tests/test_fake_adapters.py -q`: `17 passed`.
 - `python -m pytest tests/test_runner.py -q`: `10 passed`.
-- `python -m pytest tests/test_landmark_gate.py tests/test_runner.py -q`: `11 passed`.
+- `python -m pytest tests/test_landmark_gate.py tests/test_runner.py -q`: `13 passed`.
 - `python -m pytest tests/test_landmark_gate.py -q`: `2 passed` after the failure-diagnostics assertion update.
-- `python -m pytest -q`: `55 passed`.
+- `python -m pytest -q`: `56 passed`.
 - `RemoteRunner().submit(...)`: `needs_attention` with `runner_mode: local_only` and `allow_real_gpu_jobs: false`.
 - CLI validation with unset path env vars reports the missing env var names.
 - CLI validation with temporary existing but empty model and benchmark directories returns `needs_setup` at the inventory gate.

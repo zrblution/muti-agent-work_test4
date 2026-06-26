@@ -4,6 +4,8 @@ import sys
 import uuid
 from pathlib import Path
 
+import pytest
+
 from experiments.landmark_baselines.runner import run_landmark
 
 
@@ -48,6 +50,40 @@ def test_run_landmark_records_needs_attention_without_real_execution(tmp_path: P
     assert manifest["outputs"]["exit_code"] == "exit_code.txt"
     assert not (run_dir / "raw_outputs.jsonl").exists()
     assert (run_dir / "failure_report.md").exists()
+
+
+def test_run_landmark_reports_remote_gate_after_validation_passes(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    model_root = tmp_path / "models"
+    benchmark_root = tmp_path / "benchmarks"
+    model_path = model_root / "Qwen3-VL-2B-Instruct"
+    benchmark_path = benchmark_root / "POPE"
+    model_path.mkdir(parents=True)
+    benchmark_path.mkdir(parents=True)
+    (model_path / "config.json").write_text("{}", encoding="utf-8")
+    (benchmark_path / "samples.jsonl").write_text("{}\n", encoding="utf-8")
+    monkeypatch.setenv("REMOTE_MODEL_ROOT", str(model_root))
+    monkeypatch.setenv("REMOTE_BENCHMARK_ROOT", str(benchmark_root))
+
+    result = run_landmark(
+        run_id="qwen_pope_remote_gate",
+        model_id="qwen3_vl_2b_instruct",
+        benchmark_id="pope",
+        limit=8,
+        instrumentation_mode="none",
+        runs_root=tmp_path,
+    )
+
+    run_dir = tmp_path / "qwen_pope_remote_gate"
+    failure = json.loads((run_dir / "failure.json").read_text(encoding="utf-8"))
+    remote_payload = failure["gate_failures"][0]["payload"]
+
+    assert result["status"] == "needs_attention"
+    assert failure["failure_type"] == "landmark_remote_runner_not_enabled"
+    assert remote_payload["runner_mode"] == "local_only"
+    assert remote_payload["allow_real_gpu_jobs"] is False
+    assert "Configure approved model and benchmark paths." not in failure["recommended_next_action"]
+    assert "Open the reviewed remote execution gate." in failure["recommended_next_action"]
+    assert not (run_dir / "raw_outputs.jsonl").exists()
 
 
 def test_run_landmark_cli_is_validation_gate() -> None:

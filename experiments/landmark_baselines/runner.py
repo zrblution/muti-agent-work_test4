@@ -77,6 +77,11 @@ def run_landmark(
             failure_message=message,
             gate_failures=gate_failures,
             started_at=started_at,
+            recommended_next_action=[
+                "Configure approved model and benchmark paths.",
+                "Re-run validate-model and validate-benchmark until both return passed.",
+                "Open a reviewed remote execution gate before any real GPU run.",
+            ],
         )
 
     remote_report = RemoteRunner().submit(
@@ -100,6 +105,11 @@ def run_landmark(
         failure_message=message,
         gate_failures=[{"gate": "remote-runner", "payload": remote_report}],
         started_at=started_at,
+        recommended_next_action=[
+            "Keep the validated model and benchmark paths configured.",
+            "Open the reviewed remote execution gate.",
+            "Approve GPU budget and process submission before rerunning the landmark smoke.",
+        ],
     )
 
 
@@ -112,6 +122,7 @@ def _write_needs_attention(
     failure_message: str,
     gate_failures: list[dict[str, Any]],
     started_at: str,
+    recommended_next_action: list[str],
 ) -> dict[str, Any]:
     finished_at = utc_now()
     run_manifest = {
@@ -152,11 +163,7 @@ def _write_needs_attention(
         "state_snapshot": run_manifest,
         "executed_real_model": False,
         "executed_real_benchmark": False,
-        "recommended_next_action": [
-            "Configure approved model and benchmark paths.",
-            "Re-run validate-model and validate-benchmark until both return passed.",
-            "Open a reviewed remote execution gate before any real GPU run.",
-        ],
+        "recommended_next_action": recommended_next_action,
         "do_not_continue_reason": "Required validation and execution gates are not satisfied.",
     }
     write_json(run_dir / "run_manifest.json", run_manifest)

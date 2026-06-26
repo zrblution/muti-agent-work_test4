@@ -27,6 +27,8 @@ Remote gate update: `RemoteRunner.submit()` now reads `project_config/server.yam
 
 Remote plan update: when those config gates are opened in a controlled test, `RemoteRunner.submit()` returns a reviewable `execution_plan` with whitelisted argv and `submits_process: false`. This narrows the remaining remote-execution gap without launching a process.
 
+Remote-gate diagnostics update: `run-landmark` now has separate next-action guidance for the path where model and benchmark validation pass but remote execution is still closed. That branch preserves the validated path setup and points to remote gate, GPU budget, and process-submission approval instead of asking to reconfigure paths again.
+
 ## Evidence
 
 - `validate-config`: `passed`
@@ -45,6 +47,7 @@ Remote plan update: when those config gates are opened in a controlled test, `Re
 - `validate-run --run-id qwen_pope_gate_diagnostic_check`: `passed` before the temporary run directory was removed
 - current diagnostic `run-landmark --run-id qwen3vl_pope_limit8_gate_diagnostics`: exit code `1`, JSON status `needs_attention`, no real model or benchmark execution
 - `validate-run --run-id qwen3vl_pope_limit8_gate_diagnostics`: `passed`, validating the enhanced failure-diagnostics artifact bundle
+- `run_landmark(...)` with temporary valid model and POPE inventory: JSON status `needs_attention`, failure type `landmark_remote_runner_not_enabled`, no real model or benchmark execution
 
 Logs are stored in `runs/phase_5_gate_logs/`.
 
