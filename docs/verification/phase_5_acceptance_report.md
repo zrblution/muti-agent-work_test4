@@ -19,6 +19,8 @@ Path-template update: real model and benchmark configs now use `${REMOTE_MODEL_R
 
 Inventory update: model validation now requires an offline `config.json` in the resolved model directory. Benchmark validation now honors configured `required_files` when present, and otherwise requires at least one shallow metadata or sample-like file with an accepted suffix such as `.json`, `.jsonl`, `.tsv`, `.csv`, `.txt`, `.yaml`, or `.yml`. The fallback benchmark check is intentionally generic and does not assume a POPE-specific filename.
 
+Inventory safety update: configured model and benchmark `required_files` must now be relative paths that remain inside the resolved inventory root. Absolute paths, Windows absolute paths, empty entries, and `..` parent traversal are rejected with `status: failed` before any file existence check is attempted.
+
 Run-validation update: `validate-run --run-id` now validates recorded run directories without executing models or benchmarks. It checks safe run IDs, manifests, declared outputs, failure artifacts for `failed`/`needs_attention` runs, and artifact hashes.
 
 Run-lifecycle CLI update: top-level `poll --run-id` and `parse-results --run-id` commands now inspect recorded run directories without submitting jobs, loading models, running benchmarks, or recomputing metrics. `poll` reports the recorded manifest status; `parse-results` validates the artifact bundle and reads the declared metrics file when one exists, while preserving `needs_attention` when the real-smoke gate has no outputs to score.
@@ -47,6 +49,8 @@ Remote-gate diagnostics update: `run-landmark` now has separate next-action guid
 - `validate-benchmark pope` with a temporary `REMOTE_BENCHMARK_ROOT` pointing to a `POPE` directory containing `samples.jsonl`: `passed`
 - `POPEAdapter({"required_files": ["annotations/random.json"]})` with the file missing: `needs_setup`, missing configured file
 - `POPEAdapter({"required_files": ["annotations/random.json"]})` with the file present: `passed`
+- `Qwen3VLAdapter({"required_files": ["../outside-config.json"]})` with a root-external file present: `failed`, unsafe configured inventory path rejected
+- `POPEAdapter({"required_files": ["/absolute/outside.json"]})` with a root-external file present: `failed`, unsafe configured inventory path rejected
 - `validate-run --run-id qwen3vl_pope_limit8_gate`: `passed`, validating the recorded `needs_attention` artifact bundle
 - `validate-run --run-id fake_phase4_acceptance`: `passed`, validating the recorded fake acceptance artifact bundle
 - temporary diagnostic `run-landmark` rerun with missing env vars: exit code `1`, JSON status `needs_attention`, no real model or benchmark execution
@@ -72,6 +76,7 @@ The human decision record is stored in `runs/needs_attention/phase_5_needs_human
 - The current Qwen3-VL and POPE adapters are validate-only skeletons.
 - The structured `run-landmark` gate exists, but it correctly stops before real execution because model and benchmark validations are `needs_setup`.
 - The whitelisted worker entry point exists and is non-recursive, but it is intentionally a `needs_attention` stub until the real Qwen3-VL + POPE worker is reviewed.
+- Configured inventory paths are now constrained to the model or benchmark root, so external setup still must populate approved directories instead of pointing validation at files elsewhere on the filesystem.
 - Remote runner execution is config-gated: `project_config/server.yaml` still sets `runner_mode: local_only`.
 - Real GPU jobs are config-gated: `project_config/experiment_budget.yaml` still sets `allow_real_gpu_jobs: false`.
 - Process submission is config-gated: `project_config/experiment_budget.yaml` still sets `allow_process_submission: false`.

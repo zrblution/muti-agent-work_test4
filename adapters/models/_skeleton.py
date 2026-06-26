@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from adapters.inventory import missing_required_files
+from adapters.inventory import missing_required_files, unsafe_required_files
 from adapters.path_resolution import resolve_env_path
 from stable_core.schemas.common import GenerationOutput, GenerationRequest, ValidationReport
 
@@ -46,6 +46,10 @@ class ValidateOnlyModelAdapter:
             return ValidationReport(status="needs_setup", checks=checks, summary=f"{self.display_name} path is not a directory; no download or load was attempted.")
         checks.append({"name": "model_path", "status": "passed", "raw_path": resolved.raw_value, "path": str(model_path)})
         required_files = list(self.config.get("required_files") or ["config.json"])
+        unsafe = unsafe_required_files(required_files)
+        if unsafe:
+            checks.append({"name": "model_inventory", "status": "failed", "path": str(model_path), "unsafe_files": unsafe})
+            return ValidationReport(status="failed", checks=checks, summary=f"{self.display_name} model inventory config contains unsafe required file paths; no download or load was attempted.")
         missing = missing_required_files(model_path, required_files)
         if missing:
             checks.append({"name": "model_inventory", "status": "needs_setup", "path": str(model_path), "missing_files": missing})

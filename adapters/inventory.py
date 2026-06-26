@@ -1,9 +1,19 @@
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 
 BENCHMARK_METADATA_SUFFIXES = {".json", ".jsonl", ".tsv", ".csv", ".txt", ".yaml", ".yml"}
+
+
+def unsafe_required_files(required_files: list[str]) -> list[str]:
+    unsafe: list[str] = []
+    for name in required_files:
+        path = Path(name)
+        windows_path = PureWindowsPath(name)
+        if not name or path.is_absolute() or windows_path.is_absolute() or ".." in path.parts or ".." in windows_path.parts:
+            unsafe.append(name)
+    return unsafe
 
 
 def missing_required_files(root: Path, required_files: list[str]) -> list[str]:

@@ -115,6 +115,33 @@ def test_benchmark_inventory_accepts_configured_required_files(tmp_path: Path) -
     assert report.checks[-1]["required_files"] == ["annotations/random.json"]
 
 
+def test_model_inventory_rejects_parent_traversal_required_files(tmp_path: Path) -> None:
+    model_path = tmp_path / "model"
+    model_path.mkdir()
+    (tmp_path / "outside-config.json").write_text("{}", encoding="utf-8")
+
+    report = Qwen3VLAdapter({"path": str(model_path), "required_files": ["../outside-config.json"]}).validate_environment()
+
+    assert report.status == "failed"
+    assert report.checks[-1]["name"] == "model_inventory"
+    assert report.checks[-1]["status"] == "failed"
+    assert report.checks[-1]["unsafe_files"] == ["../outside-config.json"]
+
+
+def test_benchmark_inventory_rejects_absolute_required_files(tmp_path: Path) -> None:
+    benchmark_path = tmp_path / "pope"
+    benchmark_path.mkdir()
+    outside_file = tmp_path / "outside.json"
+    outside_file.write_text("[]\n", encoding="utf-8")
+
+    report = POPEAdapter({"path": str(benchmark_path), "required_files": [str(outside_file)]}).validate_paths()
+
+    assert report.status == "failed"
+    assert report.checks[-1]["name"] == "benchmark_inventory"
+    assert report.checks[-1]["status"] == "failed"
+    assert report.checks[-1]["unsafe_files"] == [str(outside_file)]
+
+
 def test_validate_only_skeletons_resolve_env_templates(monkeypatch, tmp_path: Path) -> None:
     model_root = tmp_path / "model_root"
     benchmark_root = tmp_path / "benchmark_root"

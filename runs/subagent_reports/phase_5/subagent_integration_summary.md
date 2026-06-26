@@ -60,6 +60,10 @@ This removes the previous "existing empty directory passes validation" limitatio
 
 Benchmark validation now honors `required_files` when a benchmark config provides that list. If the list is empty, validation keeps the generic shallow metadata/sample discovery fallback required by the spec, so Codex still does not assume POPE-specific filenames before preflight discovery.
 
+## Inventory Path Safety Follow-Up
+
+Configured model and benchmark `required_files` entries now must be relative paths confined to the resolved model or benchmark root. Absolute paths, Windows absolute paths, empty entries, and `..` parent traversal return `failed` with `unsafe_files` before any file existence check. This prevents a config from satisfying inventory validation by pointing at files elsewhere on the server filesystem.
+
 ## Run Artifact Validation Follow-Up
 
 The framework now exposes `validate-run --run-id <run_id>` for recorded run directories. It validates safe run IDs, run manifests, declared output paths, required failure artifacts for `failed` or `needs_attention` runs, and `artifact_manifest.json` hashes.

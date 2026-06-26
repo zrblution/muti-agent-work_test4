@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from adapters.inventory import BENCHMARK_METADATA_SUFFIXES, discover_benchmark_metadata, missing_required_files
+from adapters.inventory import BENCHMARK_METADATA_SUFFIXES, discover_benchmark_metadata, missing_required_files, unsafe_required_files
 from adapters.path_resolution import resolve_env_path
 from stable_core.schemas.common import GenerationOutput, GenerationRequest, ValidationReport
 
@@ -44,6 +44,10 @@ class ValidateOnlyBenchmarkAdapter:
         checks.append({"name": "benchmark_path", "status": "passed", "raw_path": resolved.raw_value, "path": str(benchmark_path)})
         required_files = list(self.config.get("required_files") or [])
         if required_files:
+            unsafe = unsafe_required_files(required_files)
+            if unsafe:
+                checks.append({"name": "benchmark_inventory", "status": "failed", "path": str(benchmark_path), "unsafe_files": unsafe})
+                return ValidationReport(status="failed", checks=checks, summary=f"{self.display_name} configured inventory contains unsafe required file paths; no benchmark was run.")
             missing = missing_required_files(benchmark_path, required_files)
             if missing:
                 checks.append({"name": "benchmark_inventory", "status": "needs_setup", "path": str(benchmark_path), "missing_files": missing})
