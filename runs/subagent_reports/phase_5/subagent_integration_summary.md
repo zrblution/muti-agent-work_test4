@@ -61,3 +61,7 @@ This removes the previous "existing empty directory passes validation" limitatio
 The framework now exposes `validate-run --run-id <run_id>` for recorded run directories. It validates safe run IDs, run manifests, declared output paths, required failure artifacts for `failed` or `needs_attention` runs, and `artifact_manifest.json` hashes.
 
 This closes the Task 011 validation-command gap without re-running the model or benchmark. It does not change the remaining Phase 5 blocker: the real Qwen3-VL + POPE smoke still needs approved paths, inventory, and execution authorization.
+
+## Failure Diagnostics Follow-Up
+
+New `run-landmark` `needs_attention` bundles now include `stdout_tail`, `stderr_tail`, `reproduction_command`, `config_snapshot`, and `state_snapshot` in `failure.json`. This aligns the landmark gate with the AGENTS.md failure-preservation requirements while keeping real model and benchmark execution disabled until the validation and authorization gates pass.

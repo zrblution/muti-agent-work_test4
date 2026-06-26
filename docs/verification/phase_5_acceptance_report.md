@@ -21,6 +21,8 @@ Inventory update: model validation now requires an offline `config.json` in the 
 
 Run-validation update: `validate-run --run-id` now validates recorded run directories without executing models or benchmarks. It checks safe run IDs, manifests, declared outputs, failure artifacts for `failed`/`needs_attention` runs, and artifact hashes.
 
+Failure-diagnostics update: new `run-landmark` `needs_attention` bundles now include `stdout_tail`, `stderr_tail`, `reproduction_command`, `config_snapshot`, and `state_snapshot` in `failure.json`, while still preserving `stdout.log`, `stderr.log`, `exit_code.txt`, `env_snapshot.json`, and `git_commit.txt`.
+
 ## Evidence
 
 - `validate-config`: `passed`
@@ -35,6 +37,8 @@ Run-validation update: `validate-run --run-id` now validates recorded run direct
 - `validate-benchmark pope` with a temporary `REMOTE_BENCHMARK_ROOT` pointing to a `POPE` directory containing `samples.jsonl`: `passed`
 - `validate-run --run-id qwen3vl_pope_limit8_gate`: `passed`, validating the recorded `needs_attention` artifact bundle
 - `validate-run --run-id fake_phase4_acceptance`: `passed`, validating the recorded fake acceptance artifact bundle
+- temporary diagnostic `run-landmark` rerun with missing env vars: exit code `1`, JSON status `needs_attention`, no real model or benchmark execution
+- `validate-run --run-id qwen_pope_gate_diagnostic_check`: `passed` before the temporary run directory was removed
 
 Logs are stored in `runs/phase_5_gate_logs/`.
 

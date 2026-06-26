@@ -10,6 +10,7 @@ from stable_core.storage.run_directory import (
     collect_env_snapshot,
     current_git_commit,
     ensure_run_dir,
+    tail_text,
     utc_now,
     validate_run_id,
     write_json,
@@ -125,7 +126,11 @@ def _write_needs_attention(
         "finished_at": finished_at,
         "status": "needs_attention",
         "git_commit": current_git_commit(Path.cwd()),
-        "outputs": {},
+        "outputs": {
+            "stdout": "stdout.log",
+            "stderr": "stderr.log",
+            "exit_code": "exit_code.txt",
+        },
         "missing_outputs": {
             "raw_outputs": failure_message,
             "normalized_outputs": "No raw outputs exist to normalize.",
@@ -139,6 +144,12 @@ def _write_needs_attention(
         "failure_type": failure_type,
         "failure_message": failure_message,
         "gate_failures": gate_failures,
+        "stack_trace": None,
+        "stdout_tail": _tail_file(run_dir / "stdout.log"),
+        "stderr_tail": _tail_file(run_dir / "stderr.log"),
+        "reproduction_command": _reproduction_command(command),
+        "config_snapshot": command,
+        "state_snapshot": run_manifest,
         "executed_real_model": False,
         "executed_real_benchmark": False,
         "recommended_next_action": [
@@ -156,6 +167,7 @@ def _write_needs_attention(
         "Status: `needs_attention`\n\n"
         f"- failure_type: `{failure_type}`\n"
         f"- failure_message: {failure_message}\n"
+        f"- reproduction_command: `{failure['reproduction_command']}`\n"
         "- executed_real_model: `false`\n"
         "- executed_real_benchmark: `false`\n",
     )
@@ -168,3 +180,20 @@ def _write_needs_attention(
         "executed_real_model": False,
         "executed_real_benchmark": False,
     }
+
+
+def _reproduction_command(command: dict[str, Any]) -> str:
+    return (
+        "python -m stable_core.cli run-landmark "
+        f"--model {command['model_id']} "
+        f"--benchmark {command['benchmark_id']} "
+        f"--limit {command['limit']} "
+        f"--instrumentation {command['instrumentation_mode']} "
+        f"--run-id {command['run_id']}"
+    )
+
+
+def _tail_file(path: Path) -> str:
+    if not path.exists():
+        return ""
+    return tail_text(path.read_text(encoding="utf-8"))

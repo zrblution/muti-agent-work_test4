@@ -38,7 +38,14 @@ def test_run_landmark_records_needs_attention_without_real_execution(tmp_path: P
     assert result["executed_real_model"] is False
     assert result["executed_real_benchmark"] is False
     assert failure["failure_type"] == "landmark_validation_gate_not_ready"
+    assert failure["stdout_tail"] == ""
+    assert "Landmark validation gates did not pass" in failure["stderr_tail"]
+    assert "run-landmark --model qwen3_vl_2b_instruct --benchmark pope --limit 8" in failure["reproduction_command"]
+    assert failure["state_snapshot"]["status"] == "needs_attention"
     assert manifest["status"] == "needs_attention"
+    assert manifest["outputs"]["stdout"] == "stdout.log"
+    assert manifest["outputs"]["stderr"] == "stderr.log"
+    assert manifest["outputs"]["exit_code"] == "exit_code.txt"
     assert not (run_dir / "raw_outputs.jsonl").exists()
     assert (run_dir / "failure_report.md").exists()
 

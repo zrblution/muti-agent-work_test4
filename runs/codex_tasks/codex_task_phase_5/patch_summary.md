@@ -11,6 +11,7 @@ This phase now contains two related records:
 - a follow-up config improvement resolving `${REMOTE_MODEL_ROOT}` and `${REMOTE_BENCHMARK_ROOT}` path templates without reading `.env`.
 - a follow-up inventory improvement that rejects empty model and benchmark directories before any real execution can start.
 - a follow-up run-artifact validator for auditing recorded run directories without re-running models or benchmarks.
+- a follow-up failure-diagnostics improvement for `run-landmark` `needs_attention` bundles.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -31,6 +32,7 @@ This phase now contains two related records:
 - offline model inventory validation requiring `config.json` by default
 - offline benchmark inventory discovery for shallow metadata/sample files
 - recorded run validation for manifests, declared outputs, failure artifacts, and artifact hashes
+- `run-landmark` `failure.json` now includes log tails, reproduction command, config snapshot, and state snapshot
 
 ## Gate Commands
 
@@ -60,6 +62,13 @@ This phase now contains two related records:
 - `python -m stable_core.cli validate-run --run-id qwen3vl_pope_limit8_gate`
   - exit code: `0`
   - status: `passed`
+- `python -m stable_core.cli run-landmark --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --run-id qwen_pope_gate_diagnostic_check`
+  - exit code: `1`
+  - status: `needs_attention`
+  - purpose: verify enhanced failure diagnostics on a temporary run directory
+- `python -m stable_core.cli validate-run --run-id qwen_pope_gate_diagnostic_check`
+  - exit code: `0`
+  - status: `passed`
 
 ## Artifacts Added
 
@@ -78,6 +87,8 @@ This phase now contains two related records:
 - `python -m pytest tests/test_landmark_gate.py -q`: `2 passed`.
 - `python -m pytest tests/test_runner.py tests/test_landmark_gate.py tests/test_fake_adapters.py -q`: `17 passed`.
 - `python -m pytest tests/test_runner.py -q`: `8 passed`.
+- `python -m pytest tests/test_landmark_gate.py tests/test_runner.py -q`: `10 passed`.
+- `python -m pytest tests/test_landmark_gate.py -q`: `2 passed` after the failure-diagnostics assertion update.
 - `python -m pytest -q`: `53 passed`.
 - CLI validation with unset path env vars reports the missing env var names.
 - CLI validation with temporary existing but empty model and benchmark directories returns `needs_setup` at the inventory gate.
