@@ -47,7 +47,8 @@ def build_phase5_readiness_bundle(
             "benchmark_id": benchmark_id,
             "limit": limit,
             "instrumentation_mode": instrumentation_mode,
-        }
+        },
+        plan_only=True,
     )
     status = _readiness_status(checks, execution_authorization)
     bundle = {

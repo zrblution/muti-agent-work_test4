@@ -102,7 +102,13 @@ This keeps the whitelisted target self-gating even if a future process-submittin
 
 ## Process Submission Gate Follow-Up
 
-`project_config/experiment_budget.yaml` now includes `allow_process_submission: false` by default. `RemoteRunner.submit()` reports this as a distinct `process_submission` gate failure before any process could be submitted. When remote mode, GPU budget, and process submission are all opened in tests, the runner still stops at `remote_executor` with `submits_process: false` because no reviewed process-submitting executor exists.
+`project_config/experiment_budget.yaml` now includes `allow_process_submission: false` by default. `RemoteRunner.submit()` reports this as a distinct `process_submission` gate failure before any process could be submitted.
+
+## Reviewed Subprocess Executor Follow-Up
+
+`RemoteRunner.submit()` now includes a reviewed synchronous subprocess path for whitelisted scripts only. It can submit a process only after `runner_mode: remote_enabled`, `allow_real_gpu_jobs: true`, and `allow_process_submission: true` are all set, and only when the caller does not request `plan_only`.
+
+`phase5-readiness` always calls `RemoteRunner.submit(..., plan_only=True)`, so readiness bundles stay read-only even if config gates are opened. In tests with temporary valid inventory and a temporary run root, the executor launches only `experiments/landmark_baselines/run_landmark.py`; the worker records `landmark_worker_not_implemented`, exits nonzero, and still does not load models, run benchmarks, or write `raw_outputs.jsonl`.
 
 ## Phase 5 Readiness Bundle Follow-Up
 

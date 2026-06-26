@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+import subprocess
+import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -126,7 +129,7 @@ class RemoteRunner:
             return ValidationReport(status="failed", checks=[{"name": "remote_action", "error": str(exc)}], summary="Remote action rejected")
         return ValidationReport(status="passed", checks=[{"name": "remote_action", "status": "passed"}], summary="Remote action accepted")
 
-    def submit(self, experiment_spec: dict[str, Any]) -> dict[str, Any]:
+    def submit(self, experiment_spec: dict[str, Any], *, plan_only: bool = False) -> dict[str, Any]:
         report = self.validate(experiment_spec)
         if report.status != "passed":
             return {"status": "failed", "validation": report.to_dict()}
@@ -165,31 +168,62 @@ class RemoteRunner:
                     "actual": allow_process_submission,
                 }
             )
-        execution_plan = _build_execution_plan(experiment_spec)
+        execution_plan = _build_execution_plan(experiment_spec, submits_process=False)
         if gate_failures:
             return {
                 "status": "needs_attention",
                 "runner_mode": runner_mode,
                 "allow_real_gpu_jobs": allow_real_gpu_jobs,
                 "allow_process_submission": allow_process_submission,
+                "submitted_process": False,
                 "execution_plan": execution_plan,
                 "gate_failures": gate_failures,
                 "message": "Remote execution gate is closed by configuration.",
             }
+        if plan_only:
+            return {
+                "status": "needs_attention",
+                "runner_mode": runner_mode,
+                "allow_real_gpu_jobs": allow_real_gpu_jobs,
+                "allow_process_submission": allow_process_submission,
+                "submitted_process": False,
+                "execution_plan": execution_plan,
+                "gate_failures": [
+                    {
+                        "name": "plan_only",
+                        "status": "needs_attention",
+                        "message": "Execution plan requested without process submission.",
+                    }
+                ],
+                "message": "Remote execution plan generated without submitting a process.",
+            }
+        if action_name not in PROCESS_ACTIONS:
+            return {
+                "status": "needs_attention",
+                "runner_mode": runner_mode,
+                "allow_real_gpu_jobs": allow_real_gpu_jobs,
+                "allow_process_submission": allow_process_submission,
+                "submitted_process": False,
+                "execution_plan": execution_plan,
+                "gate_failures": [
+                    {
+                        "name": "non_process_action",
+                        "status": "needs_attention",
+                        "message": "This remote action is not handled by the subprocess executor.",
+                    }
+                ],
+                "message": "Remote action is valid but is not a process-submitting action.",
+            }
+        execution_plan = _build_execution_plan(experiment_spec, submits_process=True)
+        process_result = _submit_process(execution_plan)
         return {
-            "status": "needs_attention",
+            "status": _status_from_process(process_result),
             "runner_mode": runner_mode,
             "allow_real_gpu_jobs": allow_real_gpu_jobs,
             "allow_process_submission": allow_process_submission,
             "execution_plan": execution_plan,
-            "gate_failures": [
-                {
-                    "name": "remote_executor",
-                    "status": "needs_attention",
-                    "message": "No reviewed remote executor implementation is enabled yet.",
-                }
-            ],
-            "message": "Remote execution config gates are open, but no reviewed executor is implemented.",
+            "gate_failures": [],
+            **process_result,
         }
 
     def poll(self, job_id: str) -> dict[str, Any]:
@@ -210,7 +244,7 @@ def _as_bool(value: Any, *, default: bool) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _build_execution_plan(experiment_spec: dict[str, Any]) -> dict[str, Any]:
+def _build_execution_plan(experiment_spec: dict[str, Any], *, submits_process: bool) -> dict[str, Any]:
     action = str(experiment_spec.get("action"))
     allowed_script = str(experiment_spec.get("allowed_script"))
     experiment_id = str(experiment_spec.get("experiment_id") or _default_experiment_id(experiment_spec))
@@ -220,7 +254,7 @@ def _build_execution_plan(experiment_spec: dict[str, Any]) -> dict[str, Any]:
         "allowed_script": allowed_script,
         "argv": _argv_for_action(experiment_spec, experiment_id),
         "cwd": ".",
-        "submits_process": False,
+        "submits_process": submits_process,
     }
     artifact_contract = _artifact_contract_for_action(action, allowed_script)
     if artifact_contract:
@@ -238,7 +272,7 @@ def _argv_for_action(experiment_spec: dict[str, Any], experiment_id: str) -> lis
     action = str(experiment_spec.get("action"))
     allowed_script = str(experiment_spec.get("allowed_script"))
     if action == "run_model_smoke_test" and allowed_script == "experiments/landmark_baselines/run_landmark.py":
-        return [
+        argv = [
             "python",
             allowed_script,
             "--model",
@@ -252,6 +286,9 @@ def _argv_for_action(experiment_spec: dict[str, Any], experiment_id: str) -> lis
             "--run-id",
             experiment_id,
         ]
+        if experiment_spec.get("runs_root") is not None:
+            argv.extend(["--runs-root", str(experiment_spec["runs_root"])])
+        return argv
     return ["python", allowed_script]
 
 
@@ -260,3 +297,46 @@ def _default_experiment_id(experiment_spec: dict[str, Any]) -> str:
     benchmark_id = str(experiment_spec.get("benchmark_id") or "benchmark")
     limit = str(experiment_spec.get("limit") or "all")
     return f"{model_id}_{benchmark_id}_limit{limit}"
+
+
+def _submit_process(execution_plan: dict[str, Any]) -> dict[str, Any]:
+    argv = list(execution_plan["argv"])
+    process_argv = [sys.executable, *argv[1:]] if argv and argv[0] == "python" else argv
+    completed = subprocess.run(
+        process_argv,
+        cwd=REPO_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    worker_payload = _parse_worker_payload(completed.stdout)
+    return {
+        "submitted_process": True,
+        "job_id": execution_plan["experiment_id"],
+        "exit_code": completed.returncode,
+        "stdout_tail": completed.stdout[-4000:],
+        "stderr_tail": completed.stderr[-4000:],
+        "worker_payload": worker_payload,
+        "message": "Whitelisted remote worker process completed.",
+    }
+
+
+def _parse_worker_payload(stdout: str) -> dict[str, Any]:
+    text = stdout.strip()
+    if not text:
+        return {"status": "failed", "error": "Worker produced no JSON stdout."}
+    try:
+        payload = json.loads(text.splitlines()[-1])
+    except json.JSONDecodeError as exc:
+        return {"status": "failed", "error": f"Worker stdout was not valid JSON: {exc}"}
+    return payload if isinstance(payload, dict) else {"status": "failed", "error": "Worker JSON stdout was not an object."}
+
+
+def _status_from_process(process_result: dict[str, Any]) -> str:
+    payload = process_result["worker_payload"]
+    payload_status = str(payload.get("status"))
+    if process_result["exit_code"] == 0 and payload_status == "succeeded":
+        return "passed"
+    if payload_status == "needs_attention":
+        return "needs_attention"
+    return "failed"

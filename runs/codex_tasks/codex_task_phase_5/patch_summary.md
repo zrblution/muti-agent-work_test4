@@ -30,6 +30,7 @@ This phase now contains two related records:
 - a follow-up landmark artifact contract in the reviewable RemoteRunner plan, covering success outputs, failure outputs, raw-output no-overwrite policy, and manifest-only large artifact policy.
 - a follow-up recorded artifact contract so landmark `needs_attention` manifests carry the same contract and `validate-run` checks required failure outputs.
 - a follow-up worker-side validation gate so the whitelisted worker checks model and benchmark readiness before reaching the current non-executing stub.
+- a follow-up reviewed synchronous subprocess executor that can only launch whitelisted scripts after all remote, GPU, and process-submission gates are explicitly opened, while readiness remains plan-only.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -76,6 +77,9 @@ This phase now contains two related records:
 - landmark `run_manifest.json` now includes `artifact_contract` for `needs_attention` bundles
 - `validate-run` now checks `artifact_contract_failure_outputs` for failed or `needs_attention` runs with a declared contract
 - `experiments/landmark_baselines/run_landmark.py` now calls validate-only model and benchmark gates before recording the current worker stub state
+- `RemoteRunner.submit(..., plan_only=True)` now returns a non-submitting plan even when config gates are open
+- `RemoteRunner.submit(...)` now runs the whitelisted worker subprocess only when remote mode, GPU budget, and process submission are all explicitly enabled
+- `phase5-readiness` now always calls `RemoteRunner.submit(..., plan_only=True)` so readiness bundles cannot submit processes
 
 ## Gate Commands
 
@@ -142,7 +146,14 @@ This phase now contains two related records:
   - gate failure: `process_submission`
 - `RemoteRunner.submit(...)` with remote mode, GPU budget, and process submission open
   - status: `needs_attention`
-  - gate failure: `remote_executor`
+  - with `plan_only=True`, gate failure: `plan_only`
+  - no process submitted
+- `RemoteRunner.submit(...)` with remote mode, GPU budget, process submission open, temporary valid inventory, and a temporary run root
+  - status: `needs_attention`
+  - submitted process: `true`
+  - exit code: `1`
+  - worker failure type: `landmark_worker_not_implemented`
+  - raw outputs: not written
 - `POPEAdapter({"required_files": ["annotations/random.json"]})`
   - missing file: `needs_setup`
   - present file: `passed`
@@ -288,6 +299,16 @@ This phase now contains two related records:
 - `python -m stable_core.cli phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_worker_validation_readiness_cli_smoke`: `needs_attention`, safety flags all false.
 - Expanded secret scan after adding worker-side validation: `passed`, no findings.
 - Large-file scan after adding worker-side validation: no files over 5 MB found.
+- `python -m pytest tests/test_runner.py::test_remote_runner_reaches_executor_gate_after_process_submission_gate_opens tests/test_runner.py::test_remote_runner_submits_whitelisted_worker_after_all_gates_open tests/test_runner.py::test_remote_runner_plan_only_does_not_submit_when_all_gates_open -q`: initially `3 failed`, then `3 passed` after adding `plan_only` and the gated subprocess executor.
+- `python -m pytest tests/test_runner.py tests/test_landmark_gate.py tests/test_config_cli.py -q`: `37 passed` after adding the gated subprocess executor and making `phase5-readiness` plan-only.
+- `python -m pytest tests/test_runner.py::test_remote_runner_does_not_submit_non_process_action_when_remote_gate_open -q`: initially `1 failed`, then `1 passed` after adding the `non_process_action` no-submit branch.
+- `python -m pytest tests/test_runner.py::test_remote_runner_does_not_submit_non_process_action_when_remote_gate_open tests/test_runner.py::test_remote_runner_reaches_executor_gate_after_process_submission_gate_opens tests/test_runner.py::test_remote_runner_submits_whitelisted_worker_after_all_gates_open tests/test_runner.py::test_remote_runner_plan_only_does_not_submit_when_all_gates_open -q`: `4 passed`.
+- `python -m pytest tests/test_runner.py tests/test_landmark_gate.py tests/test_config_cli.py -q`: `38 passed` after adding the gated subprocess executor and non-process no-submit branch.
+- `python -m pytest -q`: `82 passed` after adding the gated subprocess executor.
+- `python -m stable_core.cli validate-config`: `passed` after adding the gated subprocess executor.
+- `python -m stable_core.cli phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_executor_readiness_cli_smoke_final`: `needs_attention`, safety flags all false.
+- Expanded secret scan after adding the gated subprocess executor: `passed`, no findings.
+- Large-file scan after adding the gated subprocess executor: no files over 5 MB found.
 - `python -m stable_core.cli discover-model-inventory qwen3_vl_2b_instruct --output /tmp/phase5_qwen_inventory_discovery.json`: `needs_setup`, missing `REMOTE_MODEL_ROOT`, no config write, no load attempted.
 - `python -m pytest tests/test_fake_adapters.py -q`: `11 passed` after adding `discover-model-inventory`.
 - `python -m pytest tests/test_runner.py tests/test_landmark_gate.py -q`: `19 passed` after adding `discover-model-inventory`.

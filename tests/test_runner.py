@@ -187,13 +187,108 @@ def test_remote_runner_reaches_executor_gate_after_process_submission_gate_opens
             "benchmark_id": "pope",
             "limit": 8,
             "instrumentation_mode": "none",
-        }
+        },
+        plan_only=True,
     )
 
     assert result["status"] == "needs_attention"
     assert result["allow_process_submission"] is True
-    assert result["gate_failures"][0]["name"] == "remote_executor"
+    assert result["gate_failures"][0]["name"] == "plan_only"
     assert result["execution_plan"]["submits_process"] is False
+    assert "job_id" not in result
+
+
+def test_remote_runner_submits_whitelisted_worker_after_all_gates_open(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    server_config = tmp_path / "server.yaml"
+    budget_config = tmp_path / "experiment_budget.yaml"
+    runs_root = tmp_path / "runs"
+    model_root = tmp_path / "models"
+    benchmark_root = tmp_path / "benchmarks"
+    model_path = model_root / "Qwen3-VL-2B-Instruct"
+    benchmark_path = benchmark_root / "POPE"
+    model_path.mkdir(parents=True)
+    benchmark_path.mkdir(parents=True)
+    (model_path / "config.json").write_text("{}\n", encoding="utf-8")
+    (benchmark_path / "samples.jsonl").write_text("{}\n", encoding="utf-8")
+    monkeypatch.setenv("REMOTE_MODEL_ROOT", str(model_root))
+    monkeypatch.setenv("REMOTE_BENCHMARK_ROOT", str(benchmark_root))
+    server_config.write_text("server:\n  runner_mode: remote_enabled\n", encoding="utf-8")
+    budget_config.write_text(
+        "budget:\n  allow_real_gpu_jobs: true\n  allow_process_submission: true\n",
+        encoding="utf-8",
+    )
+
+    result = RemoteRunner(server_config=server_config, budget_config=budget_config).submit(
+        {
+            "experiment_id": "qwen3vl_pope_limit8_real_smoke",
+            "action": "run_model_smoke_test",
+            "allowed_script": "experiments/landmark_baselines/run_landmark.py",
+            "model_id": "qwen3_vl_2b_instruct",
+            "benchmark_id": "pope",
+            "limit": 8,
+            "instrumentation_mode": "none",
+            "runs_root": str(runs_root),
+        }
+    )
+
+    run_dir = runs_root / "qwen3vl_pope_limit8_real_smoke"
+    failure = json.loads((run_dir / "failure.json").read_text(encoding="utf-8"))
+
+    assert result["status"] == "needs_attention"
+    assert result["submitted_process"] is True
+    assert result["exit_code"] == 1
+    assert result["worker_payload"]["failure_type"] == "landmark_worker_not_implemented"
+    assert result["execution_plan"]["submits_process"] is True
+    assert failure["failure_type"] == "landmark_worker_not_implemented"
+    assert failure["executed_real_model"] is False
+    assert failure["executed_real_benchmark"] is False
+    assert not (run_dir / "raw_outputs.jsonl").exists()
+
+
+def test_remote_runner_plan_only_does_not_submit_when_all_gates_open(tmp_path: Path) -> None:
+    server_config = tmp_path / "server.yaml"
+    budget_config = tmp_path / "experiment_budget.yaml"
+    runs_root = tmp_path / "runs"
+    server_config.write_text("server:\n  runner_mode: remote_enabled\n", encoding="utf-8")
+    budget_config.write_text(
+        "budget:\n  allow_real_gpu_jobs: true\n  allow_process_submission: true\n",
+        encoding="utf-8",
+    )
+
+    result = RemoteRunner(server_config=server_config, budget_config=budget_config).submit(
+        {
+            "experiment_id": "qwen3vl_pope_limit8_real_smoke",
+            "action": "run_model_smoke_test",
+            "allowed_script": "experiments/landmark_baselines/run_landmark.py",
+            "model_id": "qwen3_vl_2b_instruct",
+            "benchmark_id": "pope",
+            "limit": 8,
+            "instrumentation_mode": "none",
+            "runs_root": str(runs_root),
+        },
+        plan_only=True,
+    )
+
+    assert result["status"] == "needs_attention"
+    assert result["gate_failures"][0]["name"] == "plan_only"
+    assert result["execution_plan"]["submits_process"] is False
+    assert result["submitted_process"] is False
+    assert not runs_root.exists()
+
+
+def test_remote_runner_does_not_submit_non_process_action_when_remote_gate_open(tmp_path: Path) -> None:
+    server_config = tmp_path / "server.yaml"
+    budget_config = tmp_path / "experiment_budget.yaml"
+    server_config.write_text("server:\n  runner_mode: remote_enabled\n", encoding="utf-8")
+    budget_config.write_text("budget:\n  allow_real_gpu_jobs: true\n  allow_process_submission: true\n", encoding="utf-8")
+
+    result = RemoteRunner(server_config=server_config, budget_config=budget_config).submit(
+        {"action": "poll_job", "experiment_id": "qwen3vl_pope_poll"}
+    )
+
+    assert result["status"] == "needs_attention"
+    assert result["submitted_process"] is False
+    assert result["gate_failures"][0]["name"] == "non_process_action"
     assert "job_id" not in result
 
 
