@@ -26,7 +26,8 @@ class Qwen3VLAdapter(ValidateOnlyModelAdapter):
             return report
 
         checks = list(report.checks)
-        runtime_check = _runtime_dependency_check(self.config)
+        runtime_report = self.validate_runtime_dependencies()
+        runtime_check = next(check for check in runtime_report.checks if check["name"] == "runtime_dependencies")
         checks.append(runtime_check)
         if runtime_check["status"] != "passed":
             return ValidationReport(
@@ -38,6 +39,23 @@ class Qwen3VLAdapter(ValidateOnlyModelAdapter):
             status="passed",
             checks=checks,
             summary=f"{self.display_name} path, inventory, and runtime dependencies are ready; no model was loaded.",
+        )
+
+    def validate_runtime_dependencies(self) -> ValidationReport:
+        runtime_check = _runtime_dependency_check(self.config)
+        status = "passed" if runtime_check["status"] == "passed" else "needs_setup"
+        summary = (
+            f"{self.display_name} runtime dependencies are ready; no model was loaded."
+            if status == "passed"
+            else f"{self.display_name} runtime dependencies need setup; no model was loaded."
+        )
+        return ValidationReport(
+            status=status,
+            checks=[
+                {"name": "load_attempted", "status": "not_attempted"},
+                runtime_check,
+            ],
+            summary=summary,
         )
 
     def load(self) -> object:

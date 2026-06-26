@@ -89,6 +89,22 @@ def test_qwen3_vl_validate_environment_checks_runtime_dependencies_without_loadi
     assert calls["model"] == []
 
 
+def test_qwen3_vl_validate_runtime_dependencies_does_not_require_model_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = _install_fake_qwen_runtime(monkeypatch)
+
+    report = Qwen3VLAdapter({"precision": "bf16"}).validate_runtime_dependencies()
+
+    runtime_check = next(check for check in report.checks if check["name"] == "runtime_dependencies")
+    assert report.status == "passed"
+    assert runtime_check["status"] == "passed"
+    assert runtime_check["processor_class"] == "FakeProcessor"
+    assert runtime_check["model_class"] == "FakeModel"
+    assert calls["processor"] == []
+    assert calls["model"] == []
+
+
 def test_qwen3_vl_validate_environment_reports_missing_transformers_dependency(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

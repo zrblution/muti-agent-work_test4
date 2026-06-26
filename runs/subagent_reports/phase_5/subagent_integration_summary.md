@@ -118,6 +118,12 @@ This enables the adapter contract only; it does not execute a real smoke by itse
 
 This moves runtime dependency gaps into `needs_setup` before the whitelisted worker reaches model loading, preserving the Phase 5 rule that missing dependencies must stop at `needs_attention` instead of hard-running a real smoke.
 
+## Runtime Diagnostics Follow-Up
+
+`validate-model-runtime <model_id>` now exposes model-specific runtime dependency checks without requiring model files or a configured model root. `phase5-readiness` includes the result as `model_runtime_dependencies`, so missing `REMOTE_MODEL_ROOT` no longer hides whether the Qwen execution environment has Torch, Transformers, processor, model-class, and dtype support ready.
+
+This is still read-only: it does not read `.env`, download model files, load weights, run generation, submit jobs, or write raw outputs.
+
 ## Worker Execution Loop Follow-Up
 
 The whitelisted worker now calls the model and benchmark runtime methods after validation and adapter runtime gates pass. The success path writes raw outputs, normalized outputs, metrics, failure cases, experiment summary, reproducibility notes, run manifest, and artifact manifest. It refuses to overwrite existing `raw_outputs.jsonl`.

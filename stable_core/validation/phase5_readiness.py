@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from experiments.fake.evaluator import validate_benchmark, validate_model
+from experiments.fake.evaluator import validate_benchmark, validate_model, validate_model_runtime
 from stable_core.config import validate_config
 from stable_core.runner.remote import RemoteRunner
 from stable_core.storage.run_directory import current_git_commit, utc_now, write_json, write_text
@@ -36,6 +36,7 @@ def build_phase5_readiness_bundle(
         "config": validate_config(),
         "model_inventory_discovery": discover_model_inventory(model_id),
         "benchmark_inventory_discovery": discover_benchmark_inventory(benchmark_id),
+        "model_runtime_dependencies": validate_model_runtime(model_id),
         "model_validation": validate_model(model_id),
         "benchmark_validation": validate_benchmark(benchmark_id),
     }
@@ -87,6 +88,8 @@ def _next_actions(checks: dict[str, dict[str, Any]], execution_authorization: di
     actions: list[str] = []
     if checks["model_validation"].get("status") != "passed":
         actions.append("Configure and populate the approved model path, then rerun validate-model.")
+    if checks["model_runtime_dependencies"].get("status") != "passed":
+        actions.append("Install or activate the approved model runtime dependencies, then rerun validate-model-runtime.")
     if checks["benchmark_validation"].get("status") != "passed":
         actions.append("Configure and populate the approved benchmark path, then rerun validate-benchmark.")
     if execution_authorization.get("status") != "passed":
@@ -104,7 +107,7 @@ def _do_not_continue_reason(
     if status == "passed":
         return None
     if any(check.get("status") != "passed" for check in checks.values()):
-        return "Required validation or inventory checks are not all passed."
+        return "Required validation, inventory, or runtime dependency checks are not all passed."
     if execution_authorization.get("status") != "passed":
         return "Remote execution authorization is not open."
     return "Phase 5 readiness is not complete."

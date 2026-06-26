@@ -48,6 +48,23 @@ def validate_model(model_id: str) -> dict[str, Any]:
     return {"model_id": model_id, **report.to_dict()}
 
 
+def validate_model_runtime(model_id: str) -> dict[str, Any]:
+    adapter_class = MODEL_ADAPTERS.get(model_id)
+    if adapter_class is None:
+        return {"model_id": model_id, "status": "failed", "checks": [], "summary": "Unknown model id."}
+    adapter = adapter_class(_config_entry(REPO_ROOT / "project_config" / "models.yaml", "models", model_id))
+    validator = getattr(adapter, "validate_runtime_dependencies", None)
+    if validator is None:
+        return {
+            "model_id": model_id,
+            "status": "skipped",
+            "checks": [{"name": "runtime_dependencies", "status": "skipped"}],
+            "summary": "No model-specific runtime dependency preflight is defined.",
+        }
+    report = validator()
+    return {"model_id": model_id, **report.to_dict()}
+
+
 def validate_benchmark(benchmark_id: str) -> dict[str, Any]:
     adapter_class = BENCHMARK_ADAPTERS.get(benchmark_id)
     if adapter_class is None:

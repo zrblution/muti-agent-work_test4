@@ -294,6 +294,10 @@ def test_phase5_readiness_cli_writes_needs_attention_bundle_without_env(tmp_path
     env = os.environ.copy()
     env.pop("REMOTE_MODEL_ROOT", None)
     env.pop("REMOTE_BENCHMARK_ROOT", None)
+    fake_runtime_path = _write_fake_qwen_runtime_modules(tmp_path / "fake_qwen_runtime")
+    env["PYTHONPATH"] = os.pathsep.join(
+        item for item in [fake_runtime_path, os.environ.get("PYTHONPATH", "")] if item
+    )
 
     result = run_cli(
         "phase5-readiness",
@@ -329,6 +333,7 @@ def test_phase5_readiness_cli_writes_needs_attention_bundle_without_env(tmp_path
     assert report["status"] == "needs_attention"
     assert report["checks"]["model_inventory_discovery"]["missing_env_var"] == "REMOTE_MODEL_ROOT"
     assert report["checks"]["benchmark_inventory_discovery"]["missing_env_var"] == "REMOTE_BENCHMARK_ROOT"
+    assert report["checks"]["model_runtime_dependencies"]["status"] == "passed"
     assert report["checks"]["model_validation"]["status"] == "needs_setup"
     assert report["checks"]["benchmark_validation"]["status"] == "needs_setup"
     assert report["execution_authorization"]["status"] == "needs_attention"
@@ -344,6 +349,26 @@ def test_phase5_readiness_cli_writes_needs_attention_bundle_without_env(tmp_path
         "raw_outputs_written": False,
         "write_config": False,
     }
+
+
+def test_validate_model_runtime_cli_does_not_require_model_path(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env.pop("REMOTE_MODEL_ROOT", None)
+    fake_runtime_path = _write_fake_qwen_runtime_modules(tmp_path / "fake_qwen_runtime")
+    env["PYTHONPATH"] = os.pathsep.join(
+        item for item in [fake_runtime_path, os.environ.get("PYTHONPATH", "")] if item
+    )
+
+    result = run_cli("validate-model-runtime", "qwen3_vl_2b_instruct", env=env)
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    runtime_check = next(check for check in payload["checks"] if check["name"] == "runtime_dependencies")
+    assert payload["command"] == "validate-model-runtime"
+    assert payload["model_id"] == "qwen3_vl_2b_instruct"
+    assert payload["status"] == "passed"
+    assert runtime_check["status"] == "passed"
+    assert runtime_check["load_attempted"] is False
 
 
 def test_phase5_readiness_cli_keeps_execution_closed_after_inventory_passes(tmp_path: Path) -> None:
@@ -387,6 +412,7 @@ def test_phase5_readiness_cli_keeps_execution_closed_after_inventory_passes(tmp_
         check for check in report["checks"]["model_validation"]["checks"] if check["name"] == "runtime_dependencies"
     )
     assert report["checks"]["model_validation"]["status"] == "passed"
+    assert report["checks"]["model_runtime_dependencies"]["status"] == "passed"
     assert runtime_check["status"] == "passed"
     assert report["checks"]["benchmark_validation"]["status"] == "passed"
     assert report["checks"]["model_inventory_discovery"]["status"] == "passed"

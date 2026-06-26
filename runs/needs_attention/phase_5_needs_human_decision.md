@@ -20,6 +20,7 @@ Phase 5: minimal real smoke for `qwen3_vl_2b_instruct` + `pope` with `limit=8` a
 - With remote mode and GPU budget open but process submission closed in tests, `RemoteRunner.submit()` returns a whitelisted `execution_plan` targeting `experiments/landmark_baselines/run_landmark.py` with `submits_process: false` and a `process_submission` gate failure.
 - The whitelisted worker entry point exists, is non-recursive, and now has a reviewed execution loop that calls Qwen3-VL and POPE runtime methods after validation and process-submission gates pass. With missing Qwen runtime dependencies it records `landmark_worker_validation_gate_not_ready`; with monkeypatched runtime adapters it writes the full success artifact set. No real server smoke has been accepted yet.
 - `Qwen3VLAdapter.validate_environment()` now checks Transformers, Torch, `AutoProcessor`, a supported Qwen-compatible model class, and precision dtype support after offline inventory validation. Missing dependencies return `needs_setup` before model loading.
+- `validate-model-runtime qwen3_vl_2b_instruct` now reports Qwen runtime dependency status without requiring `REMOTE_MODEL_ROOT` or model files, and `phase5-readiness` includes the result as `model_runtime_dependencies`.
 
 ## Human Decisions Required
 
@@ -34,6 +35,7 @@ Phase 5: minimal real smoke for `qwen3_vl_2b_instruct` + `pope` with `limit=8` a
 
 ```bash
 python -m stable_core.cli validate-config
+python -m stable_core.cli validate-model-runtime qwen3_vl_2b_instruct
 python -m stable_core.cli validate-model qwen3_vl_2b_instruct
 python -m stable_core.cli validate-benchmark pope
 python -m stable_core.cli validate-run --run-id qwen3vl_pope_limit8_gate_diagnostics

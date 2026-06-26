@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Sequence
 
 from research_tools.baseline_indexer import research_status, write_baseline_reports
-from experiments.fake.evaluator import run_fake_eval, validate_benchmark, validate_model
+from experiments.fake.evaluator import run_fake_eval, validate_benchmark, validate_model, validate_model_runtime
 from experiments.landmark_baselines.runner import run_landmark
 from stable_core.config import export_schemas, list_agents, list_benchmarks, list_models, validate_config
 from stable_core.evidence.registry import add_record_from_args, init_registry, list_registry
@@ -89,6 +89,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     validate_model_parser = subparsers.add_parser("validate-model", help="Validate a configured model without loading weights.")
     validate_model_parser.add_argument("model_id")
+
+    validate_model_runtime_parser = subparsers.add_parser("validate-model-runtime", help="Validate model runtime dependencies without requiring model files or loading weights.")
+    validate_model_runtime_parser.add_argument("model_id")
 
     discover_model_inventory_parser = subparsers.add_parser("discover-model-inventory", help="Discover model metadata candidates without loading weights or modifying config.")
     discover_model_inventory_parser.add_argument("model_id")
@@ -210,6 +213,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "validate-model":
         report = validate_model(args.model_id)
         print(json.dumps({"command": "validate-model", **report}, ensure_ascii=False))
+        return _exit_code(str(report["status"]))
+    if args.command == "validate-model-runtime":
+        report = validate_model_runtime(args.model_id)
+        print(json.dumps({"command": "validate-model-runtime", **report}, ensure_ascii=False))
         return _exit_code(str(report["status"]))
     if args.command == "discover-model-inventory":
         report = discover_model_inventory(args.model_id, output=args.output, max_files=args.max_files)
