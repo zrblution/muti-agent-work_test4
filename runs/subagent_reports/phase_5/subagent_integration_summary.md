@@ -108,15 +108,21 @@ When runtime methods are missing, direct invocation records `failure_type: landm
 
 ## Qwen3-VL Runtime Follow-Up
 
-`Qwen3VLAdapter` now implements delayed-import local runtime methods. `load()` validates approved local inventory before importing Transformers/Torch, loads the processor and model with `local_files_only: true`, and honors configured precision and device map. `generate()` builds a local-image multimodal chat request, decodes only newly generated tokens, and returns a `GenerationOutput` carrying model, benchmark, sample, and generation metadata. `unload()` releases adapter references.
+`Qwen3VLAdapter` now implements local runtime methods. `load()` validates approved local inventory and runtime dependencies first, loads the processor and model with `local_files_only: true`, and honors configured precision and device map. `generate()` builds a local-image multimodal chat request, decodes only newly generated tokens, and returns a `GenerationOutput` carrying model, benchmark, sample, and generation metadata. `unload()` releases adapter references.
 
 This enables the adapter contract only; it does not execute a real smoke by itself.
+
+## Qwen3-VL Dependency Preflight Follow-Up
+
+`Qwen3VLAdapter.validate_environment()` now adds a no-load `runtime_dependencies` check after local path and inventory validation pass. It checks Transformers, Torch, `AutoProcessor`, a supported Qwen-compatible model class, and configured precision dtype support without calling `from_pretrained`, downloading files, loading weights, or generating outputs.
+
+This moves runtime dependency gaps into `needs_setup` before the whitelisted worker reaches model loading, preserving the Phase 5 rule that missing dependencies must stop at `needs_attention` instead of hard-running a real smoke.
 
 ## Worker Execution Loop Follow-Up
 
 The whitelisted worker now calls the model and benchmark runtime methods after validation and adapter runtime gates pass. The success path writes raw outputs, normalized outputs, metrics, failure cases, experiment summary, reproducibility notes, run manifest, and artifact manifest. It refuses to overwrite existing `raw_outputs.jsonl`.
 
-Execution exceptions now record `failure_type: landmark_worker_execution_failed` with stdout, stderr, exit code, env snapshot, failure report, and artifact manifest. This provides the reviewed real-execution failure bundle shape needed for Phase 5 without accepting placeholder inventory as a successful smoke.
+Execution exceptions now record `failure_type: landmark_worker_execution_failed` with stdout, stderr, exit code, env snapshot, failure report, and artifact manifest. This provides the reviewed real-execution failure bundle shape needed for Phase 5 without accepting incomplete setup as a successful smoke.
 
 ## POPE Runtime Follow-Up
 
@@ -132,7 +138,7 @@ With temporary valid inventory, the worker runtime gate now passes for the curre
 
 `RemoteRunner.submit()` now includes a reviewed synchronous subprocess path for whitelisted scripts only. It can submit a process only after `runner_mode: remote_enabled`, `allow_real_gpu_jobs: true`, and `allow_process_submission: true` are all set, and only when the caller does not request `plan_only`.
 
-`phase5-readiness` always calls `RemoteRunner.submit(..., plan_only=True)`, so readiness bundles stay read-only even if config gates are opened. In tests with temporary placeholder inventory and a temporary run root, the executor launches only `experiments/landmark_baselines/run_landmark.py`; the worker records `landmark_worker_execution_failed`, exits nonzero, preserves diagnostics, and does not write `raw_outputs.jsonl`.
+`phase5-readiness` always calls `RemoteRunner.submit(..., plan_only=True)`, so readiness bundles stay read-only even if config gates are opened. In tests with temporary inventory, missing Qwen runtime dependencies, and a temporary run root, the executor launches only `experiments/landmark_baselines/run_landmark.py`; the worker records `landmark_worker_validation_gate_not_ready`, exits nonzero, preserves diagnostics, and does not write `raw_outputs.jsonl`.
 
 ## Phase 5 Readiness Bundle Follow-Up
 

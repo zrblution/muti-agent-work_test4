@@ -6,6 +6,7 @@ import pytest
 from adapters.benchmarks.fake import FakeBenchmarkAdapter
 from adapters.benchmarks.pope import POPEAdapter
 from adapters.models.fake import FakeModelAdapter
+from adapters.models.internvl import InternVLAdapter
 from adapters.models.qwen3_vl import Qwen3VLAdapter
 from stable_core.schemas.common import GenerationOutput
 
@@ -68,7 +69,7 @@ def test_validate_only_skeletons_use_configured_paths(tmp_path: Path) -> None:
     (model_path / "config.json").write_text("{}", encoding="utf-8")
     (benchmark_path / "samples.jsonl").write_text("{}", encoding="utf-8")
 
-    model_report = Qwen3VLAdapter({"path": str(model_path), "download_allowed": False}).validate_environment()
+    model_report = InternVLAdapter({"path": str(model_path), "download_allowed": False}).validate_environment()
     benchmark_report = POPEAdapter({"path": str(benchmark_path)}).validate_paths()
 
     assert model_report.status == "passed"
@@ -259,7 +260,7 @@ def test_validate_only_skeletons_resolve_env_templates(monkeypatch, tmp_path: Pa
     monkeypatch.setenv("REMOTE_MODEL_ROOT", str(model_root))
     monkeypatch.setenv("REMOTE_BENCHMARK_ROOT", str(benchmark_root))
 
-    model_report = Qwen3VLAdapter({"local_path": "${REMOTE_MODEL_ROOT}/Qwen3-VL-2B-Instruct"}).validate_environment()
+    model_report = InternVLAdapter({"local_path": "${REMOTE_MODEL_ROOT}/Qwen3-VL-2B-Instruct"}).validate_environment()
     benchmark_report = POPEAdapter({"path": "${REMOTE_BENCHMARK_ROOT}/POPE"}).validate_paths()
 
     assert model_report.status == "passed"
@@ -269,7 +270,7 @@ def test_validate_only_skeletons_resolve_env_templates(monkeypatch, tmp_path: Pa
 
 
 def test_validate_only_skeletons_report_missing_env_templates() -> None:
-    model_report = Qwen3VLAdapter({"local_path": "${MISSING_MODEL_ROOT}/Qwen3-VL-2B-Instruct"}).validate_environment()
+    model_report = InternVLAdapter({"local_path": "${MISSING_MODEL_ROOT}/Qwen3-VL-2B-Instruct"}).validate_environment()
     benchmark_report = POPEAdapter({"path": "${MISSING_BENCHMARK_ROOT}/POPE"}).validate_paths()
 
     assert model_report.status == "needs_setup"

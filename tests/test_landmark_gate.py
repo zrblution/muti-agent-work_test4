@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 import sys
+import types
 import uuid
 from pathlib import Path
 
@@ -14,6 +15,26 @@ from stable_core.storage.run_validator import validate_run_artifacts
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _install_fake_qwen_dependency_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeTorch:
+        bfloat16 = "bf16-dtype"
+        float16 = "fp16-dtype"
+        float32 = "fp32-dtype"
+
+    class FakeProcessor:
+        pass
+
+    class FakeModel:
+        pass
+
+    monkeypatch.setitem(sys.modules, "torch", FakeTorch)
+    monkeypatch.setitem(
+        sys.modules,
+        "transformers",
+        types.SimpleNamespace(AutoProcessor=FakeProcessor, AutoModelForMultimodalLM=FakeModel),
+    )
 
 
 def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
@@ -87,6 +108,7 @@ def test_run_landmark_manifest_carries_artifact_contract_for_validation(tmp_path
 
 
 def test_run_landmark_reports_remote_gate_after_validation_passes(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _install_fake_qwen_dependency_runtime(monkeypatch)
     model_root = tmp_path / "models"
     benchmark_root = tmp_path / "benchmarks"
     model_path = model_root / "Qwen3-VL-2B-Instruct"
@@ -121,6 +143,7 @@ def test_run_landmark_reports_remote_gate_after_validation_passes(monkeypatch: p
 
 
 def test_run_landmark_remote_plan_preserves_requested_run_id(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _install_fake_qwen_dependency_runtime(monkeypatch)
     model_root = tmp_path / "models"
     benchmark_root = tmp_path / "benchmarks"
     model_path = model_root / "Qwen3-VL-2B-Instruct"
@@ -362,9 +385,9 @@ def test_landmark_worker_script_records_execution_failure_without_reentering_gat
 
     assert result.returncode == 1
     assert payload["status"] == "needs_attention"
-    assert payload["failure_type"] == "landmark_worker_execution_failed"
-    assert failure["failure_type"] == "landmark_worker_execution_failed"
-    assert {item["gate"] for item in failure["gate_failures"]} == {"worker-execution"}
+    assert payload["failure_type"] == "landmark_worker_validation_gate_not_ready"
+    assert failure["failure_type"] == "landmark_worker_validation_gate_not_ready"
+    assert {item["gate"] for item in failure["gate_failures"]} == {"validate-model"}
     assert failure["executed_real_model"] is False
     assert failure["executed_real_benchmark"] is False
     assert failure["stderr_tail"]

@@ -33,8 +33,9 @@ This phase now contains two related records:
 - a follow-up reviewed synchronous subprocess executor that can only launch whitelisted scripts after all remote, GPU, and process-submission gates are explicitly opened, while readiness remains plan-only.
 - a follow-up worker runtime gate that identifies validate-only runtime methods after inventory validation passes, without loading models or running benchmarks.
 - a follow-up POPE runtime adapter implementation for local JSON/JSONL sample parsing, canonical request construction, yes/no normalization, metrics, and failure-case extraction, without model execution.
-- a follow-up Qwen3-VL runtime adapter implementation for delayed-import local load/generate/unload methods, without invoking them during validation or readiness.
+- a follow-up Qwen3-VL runtime adapter implementation for local load/generate/unload methods with no-load dependency preflight during validation.
 - a follow-up reviewed worker execution loop that calls model and benchmark runtime methods, writes success artifacts exactly once, and records execution-failure bundles on exceptions.
+- a follow-up Qwen3-VL dependency preflight that checks Transformers/Torch/Qwen runtime availability during validation without loading weights.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -87,9 +88,10 @@ This phase now contains two related records:
 - `experiments/landmark_baselines/run_landmark.py` now records `landmark_worker_runtime_gate_not_ready` when runtime adapters still inherit validate-only runtime methods
 - `POPEAdapter` now implements `build_requests`, `normalize_prediction`, `compute_metrics`, and `extract_failure_cases` for local JSON/JSONL POPE-style files
 - `POPEAdapter.build_requests()` now applies the same unsafe `required_files` rejection used by inventory validation before reading local sample files
-- `Qwen3VLAdapter` now implements local `load`, `generate`, and `unload` methods with delayed Transformers/Torch imports, `local_files_only: true`, configured precision/device settings, local-image multimodal prompt construction, and raw text preservation in `GenerationOutput`
+- `Qwen3VLAdapter` now implements local `load`, `generate`, and `unload` methods with runtime dependency validation, `local_files_only: true`, configured precision/device settings, local-image multimodal prompt construction, and raw text preservation in `GenerationOutput`
 - `experiments/landmark_baselines/run_landmark.py` now includes the success worker loop for raw outputs, normalized outputs, metrics, failure cases, experiment summary, reproducibility notes, run manifest, and artifact manifest
-- after the worker loop update, placeholder-inventory subprocess attempts record `landmark_worker_execution_failed`, while monkeypatched runtime-adapter tests verify the success artifact path
+- after the dependency preflight update, subprocess attempts with missing Qwen runtime dependencies record `landmark_worker_validation_gate_not_ready`, while monkeypatched runtime-adapter tests verify the success artifact path
+- `Qwen3VLAdapter.validate_environment()` now adds a `runtime_dependencies` check after path and inventory validation, returning `needs_setup` for missing Transformers, Torch, `AutoProcessor`, supported Qwen model class, or precision dtype support without calling `from_pretrained`
 
 ## Gate Commands
 
@@ -141,8 +143,8 @@ This phase now contains two related records:
 - `python experiments/landmark_baselines/run_landmark.py --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --run-id <temporary> --runs-root <temporary>`
   - exit code: `1`
   - status: `needs_attention`
-  - failure type with placeholder inventory after worker loop implementation: `landmark_worker_execution_failed`
-  - gate failures after the worker loop update: `worker-execution`
+  - failure type with missing Qwen runtime dependencies after dependency preflight: `landmark_worker_validation_gate_not_ready`
+  - gate failures after the dependency preflight update: `validate-model`
 - `python experiments/landmark_baselines/run_landmark.py --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --run-id <temporary> --runs-root <temporary>` with model and benchmark root env vars unset
   - exit code: `1`
   - status: `needs_attention`
@@ -163,7 +165,7 @@ This phase now contains two related records:
   - status: `needs_attention`
   - submitted process: `true`
   - exit code: `1`
-  - worker failure type with placeholder inventory after worker loop implementation: `landmark_worker_execution_failed`
+  - worker failure type with missing Qwen runtime dependencies after dependency preflight: `landmark_worker_validation_gate_not_ready`
   - raw outputs: not written
 - `POPEAdapter({"required_files": ["annotations/random.json"]})`
   - missing file: `needs_setup`
@@ -184,15 +186,21 @@ This phase now contains two related records:
   - status: passed in tests
   - purpose: verify yes/no normalization, accuracy, hallucination rate, yes rate, and failed sample extraction from local normalized JSONL
 - `Qwen3VLAdapter.load()` with monkeypatched Transformers/Torch runtime
-  - status: initially failed while Qwen inherited the validate-only skeleton, then passed after adding delayed-import local runtime loading
+  - status: initially failed while Qwen inherited the validate-only skeleton, then passed after adding local runtime loading
   - purpose: verify local-only loading, configured precision, device map, trust setting, and eval mode without loading a real model
 - `Qwen3VLAdapter.generate()` with monkeypatched runtime
   - status: initially failed while Qwen inherited the validate-only skeleton, then passed after adding multimodal request generation
   - purpose: verify local image chat construction, device transfer, new-token-only decoding, and `GenerationOutput` metadata without loading a real model
-- `experiments/landmark_baselines/run_landmark.py` worker with temporary placeholder inventory after Qwen/POPE runtime methods are available
+- `Qwen3VLAdapter.validate_environment()` with monkeypatched runtime dependencies
+  - status: initially failed because no `runtime_dependencies` check existed, then passed after adding no-load dependency preflight
+  - purpose: verify dependency readiness is checked without calling processor or model `from_pretrained`
+- `Qwen3VLAdapter.validate_environment()` with a missing Transformers dependency
+  - status: initially failed because validation only checked local inventory, then passed after adding runtime dependency reporting
+  - purpose: verify dependency gaps become `needs_setup` before worker-side model loading
+- `experiments/landmark_baselines/run_landmark.py` worker with temporary inventory and missing Qwen runtime dependencies after Qwen/POPE runtime methods are available
   - status: passed in tests
-  - failure type: `landmark_worker_execution_failed`
-  - purpose: verify execution exceptions produce a reviewed failure bundle and do not write raw outputs
+  - failure type: `landmark_worker_validation_gate_not_ready`
+  - purpose: verify dependency gaps stop before model loading and do not write raw outputs
 - `experiments/landmark_baselines/run_landmark.py` worker with monkeypatched Qwen3-VL and POPE runtime adapters
   - status: initially failed while the worker still stopped at `landmark_worker_not_implemented`, then passed after adding the execution loop
   - purpose: verify raw outputs, normalized outputs, metrics, failure cases, experiment summary, reproducibility notes, run manifest, artifact manifest, and raw-output overwrite protection

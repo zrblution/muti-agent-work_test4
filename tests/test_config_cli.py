@@ -10,6 +10,35 @@ from stable_core import config as config_module
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+def _write_fake_qwen_runtime_modules(module_root: Path) -> str:
+    module_root.mkdir()
+    (module_root / "transformers.py").write_text(
+        "\n".join(
+            [
+                "class AutoProcessor:",
+                "    pass",
+                "",
+                "class AutoModelForMultimodalLM:",
+                "    pass",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (module_root / "torch.py").write_text(
+        "\n".join(
+            [
+                "bfloat16 = 'bf16-dtype'",
+                "float16 = 'fp16-dtype'",
+                "float32 = 'fp32-dtype'",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return str(module_root)
+
+
 def run_cli(*args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, "-m", "stable_core.cli", *args],
@@ -327,10 +356,14 @@ def test_phase5_readiness_cli_keeps_execution_closed_after_inventory_passes(tmp_
     benchmark_path.mkdir(parents=True)
     (benchmark_path / "samples.jsonl").write_text("{}\n", encoding="utf-8")
     output_dir = tmp_path / "readiness"
+    fake_runtime_path = _write_fake_qwen_runtime_modules(tmp_path / "fake_qwen_runtime")
     env = {
         **os.environ,
         "REMOTE_MODEL_ROOT": str(model_root),
         "REMOTE_BENCHMARK_ROOT": str(benchmark_root),
+        "PYTHONPATH": os.pathsep.join(
+            item for item in [fake_runtime_path, os.environ.get("PYTHONPATH", "")] if item
+        ),
     }
 
     result = run_cli(
@@ -350,7 +383,11 @@ def test_phase5_readiness_cli_keeps_execution_closed_after_inventory_passes(tmp_
 
     assert result.returncode == 0, result.stderr
     report = json.loads((output_dir / "phase5_readiness.json").read_text(encoding="utf-8"))
+    runtime_check = next(
+        check for check in report["checks"]["model_validation"]["checks"] if check["name"] == "runtime_dependencies"
+    )
     assert report["checks"]["model_validation"]["status"] == "passed"
+    assert runtime_check["status"] == "passed"
     assert report["checks"]["benchmark_validation"]["status"] == "passed"
     assert report["checks"]["model_inventory_discovery"]["status"] == "passed"
     assert report["checks"]["benchmark_inventory_discovery"]["status"] == "passed"

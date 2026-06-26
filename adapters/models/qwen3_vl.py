@@ -7,7 +7,7 @@ from typing import Any, Mapping
 
 from adapters.models._skeleton import ValidateOnlyModelAdapter
 from adapters.path_resolution import resolve_env_path
-from stable_core.schemas.common import GenerationOutput, GenerationRequest
+from stable_core.schemas.common import GenerationOutput, GenerationRequest, ValidationReport
 
 
 class Qwen3VLAdapter(ValidateOnlyModelAdapter):
@@ -19,6 +19,26 @@ class Qwen3VLAdapter(ValidateOnlyModelAdapter):
         super().__init__(config)
         self._model: Any | None = None
         self._processor: Any | None = None
+
+    def validate_environment(self) -> ValidationReport:
+        report = super().validate_environment()
+        if report.status != "passed":
+            return report
+
+        checks = list(report.checks)
+        runtime_check = _runtime_dependency_check(self.config)
+        checks.append(runtime_check)
+        if runtime_check["status"] != "passed":
+            return ValidationReport(
+                status="needs_setup",
+                checks=checks,
+                summary=f"{self.display_name} runtime dependencies need setup; no model was loaded.",
+            )
+        return ValidationReport(
+            status="passed",
+            checks=checks,
+            summary=f"{self.display_name} path, inventory, and runtime dependencies are ready; no model was loaded.",
+        )
 
     def load(self) -> object:
         validation = self.validate_environment()
@@ -108,6 +128,63 @@ class Qwen3VLAdapter(ValidateOnlyModelAdapter):
         if not model_path.is_dir():
             raise RuntimeError(f"Qwen3-VL model path is not a directory: {model_path}")
         return model_path
+
+
+def _runtime_dependency_check(config: Mapping[str, Any]) -> dict[str, Any]:
+    missing_modules: list[str] = []
+    missing_attributes: list[str] = []
+    errors: dict[str, str] = {}
+    transformers_module: Any | None = None
+    processor_class: Any | None = None
+    model_class: Any | None = None
+
+    try:
+        transformers_module = import_module("transformers")
+    except Exception as exc:
+        missing_modules.append("transformers")
+        errors["transformers"] = str(exc)
+
+    try:
+        import_module("torch")
+    except Exception as exc:
+        missing_modules.append("torch")
+        errors["torch"] = str(exc)
+
+    if transformers_module is not None:
+        processor_class = getattr(transformers_module, "AutoProcessor", None)
+        if processor_class is None:
+            missing_attributes.append("transformers.AutoProcessor")
+        try:
+            model_class = _select_qwen_model_class(transformers_module)
+        except RuntimeError as exc:
+            missing_attributes.append("supported_qwen_model_class")
+            errors["model_class"] = str(exc)
+
+    if "torch" not in missing_modules:
+        try:
+            _torch_dtype(config.get("precision", "bf16"))
+        except Exception as exc:
+            missing_attributes.append("torch_dtype")
+            errors["precision"] = str(exc)
+
+    if missing_modules or missing_attributes:
+        return {
+            "name": "runtime_dependencies",
+            "status": "needs_setup",
+            "missing_modules": missing_modules,
+            "missing_attributes": missing_attributes,
+            "errors": errors,
+            "message": "Qwen3-VL runtime dependencies are not ready; no model load was attempted.",
+        }
+
+    return {
+        "name": "runtime_dependencies",
+        "status": "passed",
+        "processor_class": getattr(processor_class, "__name__", str(processor_class)),
+        "model_class": getattr(model_class, "__name__", str(model_class)),
+        "precision": str(config.get("precision", "bf16")),
+        "load_attempted": False,
+    }
 
 
 def _select_qwen_model_class(transformers_module: Any) -> Any:

@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+import adapters.models.qwen3_vl as qwen3_vl_module
 from adapters.models.qwen3_vl import Qwen3VLAdapter
 from stable_core.schemas.common import GenerationRequest
 
@@ -67,6 +68,52 @@ def _install_fake_qwen_runtime(monkeypatch: pytest.MonkeyPatch) -> dict:
     monkeypatch.setitem(sys.modules, "torch", FakeTorch)
     monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
     return calls
+
+
+def test_qwen3_vl_validate_environment_checks_runtime_dependencies_without_loading(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    calls = _install_fake_qwen_runtime(monkeypatch)
+    model_path = tmp_path / "Qwen3-VL-2B-Instruct"
+    model_path.mkdir()
+    (model_path / "config.json").write_text("{}", encoding="utf-8")
+
+    report = Qwen3VLAdapter({"path": str(model_path), "precision": "bf16"}).validate_environment()
+
+    runtime_check = next(check for check in report.checks if check["name"] == "runtime_dependencies")
+    assert report.status == "passed"
+    assert runtime_check["status"] == "passed"
+    assert runtime_check["processor_class"] == "FakeProcessor"
+    assert runtime_check["model_class"] == "FakeModel"
+    assert calls["processor"] == []
+    assert calls["model"] == []
+
+
+def test_qwen3_vl_validate_environment_reports_missing_transformers_dependency(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    model_path = tmp_path / "Qwen3-VL-2B-Instruct"
+    model_path.mkdir()
+    (model_path / "config.json").write_text("{}", encoding="utf-8")
+
+    fake_torch = types.SimpleNamespace(bfloat16="bf16-dtype", float16="fp16-dtype", float32="fp32-dtype")
+
+    def fake_import_module(name: str):
+        if name == "transformers":
+            raise ImportError("transformers is not installed")
+        if name == "torch":
+            return fake_torch
+        raise AssertionError(f"unexpected import: {name}")
+
+    monkeypatch.setattr(qwen3_vl_module, "import_module", fake_import_module)
+
+    report = Qwen3VLAdapter({"path": str(model_path), "precision": "bf16"}).validate_environment()
+
+    runtime_check = next(check for check in report.checks if check["name"] == "runtime_dependencies")
+    assert report.status == "needs_setup"
+    assert runtime_check["status"] == "needs_setup"
+    assert runtime_check["missing_modules"] == ["transformers"]
+    assert "no model was loaded" in report.summary
 
 
 def test_qwen3_vl_load_uses_local_files_only_and_runtime_config(
