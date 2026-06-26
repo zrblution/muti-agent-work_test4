@@ -105,3 +105,9 @@ The worker is deliberately still a gate: direct invocation records a `needs_atte
 The bundle writes `phase5_readiness.json` and `phase5_readiness.md` to the requested output directory. It explicitly records `executed_real_model: false`, `executed_real_benchmark: false`, `submitted_remote_job: false`, `raw_outputs_written: false`, and `write_config: false`.
 
 This does not resolve the Phase 5 blocker. With temporary valid inventory, model and benchmark validation can pass, but top-level readiness still remains `needs_attention` because the remote execution gate is closed and the reviewed execution plan still has `submits_process: false`.
+
+## Run ID Propagation Follow-Up
+
+`run_landmark()` now passes its requested outer `run_id` into `RemoteRunner.submit()` as `experiment_id`. When validation passes but remote execution remains gated, the failure bundle's reviewable execution plan uses the same id in `execution_plan.experiment_id` and in the worker `--run-id` argument.
+
+This keeps future controlled real-smoke artifacts aligned with the user-requested run directory instead of drifting to the default derived id.

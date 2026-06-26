@@ -86,6 +86,7 @@ def run_landmark(
 
     remote_report = RemoteRunner().submit(
         {
+            "experiment_id": run_id,
             "action": "run_model_smoke_test",
             "allowed_script": "experiments/landmark_baselines/run_landmark.py",
             "model_id": model_id,
