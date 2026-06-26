@@ -1,0 +1,11 @@
+spec:
+  root: "/Users/zrblution/Documents/桌面文件夹/博士阶段/MLLM幻觉消除/work1_test4/find_idea_through_baseline/Multi-Agent Experimental System/multi_agent_mllm_system_specs"
+local:
+  agent_system_root: "/Users/zrblution/Documents/桌面文件夹/博士阶段/MLLM幻觉消除/work1_test4/find_idea_through_baseline/Multi-Agent Experimental System/multi_agent_mllm_system"
+  baseline_repo: "/Users/zrblution/Documents/桌面文件夹/博士阶段/MLLM幻觉消除/work1_test4/find_idea_through_baseline/github"
+server:
+  framework_root: "/home/vepfs/data/work1/muti-agent-work_test4"
+  remote_execution_root: "/home/vepfs/data/work1/muti-agent-work_test4"
+  model_root: null
+  benchmark_root: null
+  artifact_root: "runs/artifacts"

@@ -1,0 +1,17 @@
+benchmarks:
+  pope:
+    benchmark_root_env: REMOTE_BENCHMARK_ROOT
+    path: null
+    phase0_status: needs_setup
+  chair:
+    benchmark_root_env: REMOTE_BENCHMARK_ROOT
+    path: null
+    phase0_status: needs_setup
+  amber:
+    benchmark_root_env: REMOTE_BENCHMARK_ROOT
+    path: null
+    phase0_status: needs_setup
+  mme:
+    benchmark_root_env: REMOTE_BENCHMARK_ROOT
+    path: null
+    phase0_status: needs_setup

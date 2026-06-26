@@ -1,0 +1,37 @@
+{
+  "spec_root": {
+    "status": "configured_external",
+    "path": "/Users/zrblution/Documents/桌面文件夹/博士阶段/MLLM幻觉消除/work1_test4/find_idea_through_baseline/Multi-Agent Experimental System/multi_agent_mllm_system_specs"
+  },
+  "local_agent_system_root": {
+    "status": "configured_external",
+    "path": "/Users/zrblution/Documents/桌面文件夹/博士阶段/MLLM幻觉消除/work1_test4/find_idea_through_baseline/Multi-Agent Experimental System/multi_agent_mllm_system"
+  },
+  "local_baseline_repo": {
+    "status": "configured_external",
+    "path": "/Users/zrblution/Documents/桌面文件夹/博士阶段/MLLM幻觉消除/work1_test4/find_idea_through_baseline/github"
+  },
+  "server_framework_root": {
+    "status": "verified",
+    "path": "/home/vepfs/data/work1/muti-agent-work_test4",
+    "is_dir": true
+  },
+  "remote_execution_root": {
+    "status": "verified",
+    "path": "/home/vepfs/data/work1/muti-agent-work_test4",
+    "is_dir": true
+  },
+  "model_root": {
+    "status": "needs_setup",
+    "path": null
+  },
+  "benchmark_root": {
+    "status": "needs_setup",
+    "path": null
+  },
+  "artifact_root": {
+    "status": "verified",
+    "path": "/home/vepfs/data/work1/muti-agent-work_test4/runs/artifacts",
+    "is_dir": true
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "status": "passed",
+  "providers": {
+    "deepseek_v4_pro": {
+      "provider_type": "openai_compatible",
+      "model": "deepseek-v4-pro",
+      "api_key_env": "DEEPSEEK_API_KEY",
+      "base_url_env": null,
+      "timeout_seconds": "120",
+      "max_retries": "3"
+    },
+    "opus4_8_proxy": {
+      "provider_type": "openai_compatible",
+      "model": "opus4-8",
+      "api_key_env": "OPUS_PROXY_API_KEY",
+      "base_url_env": "OPUS_PROXY_BASE_URL",
+      "timeout_seconds": "180",
+      "max_retries": "3"
+    }
+  },
+  "findings": []
+}

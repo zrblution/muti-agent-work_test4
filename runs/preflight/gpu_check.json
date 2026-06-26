@@ -1,0 +1,9 @@
+{
+  "status": "verified",
+  "gpus": [
+    "NVIDIA A100-SXM4-80GB, 81920 MiB",
+    "NVIDIA A100-SXM4-80GB, 81920 MiB",
+    "NVIDIA A100-SXM4-80GB, 81920 MiB",
+    "NVIDIA A100-SXM4-80GB, 81920 MiB"
+  ]
+}

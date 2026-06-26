@@ -1,0 +1,22 @@
+{
+  "status": "passed",
+  "inside_work_tree": true,
+  "branch": "main",
+  "remote_urls": [
+    "origin\tgit@github.com:zrblution/muti-agent-work_test4.git (fetch)",
+    "origin\tgit@github.com:zrblution/muti-agent-work_test4.git (push)"
+  ],
+  "working_tree_clean": false,
+  "dirty_paths": [
+    "?? .env.example",
+    "?? .gitignore",
+    "?? AGENTS.md",
+    "?? docs/",
+    "?? project_config/",
+    "?? runs/",
+    "?? stable_core/",
+    "?? tests/"
+  ],
+  "env_tracked": false,
+  "env_ignored": true
+}

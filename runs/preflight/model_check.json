@@ -1,0 +1,17 @@
+{
+  "status": "needs_setup",
+  "model_root": {
+    "status": "needs_setup",
+    "path": null
+  },
+  "models": {
+    "qwen3_vl_2b_instruct": {
+      "status": "not_checked",
+      "reason": "Phase 0 records paths only"
+    },
+    "internvl3_5_4b": {
+      "status": "not_checked",
+      "reason": "Phase 0 records paths only"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "status": "needs_setup",
+  "benchmark_root": {
+    "status": "needs_setup",
+    "path": null
+  },
+  "benchmarks": {
+    "pope": {
+      "status": "not_checked",
+      "reason": "Phase 0 records paths only"
+    },
+    "chair": {
+      "status": "not_checked",
+      "reason": "Phase 0 records paths only"
+    },
+    "amber": {
+      "status": "not_checked",
+      "reason": "Phase 0 records paths only"
+    },
+    "mme": {
+      "status": "not_checked",
+      "reason": "Phase 0 records paths only"
+    }
+  }
+}

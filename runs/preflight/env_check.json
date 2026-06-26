@@ -1,0 +1,14 @@
+{
+  "status": "passed",
+  "python_version": "3.11.13",
+  "platform": "Linux-5.4.250-2-velinux1u1-amd64-x86_64-with-glibc2.35",
+  "executable": "/root/miniconda3/bin/python",
+  "cuda_visible_devices_set": false,
+  "packages": {
+    "torch": true,
+    "transformers": true,
+    "accelerate": true,
+    "vllm": false
+  },
+  "disk_free_bytes": 341904910712832
+}

@@ -1,0 +1,25 @@
+secret_scan:
+  paths:
+    - docs
+    - project_config
+    - stable_core
+    - tests
+    - .env.example
+    - .gitignore
+    - AGENTS.md
+  exclude_dirs:
+    - .git
+    - .venv
+    - models
+    - .cache
+    - wandb
+    - __pycache__
+allowed_remote_actions:
+  - validate_paths
+  - collect_env
+  - run_fake_benchmark
+  - run_model_smoke_test
+  - run_benchmark_adapter
+  - parse_results
+  - cancel_job
+  - poll_job
