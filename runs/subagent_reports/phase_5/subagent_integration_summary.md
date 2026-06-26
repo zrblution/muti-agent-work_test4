@@ -136,6 +136,8 @@ This lets the server test candidate roots before exporting env vars or changing 
 
 The command writes an optional JSON report with `write_config: false` and `load_attempted: false`. It is a diagnostic step before `phase5-probe-paths`; it does not export env vars, mutate config, read `.env`, download files, load weights, submit jobs, or write raw outputs.
 
+Server verification of this command returned `needs_setup` with 9 candidates. The only Qwen3-VL cache base found under `/home/vepfs/data/cache/huggingface/hub` was incomplete, and the other qwen-like paths were classified as output directories. No candidate was usable with the current configured-root contract. The scan of `/home/vepfs/data/work1/auto-research-test1` and `/home/vepfs/data/LLM_HM_3_models` reached the configured entry cap, so the result narrows the blocker but does not prove the model is absent everywhere.
+
 ## Worker Execution Loop Follow-Up
 
 The whitelisted worker now calls the model and benchmark runtime methods after validation and adapter runtime gates pass. The success path writes raw outputs, normalized outputs, metrics, failure cases, experiment summary, reproducibility notes, run manifest, and artifact manifest. It refuses to overwrite existing `raw_outputs.jsonl`.

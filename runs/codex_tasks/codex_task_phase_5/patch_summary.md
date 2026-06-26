@@ -222,6 +222,10 @@ This phase now contains two related records:
 - `phase5-discover-model-candidates qwen3_vl_2b_instruct` with an incomplete HuggingFace cache base
   - status: initially failed because the CLI did not exist, then passed after adding bounded read-only discovery
   - purpose: verify an incomplete cache containing only refs is classified as `needs_setup`, not as a usable model root
+- server `phase5-discover-model-candidates qwen3_vl_2b_instruct` over bounded roots
+  - status: `needs_setup`
+  - output: `/tmp/phase5_model_candidates_server.json`
+  - finding: 9 candidates, no usable configured-root path, incomplete HF cache base, and qwen-like output directories only; two broad roots reached `max_entries=50000`
 - `build_phase5_path_probe(...)` with existing caller environment values
   - status: initially failed because no build function existed, then passed after adding scoped environment injection
   - purpose: verify candidate root probing restores `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` after validation
