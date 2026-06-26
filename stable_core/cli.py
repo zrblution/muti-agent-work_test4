@@ -8,10 +8,13 @@ from typing import Sequence
 from research_tools.baseline_indexer import research_status, write_baseline_reports
 from stable_core.config import export_schemas, list_agents, list_benchmarks, list_models, validate_config
 from stable_core.evidence.registry import add_record_from_args, init_registry, list_registry
+from stable_core.runner.local import LocalRunner
+from stable_core.state_machine.state_manager import StateManager
 from stable_core.validation.preflight import run_preflight
 
 DEFAULT_REGISTRY = Path("evidence/registry.jsonl")
 DEFAULT_RESEARCH_DIR = Path("docs/research")
+DEFAULT_RUNS_ROOT = Path("runs")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -58,6 +61,25 @@ def build_parser() -> argparse.ArgumentParser:
     index.add_argument("--manifest", required=True)
     index.add_argument("--output-dir", default=str(DEFAULT_RESEARCH_DIR))
     index.add_argument("--registry", default=str(DEFAULT_REGISTRY))
+
+    workflow = subparsers.add_parser("workflow", help="Manage durable workflow state.")
+    workflow_subparsers = workflow.add_subparsers(dest="workflow_command", required=True)
+    workflow_init = workflow_subparsers.add_parser("init", help="Create runs/<workflow_id>/state.json.")
+    workflow_init.add_argument("--workflow-id", required=True)
+    workflow_init.add_argument("--current-state", default="preflight_validation")
+    workflow_status = workflow_subparsers.add_parser("status", help="Read workflow state.")
+    workflow_status.add_argument("--workflow-id", required=True)
+    workflow_resume = workflow_subparsers.add_parser("resume", help="Resume from existing workflow state.")
+    workflow_resume.add_argument("--workflow-id", required=True)
+    workflow_failed = workflow_subparsers.add_parser("mark-failed", help="Mark a workflow failed with a preserved reason.")
+    workflow_failed.add_argument("--workflow-id", required=True)
+    workflow_failed.add_argument("--reason", required=True)
+
+    run_local = subparsers.add_parser("run-local", help="Run a controlled local Phase 3 action.")
+    run_local.add_argument("--run-id", required=True)
+    run_local.add_argument("--action", required=True, choices=["dummy_job"])
+    run_local.add_argument("--message", default="dummy job")
+    run_local.add_argument("--fail", action="store_true")
 
     subparsers.add_parser("research-status", help="Report research artifact status.")
     return parser
@@ -108,6 +130,28 @@ def main(argv: Sequence[str] | None = None) -> int:
         summary = write_baseline_reports(args.manifest, args.output_dir, args.registry)
         print(json.dumps({"command": "index-baselines", **summary}, ensure_ascii=False))
         return 0
+    if args.command == "workflow":
+        manager = StateManager(DEFAULT_RUNS_ROOT)
+        if args.workflow_command == "init":
+            state = manager.init_workflow(args.workflow_id, current_state=args.current_state)
+            print(json.dumps({"command": "workflow init", **state.to_dict()}, ensure_ascii=False))
+            return 0
+        if args.workflow_command == "status":
+            state = manager.load(args.workflow_id)
+            print(json.dumps({"command": "workflow status", **state.to_dict()}, ensure_ascii=False))
+            return 0
+        if args.workflow_command == "resume":
+            state = manager.resume(args.workflow_id)
+            print(json.dumps({"command": "workflow resume", **state.to_dict()}, ensure_ascii=False))
+            return 0
+        if args.workflow_command == "mark-failed":
+            state = manager.mark_failed(args.workflow_id, reason=args.reason)
+            print(json.dumps({"command": "workflow mark-failed", **state.to_dict()}, ensure_ascii=False))
+            return 0
+    if args.command == "run-local":
+        result = LocalRunner(DEFAULT_RUNS_ROOT).run_dummy(run_id=args.run_id, message=args.message, fail=args.fail)
+        print(json.dumps({"command": "run-local", **result}, ensure_ascii=False))
+        return 0 if result["status"] == "succeeded" else 1
     if args.command == "research-status":
         print(json.dumps({"command": "research-status", **research_status(Path("."))}, ensure_ascii=False))
         return 0
