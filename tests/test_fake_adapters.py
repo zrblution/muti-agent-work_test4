@@ -62,6 +62,8 @@ def test_validate_only_skeletons_use_configured_paths(tmp_path: Path) -> None:
     benchmark_path = tmp_path / "benchmark"
     model_path.mkdir()
     benchmark_path.mkdir()
+    (model_path / "config.json").write_text("{}", encoding="utf-8")
+    (benchmark_path / "samples.jsonl").write_text("{}", encoding="utf-8")
 
     model_report = Qwen3VLAdapter({"path": str(model_path), "download_allowed": False}).validate_environment()
     benchmark_report = POPEAdapter({"path": str(benchmark_path)}).validate_paths()
@@ -72,6 +74,22 @@ def test_validate_only_skeletons_use_configured_paths(tmp_path: Path) -> None:
     assert benchmark_report.checks[-1]["path"] == str(benchmark_path)
 
 
+def test_validate_only_skeletons_reject_empty_inventory_dirs(tmp_path: Path) -> None:
+    model_path = tmp_path / "empty_model"
+    benchmark_path = tmp_path / "empty_benchmark"
+    model_path.mkdir()
+    benchmark_path.mkdir()
+
+    model_report = Qwen3VLAdapter({"path": str(model_path), "download_allowed": False}).validate_environment()
+    benchmark_report = POPEAdapter({"path": str(benchmark_path)}).validate_paths()
+
+    assert model_report.status == "needs_setup"
+    assert model_report.checks[-1]["name"] == "model_inventory"
+    assert "config.json" in model_report.checks[-1]["missing_files"]
+    assert benchmark_report.status == "needs_setup"
+    assert benchmark_report.checks[-1]["name"] == "benchmark_inventory"
+
+
 def test_validate_only_skeletons_resolve_env_templates(monkeypatch, tmp_path: Path) -> None:
     model_root = tmp_path / "model_root"
     benchmark_root = tmp_path / "benchmark_root"
@@ -79,6 +97,8 @@ def test_validate_only_skeletons_resolve_env_templates(monkeypatch, tmp_path: Pa
     benchmark_path = benchmark_root / "POPE"
     model_path.mkdir(parents=True)
     benchmark_path.mkdir(parents=True)
+    (model_path / "config.json").write_text("{}", encoding="utf-8")
+    (benchmark_path / "pope_samples.json").write_text("[]", encoding="utf-8")
     monkeypatch.setenv("REMOTE_MODEL_ROOT", str(model_root))
     monkeypatch.setenv("REMOTE_BENCHMARK_ROOT", str(benchmark_root))
 

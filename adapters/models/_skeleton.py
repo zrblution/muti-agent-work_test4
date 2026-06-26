@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from adapters.inventory import missing_required_files
 from adapters.path_resolution import resolve_env_path
 from stable_core.schemas.common import GenerationOutput, GenerationRequest, ValidationReport
 
@@ -40,7 +41,16 @@ class ValidateOnlyModelAdapter:
         if not model_path.exists():
             checks.append({"name": "model_path", "status": "needs_setup", "raw_path": resolved.raw_value, "path": str(model_path)})
             return ValidationReport(status="needs_setup", checks=checks, summary=f"{self.display_name} path is not present; no download or load was attempted.")
+        if not model_path.is_dir():
+            checks.append({"name": "model_path", "status": "needs_setup", "raw_path": resolved.raw_value, "path": str(model_path), "message": "Model path must be a directory."})
+            return ValidationReport(status="needs_setup", checks=checks, summary=f"{self.display_name} path is not a directory; no download or load was attempted.")
         checks.append({"name": "model_path", "status": "passed", "raw_path": resolved.raw_value, "path": str(model_path)})
+        required_files = list(self.config.get("required_files") or ["config.json"])
+        missing = missing_required_files(model_path, required_files)
+        if missing:
+            checks.append({"name": "model_inventory", "status": "needs_setup", "path": str(model_path), "missing_files": missing})
+            return ValidationReport(status="needs_setup", checks=checks, summary=f"{self.display_name} model inventory is incomplete; no download or load was attempted.")
+        checks.append({"name": "model_inventory", "status": "passed", "path": str(model_path), "required_files": required_files})
         return ValidationReport(status="passed", checks=checks, summary=f"{self.display_name} path exists; load smoke is a later gate.")
 
     def load(self) -> object:

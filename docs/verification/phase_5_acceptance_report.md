@@ -15,7 +15,9 @@ The real smoke was blocked before execution. This is the correct outcome under t
 
 Continuation update: a structured `run-landmark` validation gate now exists. It records a `needs_attention` run directory without loading models, running benchmarks, or starting GPU work.
 
-Path-template update: real model and benchmark configs now use `${REMOTE_MODEL_ROOT}` and `${REMOTE_BENCHMARK_ROOT}` templates. Validation reports a missing env var when those are unset, and validation passes when the env vars point to existing directories. This does not read `.env`, download models, or execute benchmarks.
+Path-template update: real model and benchmark configs now use `${REMOTE_MODEL_ROOT}` and `${REMOTE_BENCHMARK_ROOT}` templates. Validation reports a missing env var when those are unset, and validation continues to a lightweight offline inventory gate when the env vars point to existing directories. This does not read `.env`, download models, or execute benchmarks.
+
+Inventory update: model validation now requires an offline `config.json` in the resolved model directory. Benchmark validation now requires at least one shallow metadata or sample-like file with an accepted suffix such as `.json`, `.jsonl`, `.tsv`, `.csv`, `.txt`, `.yaml`, or `.yml`. The benchmark check is intentionally generic and does not assume a POPE-specific filename.
 
 ## Evidence
 
@@ -25,8 +27,10 @@ Path-template update: real model and benchmark configs now use `${REMOTE_MODEL_R
 - `validate-benchmark pope`: `needs_setup`
 - historical `run-landmark` attempt before the gate existed: argparse exit code `2`
 - current `run-landmark --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --run-id qwen3vl_pope_limit8_gate`: exit code `1`, JSON status `needs_attention`
-- `validate-model qwen3_vl_2b_instruct` with a temporary `REMOTE_MODEL_ROOT` pointing to an existing `Qwen3-VL-2B-Instruct` directory: `passed`
-- `validate-benchmark pope` with a temporary `REMOTE_BENCHMARK_ROOT` pointing to an existing `POPE` directory: `passed`
+- `validate-model qwen3_vl_2b_instruct` with a temporary `REMOTE_MODEL_ROOT` pointing to an existing but empty `Qwen3-VL-2B-Instruct` directory: `needs_setup`, missing `config.json`
+- `validate-benchmark pope` with a temporary `REMOTE_BENCHMARK_ROOT` pointing to an existing but empty `POPE` directory: `needs_setup`, missing shallow metadata/sample files
+- `validate-model qwen3_vl_2b_instruct` with a temporary `REMOTE_MODEL_ROOT` pointing to a `Qwen3-VL-2B-Instruct` directory containing `config.json`: `passed`
+- `validate-benchmark pope` with a temporary `REMOTE_BENCHMARK_ROOT` pointing to a `POPE` directory containing `samples.jsonl`: `passed`
 
 Logs are stored in `runs/phase_5_gate_logs/`.
 
@@ -43,7 +47,7 @@ Current structured gate artifacts are stored in `runs/qwen3vl_pope_limit8_gate/`
 ## Required Fixes Before Resuming Phase 5
 
 - Configure approved local model and POPE paths without committing secrets or large artifacts.
-- Add offline model and benchmark inventory validation.
+- Populate the approved local model and benchmark directories so offline inventory validation passes.
 - Extend the controlled `run-landmark` gate with reviewed real execution only after validation passes.
 - Preserve all run/failure artifacts for any future real smoke attempt.
 - Explicitly approve real GPU execution only after validation gates pass.

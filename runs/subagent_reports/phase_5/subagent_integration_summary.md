@@ -48,4 +48,10 @@ The Phase 5 blocker is reduced but not resolved: model and benchmark paths are s
 
 The framework now supports config values such as `${REMOTE_MODEL_ROOT}/Qwen3-VL-2B-Instruct` and `${REMOTE_BENCHMARK_ROOT}/POPE` in validate-only adapters. Missing env vars are reported as `needs_setup` with the exact env var name, and existing directories validate as `passed`.
 
-This removes the previous `path: null` framework limitation. The remaining blocker is external environment setup plus deeper offline inventory validation and real execution authorization.
+This removes the previous `path: null` framework limitation.
+
+## Offline Inventory Follow-Up
+
+The validate-only adapters now perform a lightweight offline inventory gate after path resolution. Model validation requires `config.json` by default. Benchmark validation requires at least one shallow metadata or sample-like file with an accepted suffix such as `.json`, `.jsonl`, `.tsv`, `.csv`, `.txt`, `.yaml`, or `.yml`.
+
+This removes the previous "existing empty directory passes validation" limitation. The remaining blocker is external environment setup, populated local model and benchmark directories, and real execution authorization.
