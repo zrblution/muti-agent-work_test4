@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 import uuid
@@ -174,6 +175,19 @@ def test_run_landmark_cli_is_validation_gate() -> None:
 
 def test_landmark_worker_script_records_needs_attention_without_reentering_gate(tmp_path: Path) -> None:
     run_id = "qwen_worker_gate"
+    model_root = tmp_path / "models"
+    benchmark_root = tmp_path / "benchmarks"
+    model_path = model_root / "Qwen3-VL-2B-Instruct"
+    benchmark_path = benchmark_root / "POPE"
+    model_path.mkdir(parents=True)
+    benchmark_path.mkdir(parents=True)
+    (model_path / "config.json").write_text("{}", encoding="utf-8")
+    (benchmark_path / "samples.jsonl").write_text("{}\n", encoding="utf-8")
+    env = {
+        **os.environ,
+        "REMOTE_MODEL_ROOT": str(model_root),
+        "REMOTE_BENCHMARK_ROOT": str(benchmark_root),
+    }
 
     result = subprocess.run(
         [
@@ -193,6 +207,7 @@ def test_landmark_worker_script_records_needs_attention_without_reentering_gate(
             str(tmp_path),
         ],
         cwd=REPO_ROOT,
+        env=env,
         text=True,
         capture_output=True,
         check=False,
@@ -210,3 +225,46 @@ def test_landmark_worker_script_records_needs_attention_without_reentering_gate(
     assert "experiments/landmark_baselines/run_landmark.py" in failure["reproduction_command"]
     assert "stable_core.cli run-landmark" not in failure["reproduction_command"]
     assert not (run_dir / "raw_outputs.jsonl").exists()
+
+
+def test_landmark_worker_script_validates_model_and_benchmark_before_stub(tmp_path: Path) -> None:
+    run_id = "qwen_worker_validation_gate"
+    env = os.environ.copy()
+    env.pop("REMOTE_MODEL_ROOT", None)
+    env.pop("REMOTE_BENCHMARK_ROOT", None)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "experiments/landmark_baselines/run_landmark.py",
+            "--model",
+            "qwen3_vl_2b_instruct",
+            "--benchmark",
+            "pope",
+            "--limit",
+            "8",
+            "--instrumentation",
+            "none",
+            "--run-id",
+            run_id,
+            "--runs-root",
+            str(tmp_path),
+        ],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    payload = json.loads(result.stdout)
+    failure = json.loads((tmp_path / run_id / "failure.json").read_text(encoding="utf-8"))
+
+    assert result.returncode == 1
+    assert payload["status"] == "needs_attention"
+    assert payload["failure_type"] == "landmark_worker_validation_gate_not_ready"
+    assert failure["failure_type"] == "landmark_worker_validation_gate_not_ready"
+    assert {item["gate"] for item in failure["gate_failures"]} == {"validate-model", "validate-benchmark"}
+    assert failure["executed_real_model"] is False
+    assert failure["executed_real_benchmark"] is False
+    assert not (tmp_path / run_id / "raw_outputs.jsonl").exists()

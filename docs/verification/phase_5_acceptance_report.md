@@ -49,6 +49,8 @@ Remote plan safety update: RemoteRunner now validates an explicit `experiment_id
 
 Worker-entry update: the whitelisted `experiments/landmark_baselines/run_landmark.py` target now exists and is non-recursive. It records a durable `needs_attention` bundle with `failure_type: landmark_worker_not_implemented`, exits nonzero, and does not load models, run benchmarks, or write raw outputs. The reviewable `RemoteRunner` plan now points at this worker path instead of re-entering the top-level `run-landmark` gate.
 
+Worker validation update: the whitelisted worker now runs the same validate-only model and benchmark gates before reaching the current not-implemented stub. Missing or unapproved inventory records `failure_type: landmark_worker_validation_gate_not_ready`, preserves the failure bundle, exits nonzero, and still does not load models, run benchmarks, or write raw outputs.
+
 Remote-gate diagnostics update: `run-landmark` now has separate next-action guidance for the path where model and benchmark validation pass but remote execution is still closed. That branch preserves the validated path setup and points to remote gate, GPU budget, and process-submission approval instead of asking to reconfigure paths again.
 
 ## Evidence
@@ -88,6 +90,7 @@ Remote-gate diagnostics update: `run-landmark` now has separate next-action guid
 - `poll --run-id qwen3vl_pope_limit8_gate_diagnostics`: reports recorded run status `needs_attention`
 - `parse-results --run-id qwen3vl_pope_limit8_gate_diagnostics`: preserves status `needs_attention` and reports validated missing metrics instead of computing benchmark results
 - direct `experiments/landmark_baselines/run_landmark.py` worker invocation with a temporary run root: exit code `1`, JSON status `needs_attention`, failure type `landmark_worker_not_implemented`, no real model or benchmark execution
+- direct `experiments/landmark_baselines/run_landmark.py` worker invocation with missing `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT`: exit code `1`, JSON status `needs_attention`, failure type `landmark_worker_validation_gate_not_ready`, gate failures `validate-model` and `validate-benchmark`, no raw outputs
 - `run_landmark(...)` with temporary valid model and POPE inventory: JSON status `needs_attention`, failure type `landmark_remote_runner_not_enabled`, no real model or benchmark execution
 
 Logs are stored in `runs/phase_5_gate_logs/`.
@@ -108,7 +111,7 @@ The human decision record is stored in `runs/needs_attention/phase_5_needs_human
 - Remote runner execution is config-gated: `project_config/server.yaml` still sets `runner_mode: local_only`.
 - Real GPU jobs are config-gated: `project_config/experiment_budget.yaml` still sets `allow_real_gpu_jobs: false`.
 - Process submission is config-gated: `project_config/experiment_budget.yaml` still sets `allow_process_submission: false`.
-- Even if the remote-mode, GPU-budget, and process-submission config gates are opened later, the current reviewed path only returns an execution plan with `submits_process: false`; no process-submitting executor is enabled yet, and the worker itself still records `landmark_worker_not_implemented`.
+- Even if the remote-mode, GPU-budget, and process-submission config gates are opened later, the current reviewed path only returns an execution plan with `submits_process: false`; no process-submitting executor is enabled yet, and the worker itself only validates inventory before recording `landmark_worker_not_implemented`.
 
 ## Required Fixes Before Resuming Phase 5
 

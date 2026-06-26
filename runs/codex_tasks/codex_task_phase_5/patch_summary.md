@@ -29,6 +29,7 @@ This phase now contains two related records:
 - a follow-up RemoteRunner experiment-id safety gate so unsafe explicit `experiment_id` values are rejected before any execution plan is produced.
 - a follow-up landmark artifact contract in the reviewable RemoteRunner plan, covering success outputs, failure outputs, raw-output no-overwrite policy, and manifest-only large artifact policy.
 - a follow-up recorded artifact contract so landmark `needs_attention` manifests carry the same contract and `validate-run` checks required failure outputs.
+- a follow-up worker-side validation gate so the whitelisted worker checks model and benchmark readiness before reaching the current non-executing stub.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -74,6 +75,7 @@ This phase now contains two related records:
 - `RemoteRunner` reviewable landmark execution plans now include `artifact_contract`
 - landmark `run_manifest.json` now includes `artifact_contract` for `needs_attention` bundles
 - `validate-run` now checks `artifact_contract_failure_outputs` for failed or `needs_attention` runs with a declared contract
+- `experiments/landmark_baselines/run_landmark.py` now calls validate-only model and benchmark gates before recording the current worker stub state
 
 ## Gate Commands
 
@@ -126,6 +128,12 @@ This phase now contains two related records:
   - exit code: `1`
   - status: `needs_attention`
   - failure type: `landmark_worker_not_implemented`
+- `python experiments/landmark_baselines/run_landmark.py --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --run-id <temporary> --runs-root <temporary>` with model and benchmark root env vars unset
+  - exit code: `1`
+  - status: `needs_attention`
+  - failure type: `landmark_worker_validation_gate_not_ready`
+  - gate failures: `validate-model`, `validate-benchmark`
+  - raw outputs: not written
 - `RemoteRunner.submit(...)` with default config gates
   - status: `needs_attention`
   - gate failures: `runner_mode`, `real_gpu_budget`, `process_submission`
@@ -272,6 +280,14 @@ This phase now contains two related records:
 - `python -m stable_core.cli phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_recorded_contract_readiness_cli_smoke`: `needs_attention`, safety flags all false.
 - Expanded secret scan after recorded artifact contract validation: `passed`, no findings.
 - Large-file scan after recorded artifact contract validation: no files over 5 MB found.
+- `python -m pytest tests/test_landmark_gate.py::test_landmark_worker_script_validates_model_and_benchmark_before_stub -q`: initially `1 failed`, then `1 passed` after adding worker-side validation.
+- `python -m pytest tests/test_landmark_gate.py::test_landmark_worker_script_records_needs_attention_without_reentering_gate -q`: `1 passed` after adding temporary valid inventory setup to keep the not-implemented branch covered.
+- `python -m pytest tests/test_runner.py tests/test_landmark_gate.py tests/test_fake_adapters.py -q`: `35 passed` after adding worker-side validation.
+- `python -m pytest -q`: `79 passed` after adding worker-side validation.
+- `python -m stable_core.cli validate-config`: `passed` after adding worker-side validation.
+- `python -m stable_core.cli phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_worker_validation_readiness_cli_smoke`: `needs_attention`, safety flags all false.
+- Expanded secret scan after adding worker-side validation: `passed`, no findings.
+- Large-file scan after adding worker-side validation: no files over 5 MB found.
 - `python -m stable_core.cli discover-model-inventory qwen3_vl_2b_instruct --output /tmp/phase5_qwen_inventory_discovery.json`: `needs_setup`, missing `REMOTE_MODEL_ROOT`, no config write, no load attempted.
 - `python -m pytest tests/test_fake_adapters.py -q`: `11 passed` after adding `discover-model-inventory`.
 - `python -m pytest tests/test_runner.py tests/test_landmark_gate.py -q`: `19 passed` after adding `discover-model-inventory`.

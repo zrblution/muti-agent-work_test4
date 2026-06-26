@@ -94,6 +94,12 @@ The whitelisted `experiments/landmark_baselines/run_landmark.py` path now exists
 
 The worker is deliberately still a gate: direct invocation records a `needs_attention` run with `failure_type: landmark_worker_not_implemented`, preserves stdout/stderr/exit code/env/git/failure artifacts, and does not create `raw_outputs.jsonl`. This removes the missing-script gap while keeping the real Qwen3-VL + POPE smoke blocked until a reviewed non-recursive worker implementation and process-submission authorization exist.
 
+## Worker Validation Gate Follow-Up
+
+The worker now applies the same validate-only model and benchmark checks before it reaches the not-implemented stub. If `REMOTE_MODEL_ROOT`, `REMOTE_BENCHMARK_ROOT`, or required inventory files are missing, direct invocation records `failure_type: landmark_worker_validation_gate_not_ready` with `validate-model` and `validate-benchmark` gate payloads.
+
+This keeps the whitelisted target self-gating even if a future process-submitting RemoteRunner calls it directly. It still does not load models, run benchmarks, submit jobs, or write `raw_outputs.jsonl`.
+
 ## Process Submission Gate Follow-Up
 
 `project_config/experiment_budget.yaml` now includes `allow_process_submission: false` by default. `RemoteRunner.submit()` reports this as a distinct `process_submission` gate failure before any process could be submitted. When remote mode, GPU budget, and process submission are all opened in tests, the runner still stops at `remote_executor` with `submits_process: false` because no reviewed process-submitting executor exists.

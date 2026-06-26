@@ -10,6 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from experiments.fake.evaluator import validate_benchmark, validate_model
 from experiments.landmark_baselines.runner import _write_needs_attention
 from stable_core.storage.run_directory import (
     collect_env_snapshot,
@@ -89,11 +90,42 @@ def record_worker_not_implemented(
             runs_root=runs_root,
         ),
     }
-    message = "Reviewed real-smoke worker is not implemented; no real model or benchmark execution was attempted."
     write_json(run_dir / "command_manifest.json", command)
     write_json(run_dir / "env_snapshot.json", collect_env_snapshot(Path.cwd()))
     write_text(run_dir / "git_commit.txt", current_git_commit(Path.cwd()) + "\n")
     write_text(run_dir / "stdout.log", "")
+
+    model_report = validate_model(model_id)
+    benchmark_report = validate_benchmark(benchmark_id)
+    gate_failures = [
+        {"gate": "validate-model", "payload": model_report}
+        if model_report.get("status") != "passed"
+        else None,
+        {"gate": "validate-benchmark", "payload": benchmark_report}
+        if benchmark_report.get("status") != "passed"
+        else None,
+    ]
+    gate_failures = [item for item in gate_failures if item is not None]
+    if gate_failures:
+        message = "Landmark worker validation gates did not pass; no real model or benchmark execution was attempted."
+        write_text(run_dir / "stderr.log", message + "\n")
+        write_text(run_dir / "exit_code.txt", "1\n")
+        return _write_needs_attention(
+            run_dir=run_dir,
+            run_id=run_id,
+            command=command,
+            failure_type="landmark_worker_validation_gate_not_ready",
+            failure_message=message,
+            gate_failures=gate_failures,
+            started_at=started_at,
+            recommended_next_action=[
+                "Configure approved model and benchmark paths.",
+                "Re-run validate-model and validate-benchmark until both return passed.",
+                "Keep the worker behind the reviewed RemoteRunner process submission gate.",
+            ],
+        )
+
+    message = "Reviewed real-smoke worker is not implemented; no real model or benchmark execution was attempted."
     write_text(run_dir / "stderr.log", message + "\n")
     write_text(run_dir / "exit_code.txt", "1\n")
 
