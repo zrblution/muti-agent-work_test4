@@ -65,3 +65,7 @@ This closes the Task 011 validation-command gap without re-running the model or 
 ## Failure Diagnostics Follow-Up
 
 New `run-landmark` `needs_attention` bundles now include `stdout_tail`, `stderr_tail`, `reproduction_command`, `config_snapshot`, and `state_snapshot` in `failure.json`. This aligns the landmark gate with the AGENTS.md failure-preservation requirements while keeping real model and benchmark execution disabled until the validation and authorization gates pass.
+
+## Remote Gate Follow-Up
+
+`RemoteRunner.submit()` now reads `project_config/server.yaml` and `project_config/experiment_budget.yaml` before returning `needs_attention`. It reports structured gate failures for `runner_mode: local_only` and `allow_real_gpu_jobs: false`, rather than a stale hard-coded Phase 3 message. Real remote execution remains closed.

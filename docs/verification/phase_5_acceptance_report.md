@@ -23,6 +23,8 @@ Run-validation update: `validate-run --run-id` now validates recorded run direct
 
 Failure-diagnostics update: new `run-landmark` `needs_attention` bundles now include `stdout_tail`, `stderr_tail`, `reproduction_command`, `config_snapshot`, and `state_snapshot` in `failure.json`, while still preserving `stdout.log`, `stderr.log`, `exit_code.txt`, `env_snapshot.json`, and `git_commit.txt`.
 
+Remote gate update: `RemoteRunner.submit()` now reads `project_config/server.yaml` and `project_config/experiment_budget.yaml` and reports structured gate failures for `runner_mode` and `allow_real_gpu_jobs`. It still does not submit real remote or GPU work.
+
 ## Evidence
 
 - `validate-config`: `passed`
@@ -51,8 +53,9 @@ The human decision record is stored in `runs/needs_attention/phase_5_needs_human
 - `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` are not configured in the server execution environment.
 - The current Qwen3-VL and POPE adapters are validate-only skeletons.
 - The structured `run-landmark` gate exists, but it correctly stops before real execution because model and benchmark validations are `needs_setup`.
-- Remote runner execution is disabled and returns `needs_attention`.
-- Real GPU jobs are disabled in `project_config/experiment_budget.yaml`.
+- Remote runner execution is config-gated: `project_config/server.yaml` still sets `runner_mode: local_only`.
+- Real GPU jobs are config-gated: `project_config/experiment_budget.yaml` still sets `allow_real_gpu_jobs: false`.
+- Even if those config gates are opened later, no reviewed real remote executor is enabled yet.
 
 ## Required Fixes Before Resuming Phase 5
 

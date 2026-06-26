@@ -8,7 +8,7 @@ import pytest
 from experiments.fake.evaluator import run_fake_eval
 from experiments.landmark_baselines.runner import run_landmark
 from stable_core.runner.local import LocalRunner
-from stable_core.runner.remote import RemoteAction, validate_remote_action
+from stable_core.runner.remote import RemoteAction, RemoteRunner, validate_remote_action
 from stable_core.storage.run_validator import validate_run_artifacts
 
 
@@ -57,6 +57,24 @@ def test_remote_action_whitelist_blocks_arbitrary_shell() -> None:
 
     with pytest.raises(ValueError, match="not whitelisted"):
         validate_remote_action(action)
+
+
+def test_remote_runner_reports_configured_execution_gates() -> None:
+    result = RemoteRunner().submit(
+        {
+            "action": "run_model_smoke_test",
+            "allowed_script": "experiments/landmark_baselines/run_landmark.py",
+            "model_id": "qwen3_vl_2b_instruct",
+            "benchmark_id": "pope",
+            "limit": 8,
+            "instrumentation_mode": "none",
+        }
+    )
+
+    assert result["status"] == "needs_attention"
+    assert result["runner_mode"] == "local_only"
+    assert result["allow_real_gpu_jobs"] is False
+    assert {failure["name"] for failure in result["gate_failures"]} == {"runner_mode", "real_gpu_budget"}
 
 
 def test_run_local_cli_executes_dummy_job() -> None:

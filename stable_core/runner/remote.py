@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
 from stable_core.schemas.common import ValidationReport
+from stable_core.validation.preflight import REPO_ROOT, parse_simple_yaml
 
 
 ALLOWED_REMOTE_ACTIONS: frozenset[str] = frozenset(
@@ -27,6 +29,10 @@ ALLOWED_REMOTE_SCRIPTS: frozenset[str] = frozenset(
         "experiments/landmark_baselines/run_landmark.py",
     }
 )
+
+DEFAULT_SERVER_CONFIG = REPO_ROOT / "project_config" / "server.yaml"
+DEFAULT_BUDGET_CONFIG = REPO_ROOT / "project_config" / "experiment_budget.yaml"
+GPU_ACTIONS: frozenset[str] = frozenset({"run_model_smoke_test", "run_benchmark_adapter"})
 
 
 @dataclass(frozen=True)
@@ -62,6 +68,15 @@ class RemoteRunner:
     introduced behind later validation gates so arbitrary shell cannot slip in here.
     """
 
+    def __init__(
+        self,
+        *,
+        server_config: str | Path = DEFAULT_SERVER_CONFIG,
+        budget_config: str | Path = DEFAULT_BUDGET_CONFIG,
+    ) -> None:
+        self.server_config = Path(server_config)
+        self.budget_config = Path(budget_config)
+
     def validate(self, experiment_spec: dict[str, Any]) -> ValidationReport:
         try:
             action = RemoteAction(
@@ -81,7 +96,51 @@ class RemoteRunner:
         report = self.validate(experiment_spec)
         if report.status != "passed":
             return {"status": "failed", "validation": report.to_dict()}
-        return {"status": "needs_attention", "message": "Remote execution is intentionally disabled in Phase 3."}
+        server = parse_simple_yaml(self.server_config).get("server", {})
+        budget = parse_simple_yaml(self.budget_config).get("budget", {})
+        runner_mode = str(server.get("runner_mode", "local_only"))
+        allow_real_gpu_jobs = _as_bool(budget.get("allow_real_gpu_jobs"), default=False)
+
+        gate_failures = []
+        if runner_mode != "remote_enabled":
+            gate_failures.append(
+                {
+                    "name": "runner_mode",
+                    "status": "needs_attention",
+                    "expected": "remote_enabled",
+                    "actual": runner_mode,
+                }
+            )
+        if str(experiment_spec.get("action")) in GPU_ACTIONS and not allow_real_gpu_jobs:
+            gate_failures.append(
+                {
+                    "name": "real_gpu_budget",
+                    "status": "needs_attention",
+                    "expected": True,
+                    "actual": allow_real_gpu_jobs,
+                }
+            )
+        if gate_failures:
+            return {
+                "status": "needs_attention",
+                "runner_mode": runner_mode,
+                "allow_real_gpu_jobs": allow_real_gpu_jobs,
+                "gate_failures": gate_failures,
+                "message": "Remote execution gate is closed by configuration.",
+            }
+        return {
+            "status": "needs_attention",
+            "runner_mode": runner_mode,
+            "allow_real_gpu_jobs": allow_real_gpu_jobs,
+            "gate_failures": [
+                {
+                    "name": "remote_executor",
+                    "status": "needs_attention",
+                    "message": "No reviewed remote executor implementation is enabled yet.",
+                }
+            ],
+            "message": "Remote execution config gates are open, but no reviewed executor is implemented.",
+        }
 
     def poll(self, job_id: str) -> dict[str, Any]:
         return {"job_id": job_id, "status": "needs_attention", "message": "No remote jobs are submitted in Phase 3."}
@@ -91,3 +150,11 @@ class RemoteRunner:
 
     def cancel(self, job_id: str) -> dict[str, Any]:
         return {"job_id": job_id, "status": "needs_attention", "message": "No remote job exists to cancel in Phase 3."}
+
+
+def _as_bool(value: Any, *, default: bool) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
