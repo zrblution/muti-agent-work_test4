@@ -1,0 +1,46 @@
+{
+  "phase": "Phase 5",
+  "status": "needs_attention",
+  "failure_type": "real_smoke_gate_not_ready",
+  "failure_message": "Qwen3-VL + POPE limit=8 smoke was blocked before execution.",
+  "failed_commands": [
+    {
+      "command": "python -m stable_core.cli preflight --dry-run",
+      "exit_code": 0,
+      "status": "needs_setup",
+      "log": "runs/phase_5_gate_logs/preflight_dry_run.json"
+    },
+    {
+      "command": "python -m stable_core.cli validate-model qwen3_vl_2b_instruct",
+      "exit_code": 0,
+      "status": "needs_setup",
+      "log": "runs/phase_5_gate_logs/validate_model_qwen3_vl.json"
+    },
+    {
+      "command": "python -m stable_core.cli validate-benchmark pope",
+      "exit_code": 0,
+      "status": "needs_setup",
+      "log": "runs/phase_5_gate_logs/validate_benchmark_pope.json"
+    },
+    {
+      "command": "python -m stable_core.cli run-landmark --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none",
+      "exit_code": 2,
+      "status": "failed",
+      "stderr": "runs/phase_5_gate_logs/run_landmark_attempt.stderr"
+    }
+  ],
+  "root_cause_hypothesis": [
+    "project_config/models.yaml has qwen3_vl_2b_instruct path set to null, so the model path gate cannot pass.",
+    "project_config/benchmarks.yaml has pope path set to null, so the benchmark path gate cannot pass.",
+    "stable_core.cli does not expose run-landmark.",
+    "project_config/server.yaml keeps runner_mode local_only and RemoteRunner.submit intentionally returns needs_attention.",
+    "project_config/experiment_budget.yaml has allow_real_gpu_jobs false."
+  ],
+  "recommended_next_action": [
+    "Configure approved local model and POPE benchmark paths without committing secrets or large artifacts.",
+    "Add offline validation for Qwen3-VL config/tokenizer/processor files and POPE sample inventory.",
+    "Implement a structured run-landmark or equivalent controlled runner entry point with manifest/log preservation.",
+    "Keep real GPU execution disabled until validation-only gates pass and operator approval is explicit."
+  ],
+  "do_not_continue_reason": "Continuing would require inventing model/benchmark paths or bypassing structured runner gates, which would violate the task safety rules and could fabricate benchmark results."
+}

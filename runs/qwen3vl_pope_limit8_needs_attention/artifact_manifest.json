@@ -1,0 +1,12 @@
+{
+  "run_id": "qwen3vl_pope_limit8_needs_attention",
+  "artifacts": [
+    {"path": "command_manifest.json", "kind": "manifest", "tracked_in_git": true},
+    {"path": "stdout.log", "kind": "stdout", "tracked_in_git": true},
+    {"path": "stderr.log", "kind": "stderr", "tracked_in_git": true},
+    {"path": "exit_code.txt", "kind": "exit_code", "tracked_in_git": true},
+    {"path": "run_manifest.json", "kind": "run_manifest", "tracked_in_git": true},
+    {"path": "failure.json", "kind": "failure", "tracked_in_git": true},
+    {"path": "failure_report.md", "kind": "failure_report", "tracked_in_git": true}
+  ]
+}

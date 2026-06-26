@@ -1,0 +1,20 @@
+{
+  "run_id": "qwen3vl_pope_limit8_needs_attention",
+  "run_type": "landmark_baseline",
+  "model_id": "qwen3_vl_2b_instruct",
+  "benchmark_id": "pope",
+  "idea_id": null,
+  "limit": 8,
+  "instrumentation_mode": "none",
+  "started_at": "2026-06-26T15:24:00Z",
+  "finished_at": "2026-06-26T15:24:00Z",
+  "status": "needs_attention",
+  "git_commit": "2237f00b370bf3fa5950e86461d6cf768279a99f",
+  "outputs": {},
+  "missing_outputs": {
+    "raw_outputs": "Real smoke was not run because preflight/model/benchmark gates were not ready and run-landmark is not implemented.",
+    "normalized_outputs": "No raw outputs exist to normalize.",
+    "metrics": "No real smoke outputs exist to score.",
+    "failure_cases": "No real benchmark outputs exist to inspect."
+  }
+}

@@ -1,0 +1,1 @@
+{"command": "validate-benchmark", "benchmark_id": "pope", "status": "needs_setup", "checks": [{"name": "adapter", "status": "passed", "value": "POPEAdapter"}, {"name": "benchmark_path", "status": "needs_setup", "message": "No benchmark path configured."}], "summary": "POPE is validate-only; benchmark path is not configured."}

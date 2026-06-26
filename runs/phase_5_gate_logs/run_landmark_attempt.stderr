@@ -1,0 +1,4 @@
+usage: stable_core [-h]
+                   {preflight,doctor,validate-config,list-models,list-benchmarks,list-agents,export-schemas,evidence,index-baselines,workflow,run-local,validate-model,validate-benchmark,run-eval,research-status}
+                   ...
+stable_core: error: argument command: invalid choice: 'run-landmark' (choose from 'preflight', 'doctor', 'validate-config', 'list-models', 'list-benchmarks', 'list-agents', 'export-schemas', 'evidence', 'index-baselines', 'workflow', 'run-local', 'validate-model', 'validate-benchmark', 'run-eval', 'research-status')

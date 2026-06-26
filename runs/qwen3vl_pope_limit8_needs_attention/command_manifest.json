@@ -1,0 +1,11 @@
+{
+  "run_id": "qwen3vl_pope_limit8_needs_attention",
+  "command": "python -m stable_core.cli run-landmark --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none",
+  "model_id": "qwen3_vl_2b_instruct",
+  "benchmark_id": "pope",
+  "limit": 8,
+  "instrumentation_mode": "none",
+  "controlled": true,
+  "executed_real_model": false,
+  "executed_real_benchmark": false
+}
