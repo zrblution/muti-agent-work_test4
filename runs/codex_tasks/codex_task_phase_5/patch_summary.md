@@ -37,6 +37,7 @@ This phase now contains two related records:
 - a follow-up reviewed worker execution loop that calls model and benchmark runtime methods, writes success artifacts exactly once, and records execution-failure bundles on exceptions.
 - a follow-up Qwen3-VL dependency preflight that checks Transformers/Torch/Qwen runtime availability during validation without loading weights.
 - a follow-up read-only model runtime diagnostic CLI that reports runtime dependency readiness independently from model path setup.
+- a follow-up read-only Phase 5 candidate path probe that validates candidate roots without mutating environment or config.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -96,6 +97,8 @@ This phase now contains two related records:
 - `Qwen3VLAdapter.validate_runtime_dependencies()` now exposes the same no-load dependency preflight without requiring model files
 - `stable_core.cli validate-model-runtime`
 - `phase5-readiness` now records `model_runtime_dependencies` independently from model inventory/path validation
+- `stable_core.validation.phase5_readiness.build_phase5_path_probe`
+- `stable_core.cli phase5-probe-paths`
 
 ## Gate Commands
 
@@ -207,6 +210,12 @@ This phase now contains two related records:
 - `phase5-readiness` with missing model/benchmark env vars and monkeypatched runtime dependencies
   - status: initially failed because `model_runtime_dependencies` was absent, then passed after adding the independent readiness check
   - purpose: verify missing paths no longer hide runtime dependency status
+- `phase5-probe-paths` with temporary candidate model and benchmark roots plus monkeypatched runtime dependencies
+  - status: initially failed because the CLI did not exist, then passed after adding the read-only path probe
+  - purpose: verify candidate roots can be checked without exporting env vars or modifying config
+- `build_phase5_path_probe(...)` with existing caller environment values
+  - status: initially failed because no build function existed, then passed after adding scoped environment injection
+  - purpose: verify candidate root probing restores `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` after validation
 - `Qwen3VLAdapter.validate_environment()` with a missing Transformers dependency
   - status: initially failed because validation only checked local inventory, then passed after adding runtime dependency reporting
   - purpose: verify dependency gaps become `needs_setup` before worker-side model loading

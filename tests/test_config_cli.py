@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from stable_core import config as config_module
+from stable_core.validation import phase5_readiness as phase5_module
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -422,6 +423,74 @@ def test_phase5_readiness_cli_keeps_execution_closed_after_inventory_passes(tmp_
     assert "job_id" not in report["execution_authorization"]
     assert report["safety_flags"]["submitted_remote_job"] is False
     assert not (output_dir / "raw_outputs.jsonl").exists()
+
+
+def test_phase5_probe_paths_cli_validates_candidate_roots_without_config_env(tmp_path: Path) -> None:
+    model_root = tmp_path / "models"
+    model_path = model_root / "Qwen3-VL-2B-Instruct"
+    model_path.mkdir(parents=True)
+    (model_path / "config.json").write_text("{}\n", encoding="utf-8")
+    benchmark_root = tmp_path / "benchmarks"
+    benchmark_path = benchmark_root / "POPE"
+    benchmark_path.mkdir(parents=True)
+    (benchmark_path / "samples.jsonl").write_text("{}\n", encoding="utf-8")
+    fake_runtime_path = _write_fake_qwen_runtime_modules(tmp_path / "fake_qwen_runtime")
+    output_path = tmp_path / "probe.json"
+    env = os.environ.copy()
+    env.pop("REMOTE_MODEL_ROOT", None)
+    env.pop("REMOTE_BENCHMARK_ROOT", None)
+    env["PYTHONPATH"] = os.pathsep.join(
+        item for item in [fake_runtime_path, os.environ.get("PYTHONPATH", "")] if item
+    )
+
+    result = run_cli(
+        "phase5-probe-paths",
+        "--model",
+        "qwen3_vl_2b_instruct",
+        "--benchmark",
+        "pope",
+        "--model-root",
+        str(model_root),
+        "--benchmark-root",
+        str(benchmark_root),
+        "--output",
+        str(output_path),
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    written = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["command"] == "phase5-probe-paths"
+    assert payload["status"] == "passed"
+    assert written["status"] == "passed"
+    assert written["candidate_env"]["REMOTE_MODEL_ROOT"] == str(model_root)
+    assert written["candidate_env"]["REMOTE_BENCHMARK_ROOT"] == str(benchmark_root)
+    assert written["checks"]["model_validation"]["status"] == "passed"
+    assert written["checks"]["benchmark_validation"]["status"] == "passed"
+    assert written["safety_flags"]["write_config"] is False
+    assert written["safety_flags"]["executed_real_model"] is False
+    assert "raw_outputs.jsonl" not in {path.name for path in tmp_path.iterdir()}
+
+
+def test_phase5_probe_paths_restores_existing_environment(monkeypatch, tmp_path: Path) -> None:
+    model_root = tmp_path / "models"
+    benchmark_root = tmp_path / "benchmarks"
+    monkeypatch.setenv("REMOTE_MODEL_ROOT", "original-model-root")
+    monkeypatch.setenv("REMOTE_BENCHMARK_ROOT", "original-benchmark-root")
+
+    report = phase5_module.build_phase5_path_probe(
+        model_id="qwen3_vl_2b_instruct",
+        benchmark_id="pope",
+        model_root=model_root,
+        benchmark_root=benchmark_root,
+    )
+
+    assert report["candidate_env"]["REMOTE_MODEL_ROOT"] == str(model_root)
+    assert report["candidate_env"]["REMOTE_BENCHMARK_ROOT"] == str(benchmark_root)
+    assert os.environ["REMOTE_MODEL_ROOT"] == "original-model-root"
+    assert os.environ["REMOTE_BENCHMARK_ROOT"] == "original-benchmark-root"
+    assert report["safety_flags"]["write_config"] is False
 
 
 def test_export_schemas_cli_writes_json_files(tmp_path: Path) -> None:

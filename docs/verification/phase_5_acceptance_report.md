@@ -31,6 +31,8 @@ Readiness bundle update: `phase5-readiness --model qwen3_vl_2b_instruct --benchm
 
 Runtime dependency diagnostics update: `validate-model-runtime <model_id>` now checks model-specific runtime dependencies without requiring model files, loading weights, downloading files, or reading `.env`. `phase5-readiness` includes this as `model_runtime_dependencies`, so a missing model path no longer hides whether the execution environment has the Qwen runtime dependencies available.
 
+Candidate path probe update: `phase5-probe-paths --model <id> --benchmark <id> --model-root <path> --benchmark-root <path>` now validates candidate root directories by temporarily applying the configured root environment variables inside the process. It does not mutate the caller environment, does not modify config, does not read `.env`, does not load weights, does not submit jobs, and does not write raw outputs.
+
 Run-validation update: `validate-run --run-id` now validates recorded run directories without executing models or benchmarks. It checks safe run IDs, manifests, declared outputs, failure artifacts for `failed`/`needs_attention` runs, and artifact hashes.
 
 Run-lifecycle CLI update: top-level `poll --run-id` and `parse-results --run-id` commands now inspect recorded run directories without submitting jobs, loading models, running benchmarks, or recomputing metrics. `poll` reports the recorded manifest status; `parse-results` validates the artifact bundle and reads the declared metrics file when one exists, while preserving `needs_attention` when the real-smoke gate has no outputs to score.
@@ -97,6 +99,7 @@ Remote-gate diagnostics update: `run-landmark` now has separate next-action guid
 - `discover-benchmark-inventory pope` with a temporary POPE directory containing shallow `.json` and `.jsonl` files: `passed`, report records candidate `discovered_files` and `write_config: false`
 - `discover-model-inventory qwen3_vl_2b_instruct` with `REMOTE_MODEL_ROOT` unset: `needs_setup`, report records the missing env var, `load_attempted: false`, and writes no config
 - `validate-model-runtime qwen3_vl_2b_instruct` with monkeypatched runtime modules and no `REMOTE_MODEL_ROOT`: `passed`, proving dependency readiness is reported independently from model path setup
+- `phase5-probe-paths` with temporary candidate model and benchmark roots plus monkeypatched runtime modules: `passed`, proving candidate roots can be validated without exporting env vars, editing config, loading models, or running benchmarks
 - `discover-model-inventory qwen3_vl_2b_instruct` with a temporary Qwen directory containing shallow `.json` metadata and a `.safetensors` placeholder: `passed`, report records metadata candidates, excludes the weight file, and writes no config
 - `phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_readiness_cli_smoke` with model and benchmark root env vars unset: `needs_attention`, report records missing `REMOTE_MODEL_ROOT`, missing `REMOTE_BENCHMARK_ROOT`, independent model runtime dependency status, closed `runner_mode`, `real_gpu_budget`, and `process_submission` gates, with no real execution or raw outputs
 - `phase5-readiness` in tests with temporary model `config.json` and POPE `samples.jsonl`: model and benchmark validation pass, but top-level status remains `needs_attention` because remote execution authorization is still closed and the execution plan has `submits_process: false`
@@ -143,6 +146,7 @@ The human decision record is stored in `runs/needs_attention/phase_5_needs_human
 ## Required Fixes Before Resuming Phase 5
 
 - Configure approved local model and POPE paths without committing secrets or large artifacts.
+- Use `phase5-probe-paths` to validate any candidate `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` before exporting them or enabling execution gates.
 - Populate the approved local model and benchmark directories so offline inventory validation passes.
 - Configure approved local model and POPE paths with Qwen3-VL runtime dependencies that pass `validate-model`, then run the non-recursive worker through the reviewed RemoteRunner gate to produce either a validated success bundle or a reviewed real-execution failure bundle.
 - Keep `phase5-readiness` in `plan_only` mode, and use the reviewed subprocess executor only after validation passes and `allow_process_submission` is explicitly set to `true`.

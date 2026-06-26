@@ -21,6 +21,7 @@ Phase 5: minimal real smoke for `qwen3_vl_2b_instruct` + `pope` with `limit=8` a
 - The whitelisted worker entry point exists, is non-recursive, and now has a reviewed execution loop that calls Qwen3-VL and POPE runtime methods after validation and process-submission gates pass. With missing Qwen runtime dependencies it records `landmark_worker_validation_gate_not_ready`; with monkeypatched runtime adapters it writes the full success artifact set. No real server smoke has been accepted yet.
 - `Qwen3VLAdapter.validate_environment()` now checks Transformers, Torch, `AutoProcessor`, a supported Qwen-compatible model class, and precision dtype support after offline inventory validation. Missing dependencies return `needs_setup` before model loading.
 - `validate-model-runtime qwen3_vl_2b_instruct` now reports Qwen runtime dependency status without requiring `REMOTE_MODEL_ROOT` or model files, and `phase5-readiness` includes the result as `model_runtime_dependencies`.
+- `phase5-probe-paths` now validates candidate model and benchmark roots without mutating env, editing config, loading weights, running benchmarks, submitting jobs, or writing raw outputs.
 
 ## Human Decisions Required
 
@@ -36,6 +37,7 @@ Phase 5: minimal real smoke for `qwen3_vl_2b_instruct` + `pope` with `limit=8` a
 ```bash
 python -m stable_core.cli validate-config
 python -m stable_core.cli validate-model-runtime qwen3_vl_2b_instruct
+python -m stable_core.cli phase5-probe-paths --model qwen3_vl_2b_instruct --benchmark pope --model-root <candidate_REMOTE_MODEL_ROOT> --benchmark-root <candidate_REMOTE_BENCHMARK_ROOT> --output /tmp/phase5_candidate_paths.json
 python -m stable_core.cli validate-model qwen3_vl_2b_instruct
 python -m stable_core.cli validate-benchmark pope
 python -m stable_core.cli validate-run --run-id qwen3vl_pope_limit8_gate_diagnostics

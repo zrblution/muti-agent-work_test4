@@ -124,6 +124,12 @@ This moves runtime dependency gaps into `needs_setup` before the whitelisted wor
 
 This is still read-only: it does not read `.env`, download model files, load weights, run generation, submit jobs, or write raw outputs.
 
+## Candidate Path Probe Follow-Up
+
+`phase5-probe-paths` now validates candidate `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` values by temporarily applying them only inside the validation process. It runs config validation, inventory discovery, model runtime dependency checks, model validation, and benchmark validation, then restores the caller environment.
+
+This lets the server test candidate roots before exporting env vars or changing config. It remains read-only: no `.env` read, no config mutation, no model load, no benchmark execution, no job submission, and no raw outputs.
+
 ## Worker Execution Loop Follow-Up
 
 The whitelisted worker now calls the model and benchmark runtime methods after validation and adapter runtime gates pass. The success path writes raw outputs, normalized outputs, metrics, failure cases, experiment summary, reproducibility notes, run manifest, and artifact manifest. It refuses to overwrite existing `raw_outputs.jsonl`.
