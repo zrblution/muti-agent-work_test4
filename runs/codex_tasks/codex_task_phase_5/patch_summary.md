@@ -23,6 +23,7 @@ This phase now contains two related records:
 - a follow-up `validate-config` inventory subreport that catches unsafe `required_files` before path resolution.
 - a follow-up block-list parser for `validate-config` inventory checks, so multi-line YAML `required_files` cannot bypass the same safety gate.
 - a follow-up read-only benchmark inventory discovery CLI that writes reviewable candidate files without modifying config or running a benchmark.
+- a follow-up read-only model inventory discovery CLI that writes reviewable metadata candidates without modifying config, downloading, or loading weights.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -48,6 +49,8 @@ This phase now contains two related records:
 - `validate-config` now applies the inventory safety check to both inline and block-list YAML `required_files`
 - `stable_core.validation.inventory_discovery.discover_benchmark_inventory`
 - `stable_core.cli discover-benchmark-inventory`
+- `stable_core.validation.inventory_discovery.discover_model_inventory`
+- `stable_core.cli discover-model-inventory`
 - recorded run validation for manifests, declared outputs, failure artifacts, and artifact hashes
 - `run-landmark` `failure.json` now includes log tails, reproduction command, config snapshot, and state snapshot
 - `RemoteRunner.submit()` now reports `runner_mode`, `allow_real_gpu_jobs`, and `allow_process_submission` gate failures from config
@@ -141,6 +144,12 @@ This phase now contains two related records:
 - `discover-benchmark-inventory pope` with a temporary POPE directory containing shallow metadata/sample files
   - status: `passed`
   - report records candidate files and `write_config: false`
+- `discover-model-inventory qwen3_vl_2b_instruct` with `REMOTE_MODEL_ROOT` unset
+  - status: `needs_setup`
+  - report records the missing env var, `load_attempted: false`, and writes no config
+- `discover-model-inventory qwen3_vl_2b_instruct` with a temporary Qwen directory containing shallow metadata and a weight placeholder
+  - status: `passed`
+  - report records metadata candidates, excludes the weight file, and `write_config: false`
 
 ## Artifacts Added
 
@@ -187,6 +196,15 @@ This phase now contains two related records:
 - `python -m pytest tests/test_config_cli.py::test_discover_benchmark_inventory_cli_reports_missing_env tests/test_config_cli.py::test_discover_benchmark_inventory_cli_writes_reviewable_candidates -q`: initially `2 failed`, then `2 passed` after adding `discover-benchmark-inventory`.
 - `python -m pytest tests/test_config_cli.py -q`: `7 passed` after adding `discover-benchmark-inventory`.
 - `python -m stable_core.cli discover-benchmark-inventory pope --output /tmp/phase5_pope_inventory_discovery.json`: `needs_setup`, missing `REMOTE_BENCHMARK_ROOT`, no config write.
+- `python -m pytest tests/test_config_cli.py::test_discover_model_inventory_cli_reports_missing_env tests/test_config_cli.py::test_discover_model_inventory_cli_writes_reviewable_candidates -q`: initially `2 failed`, then `2 passed` after adding `discover-model-inventory`.
+- `python -m pytest tests/test_config_cli.py -q`: `9 passed` after adding `discover-model-inventory`.
+- `python -m stable_core.cli discover-model-inventory qwen3_vl_2b_instruct --output /tmp/phase5_qwen_inventory_discovery.json`: `needs_setup`, missing `REMOTE_MODEL_ROOT`, no config write, no load attempted.
+- `python -m pytest tests/test_fake_adapters.py -q`: `11 passed` after adding `discover-model-inventory`.
+- `python -m pytest tests/test_runner.py tests/test_landmark_gate.py -q`: `19 passed` after adding `discover-model-inventory`.
+- `python -m pytest -q`: `72 passed` after adding `discover-model-inventory`.
+- `python -m stable_core.cli validate-config`: `passed` with `inventory.status` `passed` after adding `discover-model-inventory`.
+- `python -m stable_core.cli discover-model-inventory qwen3_vl_2b_instruct --output /tmp/phase5_qwen_inventory_discovery_final.json`: `needs_setup`, missing `REMOTE_MODEL_ROOT`, no config write, no load attempted.
+- `python -m stable_core.cli discover-benchmark-inventory pope --output /tmp/phase5_pope_inventory_discovery_final.json`: `needs_setup`, missing `REMOTE_BENCHMARK_ROOT`, no config write.
 - `python -m pytest tests/test_fake_adapters.py -q`: `11 passed` after adding `discover-benchmark-inventory`.
 - `python -m pytest tests/test_runner.py tests/test_landmark_gate.py -q`: `19 passed` after adding `discover-benchmark-inventory`.
 - `python -m pytest -q`: `70 passed` after adding `discover-benchmark-inventory`.
@@ -203,12 +221,14 @@ This phase now contains two related records:
 - Expanded secret scan after adding configured benchmark inventory validation: `passed`, no findings.
 - Expanded secret scan after adding unsafe inventory path validation: `passed`, no findings.
 - Expanded secret scan after adding benchmark inventory discovery: `passed`, no findings.
+- Expanded secret scan after adding model inventory discovery: `passed`, no findings.
 - Expanded secret scan after adding block-list config parsing: `passed`, no findings.
 - Large-file scan after adding `poll` and `parse-results`: no files over 5 MB found.
 - Large-file scan after adding the worker stub: no files over 5 MB found.
 - Large-file scan after adding configured benchmark inventory validation: no files over 5 MB found.
 - Large-file scan after adding unsafe inventory path validation: no files over 5 MB found.
 - Large-file scan after adding benchmark inventory discovery: no files over 5 MB found.
+- Large-file scan after adding model inventory discovery: no files over 5 MB found.
 - Large-file scan after adding block-list config parsing: no files over 5 MB found.
 - `RemoteRunner().submit(...)`: `needs_attention` with `runner_mode: local_only` and `allow_real_gpu_jobs: false`.
 - CLI validation with unset path env vars reports the missing env var names.

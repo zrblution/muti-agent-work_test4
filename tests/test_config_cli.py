@@ -220,6 +220,47 @@ def test_discover_benchmark_inventory_cli_writes_reviewable_candidates(tmp_path:
     assert written["discovered_files"] == payload["discovered_files"]
 
 
+def test_discover_model_inventory_cli_reports_missing_env(tmp_path: Path) -> None:
+    output_path = tmp_path / "qwen_inventory.json"
+    env = os.environ.copy()
+    env.pop("REMOTE_MODEL_ROOT", None)
+
+    result = run_cli("discover-model-inventory", "qwen3_vl_2b_instruct", "--output", str(output_path), env=env)
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["command"] == "discover-model-inventory"
+    assert payload["status"] == "needs_setup"
+    assert payload["model_id"] == "qwen3_vl_2b_instruct"
+    assert payload["missing_env_var"] == "REMOTE_MODEL_ROOT"
+    assert json.loads(output_path.read_text(encoding="utf-8"))["status"] == "needs_setup"
+
+
+def test_discover_model_inventory_cli_writes_reviewable_candidates(tmp_path: Path) -> None:
+    model_root = tmp_path / "models"
+    model_path = model_root / "Qwen3-VL-2B-Instruct"
+    model_path.mkdir(parents=True)
+    (model_path / "config.json").write_text("{}\n", encoding="utf-8")
+    (model_path / "tokenizer_config.json").write_text("{}\n", encoding="utf-8")
+    (model_path / "preprocessor_config.json").write_text("{}\n", encoding="utf-8")
+    (model_path / "model.safetensors").write_text("large weight placeholder\n", encoding="utf-8")
+    output_path = tmp_path / "qwen_inventory.json"
+    env = {**os.environ, "REMOTE_MODEL_ROOT": str(model_root)}
+
+    result = run_cli("discover-model-inventory", "qwen3_vl_2b_instruct", "--output", str(output_path), env=env)
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "passed"
+    assert payload["model_id"] == "qwen3_vl_2b_instruct"
+    assert set(payload["discovered_files"]) == {"config.json", "tokenizer_config.json", "preprocessor_config.json"}
+    assert "model.safetensors" not in payload["discovered_files"]
+    assert payload["write_config"] is False
+    assert payload["load_attempted"] is False
+    written = json.loads(output_path.read_text(encoding="utf-8"))
+    assert written["discovered_files"] == payload["discovered_files"]
+
+
 def test_export_schemas_cli_writes_json_files(tmp_path: Path) -> None:
     output_dir = tmp_path / "schemas"
     result = run_cli("export-schemas", "--output", str(output_dir))

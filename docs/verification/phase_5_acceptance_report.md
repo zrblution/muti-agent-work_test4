@@ -25,6 +25,8 @@ Config validation update: `validate-config` now includes an `inventory` subrepor
 
 Benchmark discovery update: `discover-benchmark-inventory <benchmark_id>` now writes a read-only JSON report of shallow benchmark metadata/sample candidates when the configured benchmark path resolves. It does not modify `project_config`, does not assume POPE-specific filenames, and reports `needs_setup` when the benchmark root env var is missing.
 
+Model discovery update: `discover-model-inventory <model_id>` now writes a read-only JSON report of shallow model metadata candidates when the configured model path resolves. It does not modify `project_config`, does not download or load model weights, excludes weight-like files, and reports `needs_setup` when the model root env var is missing.
+
 Run-validation update: `validate-run --run-id` now validates recorded run directories without executing models or benchmarks. It checks safe run IDs, manifests, declared outputs, failure artifacts for `failed`/`needs_attention` runs, and artifact hashes.
 
 Run-lifecycle CLI update: top-level `poll --run-id` and `parse-results --run-id` commands now inspect recorded run directories without submitting jobs, loading models, running benchmarks, or recomputing metrics. `poll` reports the recorded manifest status; `parse-results` validates the artifact bundle and reads the declared metrics file when one exists, while preserving `needs_attention` when the real-smoke gate has no outputs to score.
@@ -59,6 +61,8 @@ Remote-gate diagnostics update: `run-landmark` now has separate next-action guid
 - `validate-config` with temporary unsafe block-list `required_files`: `failed`, inventory findings identify the unsafe entries
 - `discover-benchmark-inventory pope` with `REMOTE_BENCHMARK_ROOT` unset: `needs_setup`, report records the missing env var and writes no config
 - `discover-benchmark-inventory pope` with a temporary POPE directory containing shallow `.json` and `.jsonl` files: `passed`, report records candidate `discovered_files` and `write_config: false`
+- `discover-model-inventory qwen3_vl_2b_instruct` with `REMOTE_MODEL_ROOT` unset: `needs_setup`, report records the missing env var, `load_attempted: false`, and writes no config
+- `discover-model-inventory qwen3_vl_2b_instruct` with a temporary Qwen directory containing shallow `.json` metadata and a `.safetensors` placeholder: `passed`, report records metadata candidates, excludes the weight file, and writes no config
 - `validate-run --run-id qwen3vl_pope_limit8_gate`: `passed`, validating the recorded `needs_attention` artifact bundle
 - `validate-run --run-id fake_phase4_acceptance`: `passed`, validating the recorded fake acceptance artifact bundle
 - temporary diagnostic `run-landmark` rerun with missing env vars: exit code `1`, JSON status `needs_attention`, no real model or benchmark execution

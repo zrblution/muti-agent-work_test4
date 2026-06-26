@@ -14,7 +14,7 @@ from stable_core.runner.local import LocalRunner
 from stable_core.state_machine.state_manager import StateManager
 from stable_core.storage.run_results import parse_recorded_results, poll_recorded_run
 from stable_core.storage.run_validator import validate_run_artifacts
-from stable_core.validation.inventory_discovery import discover_benchmark_inventory
+from stable_core.validation.inventory_discovery import discover_benchmark_inventory, discover_model_inventory
 from stable_core.validation.preflight import run_preflight
 
 DEFAULT_REGISTRY = Path("evidence/registry.jsonl")
@@ -88,6 +88,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     validate_model_parser = subparsers.add_parser("validate-model", help="Validate a configured model without loading weights.")
     validate_model_parser.add_argument("model_id")
+
+    discover_model_inventory_parser = subparsers.add_parser("discover-model-inventory", help="Discover model metadata candidates without loading weights or modifying config.")
+    discover_model_inventory_parser.add_argument("model_id")
+    discover_model_inventory_parser.add_argument("--output", default=None, help="Optional JSON report path.")
+    discover_model_inventory_parser.add_argument("--max-files", type=int, default=20)
 
     validate_benchmark_parser = subparsers.add_parser("validate-benchmark", help="Validate a configured benchmark without running it.")
     validate_benchmark_parser.add_argument("benchmark_id")
@@ -197,6 +202,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "validate-model":
         report = validate_model(args.model_id)
         print(json.dumps({"command": "validate-model", **report}, ensure_ascii=False))
+        return _exit_code(str(report["status"]))
+    if args.command == "discover-model-inventory":
+        report = discover_model_inventory(args.model_id, output=args.output, max_files=args.max_files)
+        print(json.dumps({"command": "discover-model-inventory", **report}, ensure_ascii=False))
         return _exit_code(str(report["status"]))
     if args.command == "validate-benchmark":
         report = validate_benchmark(args.benchmark_id)

@@ -8,6 +8,84 @@ from adapters.inventory import BENCHMARK_METADATA_SUFFIXES, discover_benchmark_m
 from adapters.path_resolution import resolve_env_path
 from stable_core.validation.preflight import REPO_ROOT, parse_simple_yaml
 
+MODEL_METADATA_SUFFIXES = {".json", ".txt", ".md", ".model"}
+
+
+def discover_model_inventory(
+    model_id: str,
+    *,
+    output: str | Path | None = None,
+    max_files: int = 20,
+) -> dict[str, Any]:
+    config = _config_entry(REPO_ROOT / "project_config" / "models.yaml", "models", model_id)
+    if not config:
+        report = {"model_id": model_id, "status": "failed", "summary": "Unknown model id.", "write_config": False, "load_attempted": False}
+        _write_optional(output, report)
+        return report
+
+    path_value = config.get("local_path") or config.get("path")
+    if not path_value:
+        report = {
+            "model_id": model_id,
+            "status": "needs_setup",
+            "summary": "No local model path configured.",
+            "write_config": False,
+            "load_attempted": False,
+            "discovered_files": [],
+        }
+        _write_optional(output, report)
+        return report
+
+    resolved = resolve_env_path(str(path_value))
+    if resolved.missing_env_var is not None:
+        report = {
+            "model_id": model_id,
+            "status": "needs_setup",
+            "raw_path": resolved.raw_value,
+            "missing_env_var": resolved.missing_env_var,
+            "summary": "Required model path environment variable is not set.",
+            "write_config": False,
+            "load_attempted": False,
+            "discovered_files": [],
+        }
+        _write_optional(output, report)
+        return report
+
+    model_path = resolved.path or Path(str(path_value))
+    if not model_path.exists() or not model_path.is_dir():
+        report = {
+            "model_id": model_id,
+            "status": "needs_setup",
+            "raw_path": resolved.raw_value,
+            "path": str(model_path),
+            "summary": "Model path is missing or is not a directory.",
+            "write_config": False,
+            "load_attempted": False,
+            "discovered_files": [],
+        }
+        _write_optional(output, report)
+        return report
+
+    discovered_files = _discover_model_metadata(model_path, max_files=max_files)
+    status = "passed" if discovered_files else "needs_setup"
+    report = {
+        "model_id": model_id,
+        "status": status,
+        "raw_path": resolved.raw_value,
+        "path": str(model_path),
+        "accepted_suffixes": sorted(MODEL_METADATA_SUFFIXES),
+        "discovered_files": discovered_files,
+        "write_config": False,
+        "load_attempted": False,
+        "summary": (
+            "Review discovered_files before copying any entries into project_config/models.yaml required_files."
+            if discovered_files
+            else "No shallow model metadata files were discovered."
+        ),
+    }
+    _write_optional(output, report)
+    return report
+
 
 def discover_benchmark_inventory(
     benchmark_id: str,
@@ -79,6 +157,22 @@ def discover_benchmark_inventory(
     }
     _write_optional(output, report)
     return report
+
+
+def _discover_model_metadata(root: Path, *, max_files: int = 20, max_entries: int = 200) -> list[str]:
+    matches: list[str] = []
+    scanned_entries = 0
+    try:
+        children = sorted(root.iterdir())
+    except OSError:
+        return matches
+    for path in children:
+        scanned_entries += 1
+        if scanned_entries > max_entries or len(matches) >= max_files:
+            break
+        if path.is_file() and path.suffix.lower() in MODEL_METADATA_SUFFIXES:
+            matches.append(str(path.relative_to(root)))
+    return matches
 
 
 def _config_entry(config_path: Path, section: str, item_id: str) -> dict[str, Any]:

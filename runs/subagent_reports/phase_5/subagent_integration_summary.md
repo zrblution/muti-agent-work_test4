@@ -70,6 +70,10 @@ Configured model and benchmark `required_files` entries now must be relative pat
 
 `discover-benchmark-inventory <benchmark_id>` now performs read-only shallow discovery of benchmark metadata/sample candidates when the configured benchmark path resolves. It writes an optional JSON report with `discovered_files` and `write_config: false`, and returns `needs_setup` when required path environment variables are missing. This supports the spec requirement that benchmark `required_files` can be discovered and reviewed before being copied into config, without guessing POPE-specific filenames or executing a benchmark.
 
+## Model Inventory Discovery Follow-Up
+
+`discover-model-inventory <model_id>` now performs read-only shallow discovery of model metadata candidates when the configured model path resolves. It writes an optional JSON report with `discovered_files`, `write_config: false`, and `load_attempted: false`, and returns `needs_setup` when required path environment variables are missing. This supports reviewing Qwen3-VL local metadata before any real-smoke worker is allowed to download, load, or generate.
+
 ## Run Artifact Validation Follow-Up
 
 The framework now exposes `validate-run --run-id <run_id>` for recorded run directories. It validates safe run IDs, run manifests, declared output paths, required failure artifacts for `failed` or `needs_attention` runs, and `artifact_manifest.json` hashes.
