@@ -25,6 +25,8 @@ Failure-diagnostics update: new `run-landmark` `needs_attention` bundles now inc
 
 Remote gate update: `RemoteRunner.submit()` now reads `project_config/server.yaml` and `project_config/experiment_budget.yaml` and reports structured gate failures for `runner_mode` and `allow_real_gpu_jobs`. It still does not submit real remote or GPU work.
 
+Remote plan update: when those config gates are opened in a controlled test, `RemoteRunner.submit()` returns a reviewable `execution_plan` with whitelisted argv and `submits_process: false`. This narrows the remaining remote-execution gap without launching a process.
+
 ## Evidence
 
 - `validate-config`: `passed`
@@ -59,13 +61,13 @@ The human decision record is stored in `runs/needs_attention/phase_5_needs_human
 - The structured `run-landmark` gate exists, but it correctly stops before real execution because model and benchmark validations are `needs_setup`.
 - Remote runner execution is config-gated: `project_config/server.yaml` still sets `runner_mode: local_only`.
 - Real GPU jobs are config-gated: `project_config/experiment_budget.yaml` still sets `allow_real_gpu_jobs: false`.
-- Even if those config gates are opened later, no reviewed real remote executor is enabled yet.
+- Even if those config gates are opened later, the current reviewed path only returns an execution plan with `submits_process: false`; no process-submitting executor is enabled yet.
 
 ## Required Fixes Before Resuming Phase 5
 
 - Configure approved local model and POPE paths without committing secrets or large artifacts.
 - Populate the approved local model and benchmark directories so offline inventory validation passes.
-- Extend the controlled `run-landmark` gate with reviewed real execution only after validation passes.
+- Extend the controlled `run-landmark` gate from reviewable execution plan to reviewed process submission only after validation passes.
 - Preserve all run/failure artifacts for any future real smoke attempt.
 - Keep using `validate-run --run-id <run_id>` before accepting any recorded run artifact bundle.
 - Explicitly approve real GPU execution only after validation gates pass.

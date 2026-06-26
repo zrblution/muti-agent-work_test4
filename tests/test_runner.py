@@ -77,6 +77,52 @@ def test_remote_runner_reports_configured_execution_gates() -> None:
     assert {failure["name"] for failure in result["gate_failures"]} == {"runner_mode", "real_gpu_budget"}
 
 
+def test_remote_runner_builds_reviewable_execution_plan_when_config_gates_open(tmp_path: Path) -> None:
+    server_config = tmp_path / "server.yaml"
+    budget_config = tmp_path / "experiment_budget.yaml"
+    server_config.write_text("server:\n  runner_mode: remote_enabled\n", encoding="utf-8")
+    budget_config.write_text("budget:\n  allow_real_gpu_jobs: true\n", encoding="utf-8")
+
+    result = RemoteRunner(server_config=server_config, budget_config=budget_config).submit(
+        {
+            "experiment_id": "qwen3vl_pope_limit8_real_smoke",
+            "action": "run_model_smoke_test",
+            "allowed_script": "experiments/landmark_baselines/run_landmark.py",
+            "model_id": "qwen3_vl_2b_instruct",
+            "benchmark_id": "pope",
+            "limit": 8,
+            "instrumentation_mode": "none",
+        }
+    )
+
+    assert result["status"] == "needs_attention"
+    assert result["gate_failures"][0]["name"] == "remote_executor"
+    assert "job_id" not in result
+    assert result["execution_plan"] == {
+        "experiment_id": "qwen3vl_pope_limit8_real_smoke",
+        "action": "run_model_smoke_test",
+        "allowed_script": "experiments/landmark_baselines/run_landmark.py",
+        "argv": [
+            "python",
+            "-m",
+            "stable_core.cli",
+            "run-landmark",
+            "--model",
+            "qwen3_vl_2b_instruct",
+            "--benchmark",
+            "pope",
+            "--limit",
+            "8",
+            "--instrumentation",
+            "none",
+            "--run-id",
+            "qwen3vl_pope_limit8_real_smoke",
+        ],
+        "cwd": ".",
+        "submits_process": False,
+    }
+
+
 def test_run_local_cli_executes_dummy_job() -> None:
     run_id = "dummy_phase3_cli"
 

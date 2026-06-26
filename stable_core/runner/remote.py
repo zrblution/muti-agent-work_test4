@@ -132,6 +132,7 @@ class RemoteRunner:
             "status": "needs_attention",
             "runner_mode": runner_mode,
             "allow_real_gpu_jobs": allow_real_gpu_jobs,
+            "execution_plan": _build_execution_plan(experiment_spec),
             "gate_failures": [
                 {
                     "name": "remote_executor",
@@ -158,3 +159,48 @@ def _as_bool(value: Any, *, default: bool) -> bool:
     if isinstance(value, bool):
         return value
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _build_execution_plan(experiment_spec: dict[str, Any]) -> dict[str, Any]:
+    action = str(experiment_spec.get("action"))
+    allowed_script = str(experiment_spec.get("allowed_script"))
+    experiment_id = str(experiment_spec.get("experiment_id") or _default_experiment_id(experiment_spec))
+    plan: dict[str, Any] = {
+        "experiment_id": experiment_id,
+        "action": action,
+        "allowed_script": allowed_script,
+        "argv": _argv_for_action(experiment_spec, experiment_id),
+        "cwd": ".",
+        "submits_process": False,
+    }
+    return plan
+
+
+def _argv_for_action(experiment_spec: dict[str, Any], experiment_id: str) -> list[str]:
+    action = str(experiment_spec.get("action"))
+    allowed_script = str(experiment_spec.get("allowed_script"))
+    if action == "run_model_smoke_test" and allowed_script == "experiments/landmark_baselines/run_landmark.py":
+        return [
+            "python",
+            "-m",
+            "stable_core.cli",
+            "run-landmark",
+            "--model",
+            str(experiment_spec.get("model_id")),
+            "--benchmark",
+            str(experiment_spec.get("benchmark_id")),
+            "--limit",
+            str(experiment_spec.get("limit")),
+            "--instrumentation",
+            str(experiment_spec.get("instrumentation_mode") or "none"),
+            "--run-id",
+            experiment_id,
+        ]
+    return ["python", allowed_script]
+
+
+def _default_experiment_id(experiment_spec: dict[str, Any]) -> str:
+    model_id = str(experiment_spec.get("model_id") or "model")
+    benchmark_id = str(experiment_spec.get("benchmark_id") or "benchmark")
+    limit = str(experiment_spec.get("limit") or "all")
+    return f"{model_id}_{benchmark_id}_limit{limit}"

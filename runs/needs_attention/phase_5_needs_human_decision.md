@@ -15,6 +15,7 @@ Phase 5: minimal real smoke for `qwen3_vl_2b_instruct` + `pope` with `limit=8` a
 - `validate-run --run-id qwen3vl_pope_limit8_gate` validates the recorded `needs_attention` artifact bundle.
 - `validate-run --run-id qwen3vl_pope_limit8_gate_diagnostics` validates the enhanced failure-diagnostics artifact bundle.
 - `RemoteRunner.submit()` reports config-driven gate failures for `runner_mode: local_only` and `allow_real_gpu_jobs: false`.
+- With open config gates in tests, `RemoteRunner.submit()` returns a whitelisted `execution_plan` with `submits_process: false`.
 
 ## Human Decisions Required
 
@@ -22,7 +23,7 @@ Phase 5: minimal real smoke for `qwen3_vl_2b_instruct` + `pope` with `limit=8` a
 - Confirm the resolved Qwen3-VL directory contains the required offline model inventory, including `config.json`.
 - Confirm the resolved POPE directory contains benchmark metadata or sample files with an accepted suffix such as `.json`, `.jsonl`, `.tsv`, `.csv`, `.txt`, `.yaml`, or `.yml`.
 - Explicitly authorize opening the remote execution gate and GPU budget after validation passes.
-- Provide or approve a reviewed real remote executor implementation before any real GPU job is submitted.
+- Approve the transition from reviewable `execution_plan` to actual process submission before any real GPU job is submitted.
 
 ## Commands To Resume
 

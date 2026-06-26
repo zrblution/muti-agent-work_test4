@@ -13,6 +13,7 @@ This phase now contains two related records:
 - a follow-up run-artifact validator for auditing recorded run directories without re-running models or benchmarks.
 - a follow-up failure-diagnostics improvement for `run-landmark` `needs_attention` bundles.
 - a follow-up config-driven remote execution gate that keeps real execution closed by default.
+- a follow-up reviewable remote execution plan for open config gates, still with no process submission.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -35,6 +36,7 @@ This phase now contains two related records:
 - recorded run validation for manifests, declared outputs, failure artifacts, and artifact hashes
 - `run-landmark` `failure.json` now includes log tails, reproduction command, config snapshot, and state snapshot
 - `RemoteRunner.submit()` now reports `runner_mode` and `allow_real_gpu_jobs` gate failures from config
+- `RemoteRunner.submit()` now returns a whitelisted `execution_plan` with `submits_process: false` when config gates are open in tests
 
 ## Gate Commands
 
@@ -96,10 +98,10 @@ This phase now contains two related records:
 - `python -m pytest tests/test_fake_adapters.py -q`: `7 passed`.
 - `python -m pytest tests/test_landmark_gate.py -q`: `2 passed`.
 - `python -m pytest tests/test_runner.py tests/test_landmark_gate.py tests/test_fake_adapters.py -q`: `17 passed`.
-- `python -m pytest tests/test_runner.py -q`: `9 passed`.
+- `python -m pytest tests/test_runner.py -q`: `10 passed`.
 - `python -m pytest tests/test_landmark_gate.py tests/test_runner.py -q`: `11 passed`.
 - `python -m pytest tests/test_landmark_gate.py -q`: `2 passed` after the failure-diagnostics assertion update.
-- `python -m pytest -q`: `54 passed`.
+- `python -m pytest -q`: `55 passed`.
 - `RemoteRunner().submit(...)`: `needs_attention` with `runner_mode: local_only` and `allow_real_gpu_jobs: false`.
 - CLI validation with unset path env vars reports the missing env var names.
 - CLI validation with temporary existing but empty model and benchmark directories returns `needs_setup` at the inventory gate.
