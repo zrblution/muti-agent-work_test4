@@ -16,7 +16,7 @@ from stable_core.storage.run_results import parse_recorded_results, poll_recorde
 from stable_core.storage.run_validator import validate_run_artifacts
 from stable_core.validation.inventory_discovery import discover_benchmark_inventory, discover_model_inventory
 from stable_core.validation.model_candidates import discover_phase5_model_candidates
-from stable_core.validation.phase5_readiness import build_phase5_path_probe, build_phase5_readiness_bundle
+from stable_core.validation.phase5_readiness import build_phase5_explicit_model_path_probe, build_phase5_path_probe, build_phase5_readiness_bundle
 from stable_core.validation.preflight import run_preflight
 
 DEFAULT_REGISTRY = Path("evidence/registry.jsonl")
@@ -134,6 +134,13 @@ def build_parser() -> argparse.ArgumentParser:
     phase5_probe_parser.add_argument("--model-root", required=True)
     phase5_probe_parser.add_argument("--benchmark-root", required=True)
     phase5_probe_parser.add_argument("--output", default=None)
+
+    phase5_explicit_probe_parser = subparsers.add_parser("phase5-probe-explicit-model-path", help="Probe an exact Phase 5 model path and benchmark root without mutating config or environment.")
+    phase5_explicit_probe_parser.add_argument("--model", required=True)
+    phase5_explicit_probe_parser.add_argument("--benchmark", required=True)
+    phase5_explicit_probe_parser.add_argument("--model-path", required=True)
+    phase5_explicit_probe_parser.add_argument("--benchmark-root", required=True)
+    phase5_explicit_probe_parser.add_argument("--output", default=None)
 
     phase5_discover_model_parser = subparsers.add_parser("phase5-discover-model-candidates", help="Discover reviewable Phase 5 model path candidates under explicit search roots.")
     phase5_discover_model_parser.add_argument("model_id")
@@ -326,6 +333,33 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "status": report["status"],
                     "model_id": args.model,
                     "benchmark_id": args.benchmark,
+                    **safety_flags,
+                },
+                ensure_ascii=False,
+            )
+        )
+        return _exit_code(str(report["status"]))
+    if args.command == "phase5-probe-explicit-model-path":
+        try:
+            report = build_phase5_explicit_model_path_probe(
+                model_id=args.model,
+                benchmark_id=args.benchmark,
+                model_path=args.model_path,
+                benchmark_root=args.benchmark_root,
+                output=args.output,
+            )
+        except Exception as exc:
+            print(json.dumps({"command": "phase5-probe-explicit-model-path", "status": "failed", "error": str(exc)}, ensure_ascii=False))
+            return 1
+        safety_flags = report["safety_flags"]
+        print(
+            json.dumps(
+                {
+                    "command": "phase5-probe-explicit-model-path",
+                    "status": report["status"],
+                    "model_id": args.model,
+                    "benchmark_id": args.benchmark,
+                    "requires_human_approval": report.get("requires_human_approval", True),
                     **safety_flags,
                 },
                 ensure_ascii=False,

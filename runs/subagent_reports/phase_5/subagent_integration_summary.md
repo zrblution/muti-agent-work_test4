@@ -146,6 +146,12 @@ Server verification after this classifier returned 27 candidates: 1 incomplete H
 
 Direct no-load validation of those 18 variant paths passed with `Qwen3VLAdapter.validate_environment()`. That proves the variants are technically present enough for the adapter preflight, but it does not authorize using them for Phase 5 because the configured target still resolves to `${REMOTE_MODEL_ROOT}/Qwen3-VL-2B-Instruct`.
 
+## Explicit Model Path Probe Follow-Up
+
+`phase5-probe-explicit-model-path` now validates an exact model path together with a candidate benchmark root. This supports review-only diagnostics for server variant paths that cannot be represented as `${REMOTE_MODEL_ROOT}/Qwen3-VL-2B-Instruct`.
+
+The command marks non-contract paths with `requires_human_approval: true`, restores the caller environment after temporary benchmark-root validation, and records all safety flags as false. It does not mutate config, export env vars, read `.env`, load weights, run generation, submit jobs, run benchmarks, or write raw outputs.
+
 ## Worker Execution Loop Follow-Up
 
 The whitelisted worker now calls the model and benchmark runtime methods after validation and adapter runtime gates pass. The success path writes raw outputs, normalized outputs, metrics, failure cases, experiment summary, reproducibility notes, run manifest, and artifact manifest. It refuses to overwrite existing `raw_outputs.jsonl`.

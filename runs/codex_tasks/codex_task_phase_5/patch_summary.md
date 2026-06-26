@@ -41,6 +41,7 @@ This phase now contains two related records:
 - a follow-up read-only Phase 5 model candidate discovery CLI that scans only explicit bounded roots and classifies configured-root, HuggingFace cache, snapshot, and output-like candidates without loading weights.
 - a follow-up discovery pruning fix so output-like result directories, configured model directories, and HuggingFace cache bases do not consume traversal budget after classification.
 - a follow-up model-like variant classifier so qwen-like directories with `config.json` are surfaced for review without becoming usable configured roots.
+- a follow-up explicit model-path probe for review-only variant validation without requiring `REMOTE_MODEL_ROOT`.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -104,6 +105,8 @@ This phase now contains two related records:
 - `stable_core.cli phase5-probe-paths`
 - `stable_core.validation.model_candidates.discover_phase5_model_candidates`
 - `stable_core.cli phase5-discover-model-candidates`
+- `stable_core.validation.phase5_readiness.build_phase5_explicit_model_path_probe`
+- `stable_core.cli phase5-probe-explicit-model-path`
 
 ## Gate Commands
 
@@ -242,6 +245,12 @@ This phase now contains two related records:
   - status: `passed`
   - output: `/tmp/phase5_variant_direct_validation_server.json`
   - finding: inventory and runtime dependencies are ready for those explicit paths, but none is approved under the current configured-root contract
+- `phase5-probe-explicit-model-path` with a temporary qwen-like variant path and POPE benchmark root
+  - status: initially failed because the CLI and builder did not exist, then passed after adding the review-only exact-path probe
+  - purpose: validate exact variant paths without `REMOTE_MODEL_ROOT`, while preserving `requires_human_approval: true`, environment restoration, and no execution
+- `build_phase5_explicit_model_path_probe(...)` with existing caller environment values
+  - status: initially failed because the builder did not exist, then passed after adding scoped benchmark-root env handling
+  - purpose: verify exact-path probing restores `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT`
 - `build_phase5_path_probe(...)` with existing caller environment values
   - status: initially failed because no build function existed, then passed after adding scoped environment injection
   - purpose: verify candidate root probing restores `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` after validation

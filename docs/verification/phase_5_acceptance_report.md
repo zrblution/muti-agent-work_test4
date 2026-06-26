@@ -45,6 +45,8 @@ Server variant discovery result: after the model-like classifier update, server 
 
 Variant direct validation result: each of the 18 server `model_like_variant` paths passed `Qwen3VLAdapter.validate_environment()` when used as an explicit `local_path`. This check did not load weights, download files, run generation, or mutate config. The blocker is therefore a policy/config decision: variants are technically present but are not approved substitutes for the configured base `Qwen3-VL-2B-Instruct` target.
 
+Explicit model-path probe update: `phase5-probe-explicit-model-path --model <id> --benchmark <id> --model-path <path> --benchmark-root <path>` now validates an exact model path plus a benchmark root without requiring `REMOTE_MODEL_ROOT`. This is for review-only variant diagnostics; when the path does not match the configured `${REMOTE_MODEL_ROOT}/Qwen3-VL-2B-Instruct` contract, the report sets `requires_human_approval: true`. It does not mutate config, export env vars, read `.env`, load weights, run generation, submit jobs, run benchmarks, or write raw outputs.
+
 Run-validation update: `validate-run --run-id` now validates recorded run directories without executing models or benchmarks. It checks safe run IDs, manifests, declared outputs, failure artifacts for `failed`/`needs_attention` runs, and artifact hashes.
 
 Run-lifecycle CLI update: top-level `poll --run-id` and `parse-results --run-id` commands now inspect recorded run directories without submitting jobs, loading models, running benchmarks, or recomputing metrics. `poll` reports the recorded manifest status; `parse-results` validates the artifact bundle and reads the declared metrics file when one exists, while preserving `needs_attention` when the real-smoke gate has no outputs to score.
@@ -119,6 +121,8 @@ Remote-gate diagnostics update: `run-landmark` now has separate next-action guid
 - `phase5-discover-model-candidates` with a qwen-like variant directory containing `config.json` and a weight placeholder: `needs_setup`, candidate classified as `model_like_variant`, `requires_config_path_override: true`, and not usable with current config
 - server `phase5-discover-model-candidates` after variant classification: `needs_setup`, candidate count `27`, candidate types `hf_cache_base: 1`, `run_output_dir: 8`, `model_like_variant: 18`, all execution flags false
 - direct no-load validation of all 18 server `model_like_variant` paths: `passed`; no model load, generation, config mutation, job submission, or raw output write
+- `phase5-probe-explicit-model-path` with a temporary qwen-like variant path, temporary POPE root, and monkeypatched runtime modules: `passed`, `requires_human_approval: true`, all safety flags false, and no raw outputs
+- `build_phase5_explicit_model_path_probe(...)` with existing caller environment values: restores `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` after validation
 - `discover-model-inventory qwen3_vl_2b_instruct` with a temporary Qwen directory containing shallow `.json` metadata and a `.safetensors` placeholder: `passed`, report records metadata candidates, excludes the weight file, and writes no config
 - `phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_readiness_cli_smoke` with model and benchmark root env vars unset: `needs_attention`, report records missing `REMOTE_MODEL_ROOT`, missing `REMOTE_BENCHMARK_ROOT`, independent model runtime dependency status, closed `runner_mode`, `real_gpu_budget`, and `process_submission` gates, with no real execution or raw outputs
 - `phase5-readiness` in tests with temporary model `config.json` and POPE `samples.jsonl`: model and benchmark validation pass, but top-level status remains `needs_attention` because remote execution authorization is still closed and the execution plan has `submits_process: false`
@@ -167,6 +171,7 @@ The human decision record is stored in `runs/needs_attention/phase_5_needs_human
 - Configure approved local model and POPE paths without committing secrets or large artifacts.
 - Use `phase5-discover-model-candidates` on bounded server roots to create a reviewable model-path audit before choosing `REMOTE_MODEL_ROOT`.
 - Use `phase5-probe-paths` to validate any candidate `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` before exporting them or enabling execution gates.
+- Use `phase5-probe-explicit-model-path` only for review-only variant diagnostics; do not use a variant path for the first real smoke without explicit approval and a reviewed config representation.
 - Populate the approved local model and benchmark directories so offline inventory validation passes.
 - Configure approved local model and POPE paths with Qwen3-VL runtime dependencies that pass `validate-model`, then run the non-recursive worker through the reviewed RemoteRunner gate to produce either a validated success bundle or a reviewed real-execution failure bundle.
 - Keep `phase5-readiness` in `plan_only` mode, and use the reviewed subprocess executor only after validation passes and `allow_process_submission` is explicitly set to `true`.

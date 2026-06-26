@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from experiments.fake.evaluator import validate_benchmark, validate_model, validate_model_runtime
+from experiments.fake.evaluator import MODEL_ADAPTERS, validate_benchmark, validate_model, validate_model_runtime
 from stable_core.config import validate_config
 from stable_core.runner.remote import RemoteRunner
 from stable_core.storage.run_directory import current_git_commit, utc_now, write_json, write_text
@@ -123,6 +123,59 @@ def build_phase5_path_probe(
     return report
 
 
+def build_phase5_explicit_model_path_probe(
+    *,
+    model_id: str,
+    benchmark_id: str,
+    model_path: str | Path,
+    benchmark_root: str | Path,
+    output: str | Path | None = None,
+) -> dict[str, Any]:
+    benchmark_env = _configured_root_env("benchmarks.yaml", "benchmarks", benchmark_id, "benchmark_root_env", ("path",))
+    candidate_benchmark_env = {benchmark_env: str(benchmark_root)}
+    model_path_value = Path(model_path)
+    with _temporary_env(candidate_benchmark_env):
+        checks = {
+            "config": validate_config(),
+            "model_runtime_dependencies": validate_model_runtime(model_id),
+            "model_explicit_path_validation": _validate_model_explicit_path(model_id, model_path_value),
+            "benchmark_inventory_discovery": discover_benchmark_inventory(benchmark_id),
+            "benchmark_validation": validate_benchmark(benchmark_id),
+        }
+    status = _checks_status(checks)
+    configured_dir = _configured_model_dir(model_id)
+    contract_satisfied = model_path_value.name == configured_dir
+    report = {
+        "phase": "Phase 5",
+        "mode": "explicit_model_path_probe",
+        "status": status,
+        "created_at": utc_now(),
+        "git_commit": current_git_commit(Path.cwd()),
+        "target": {
+            "model_id": model_id,
+            "benchmark_id": benchmark_id,
+        },
+        "candidate_model_path": str(model_path_value),
+        "candidate_benchmark_env": candidate_benchmark_env,
+        "configured_root_contract": {
+            "model_dir": configured_dir,
+            "satisfied": contract_satisfied,
+            "message": (
+                "Candidate path matches the configured model directory name."
+                if contract_satisfied
+                else "Candidate path is an explicit model path and does not satisfy the configured root/subdirectory contract."
+            ),
+        },
+        "requires_human_approval": not contract_satisfied,
+        "checks": checks,
+        "safety_flags": dict(SAFETY_FLAGS),
+        "next_actions": _explicit_model_path_next_actions(status, checks, contract_satisfied),
+    }
+    if output is not None:
+        write_json(Path(output), report)
+    return report
+
+
 def _readiness_status(checks: dict[str, dict[str, Any]], execution_authorization: dict[str, Any]) -> str:
     statuses = [str(check.get("status")) for check in checks.values()]
     execution_status = str(execution_authorization.get("status"))
@@ -176,6 +229,37 @@ def _path_probe_next_actions(status: str, checks: dict[str, dict[str, Any]], can
     return actions
 
 
+def _explicit_model_path_next_actions(status: str, checks: dict[str, dict[str, Any]], contract_satisfied: bool) -> list[str]:
+    actions: list[str] = []
+    if status == "passed":
+        if contract_satisfied:
+            actions.append("Review the exact model path, then prefer phase5-probe-paths with the configured root contract before execution.")
+        else:
+            actions.append("Treat this as a review-only variant path; obtain explicit approval before any config-path override or real smoke attempt.")
+        actions.append("Rerun phase5-readiness or a controlled worker plan only after the approved model and benchmark paths are represented in config.")
+        return actions
+    if checks["model_explicit_path_validation"].get("status") != "passed":
+        actions.append("Choose an exact model path whose no-load model validation passes.")
+    if checks["benchmark_validation"].get("status") != "passed":
+        actions.append("Choose a benchmark root whose configured benchmark subdirectory passes validate-benchmark.")
+    if checks["model_runtime_dependencies"].get("status") != "passed":
+        actions.append("Install or activate model runtime dependencies before probing exact model paths again.")
+    if not actions:
+        actions.append("Review failed checks before using this explicit model path.")
+    return actions
+
+
+def _validate_model_explicit_path(model_id: str, model_path: Path) -> dict[str, Any]:
+    adapter_class = MODEL_ADAPTERS.get(model_id)
+    if adapter_class is None:
+        return {"model_id": model_id, "status": "failed", "checks": [], "summary": "Unknown model id."}
+    config = dict(_config_entry(REPO_ROOT / "project_config" / "models.yaml", "models", model_id))
+    config["local_path"] = str(model_path)
+    config.pop("path", None)
+    report = adapter_class(config).validate_environment()
+    return {"model_id": model_id, **report.to_dict()}
+
+
 def _do_not_continue_reason(
     status: str,
     checks: dict[str, dict[str, Any]],
@@ -206,6 +290,15 @@ def _configured_root_env(
         if match is not None:
             return match.group(1)
     raise ValueError(f"{item_id} does not declare {env_field} or a path template environment variable.")
+
+
+def _configured_model_dir(model_id: str) -> str | None:
+    entry = _config_entry(REPO_ROOT / "project_config" / "models.yaml", "models", model_id)
+    for field in ("local_path", "path"):
+        raw_path = entry.get(field)
+        if raw_path:
+            return Path(str(raw_path)).name
+    return None
 
 
 def _config_entry(config_path: Path, section: str, item_id: str) -> dict[str, Any]:
