@@ -138,6 +138,8 @@ The command writes an optional JSON report with `write_config: false` and `load_
 
 Server verification of this command returned `needs_setup` with 9 candidates. The only Qwen3-VL cache base found under `/home/vepfs/data/cache/huggingface/hub` was incomplete, and the other qwen-like paths were classified as output directories. No candidate was usable with the current configured-root contract. The scan of `/home/vepfs/data/work1/auto-research-test1` and `/home/vepfs/data/LLM_HM_3_models` reached the configured entry cap, so the result narrows the blocker but does not prove the model is absent everywhere.
 
+After that server run, discovery was tightened so classified candidate directories are terminal traversal nodes. This prevents qwen-like output directories from consuming the entry cap with artifact children and gives future scans more budget for sibling directories that may contain a usable model root.
+
 ## Worker Execution Loop Follow-Up
 
 The whitelisted worker now calls the model and benchmark runtime methods after validation and adapter runtime gates pass. The success path writes raw outputs, normalized outputs, metrics, failure cases, experiment summary, reproducibility notes, run manifest, and artifact manifest. It refuses to overwrite existing `raw_outputs.jsonl`.

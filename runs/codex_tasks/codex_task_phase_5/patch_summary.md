@@ -39,6 +39,7 @@ This phase now contains two related records:
 - a follow-up read-only model runtime diagnostic CLI that reports runtime dependency readiness independently from model path setup.
 - a follow-up read-only Phase 5 candidate path probe that validates candidate roots without mutating environment or config.
 - a follow-up read-only Phase 5 model candidate discovery CLI that scans only explicit bounded roots and classifies configured-root, HuggingFace cache, snapshot, and output-like candidates without loading weights.
+- a follow-up discovery pruning fix so output-like result directories, configured model directories, and HuggingFace cache bases do not consume traversal budget after classification.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -226,6 +227,9 @@ This phase now contains two related records:
   - status: `needs_setup`
   - output: `/tmp/phase5_model_candidates_server.json`
   - finding: 9 candidates, no usable configured-root path, incomplete HF cache base, and qwen-like output directories only; two broad roots reached `max_entries=50000`
+- `phase5-discover-model-candidates qwen3_vl_2b_instruct` with a qwen-like output directory containing many artifact subdirectories
+  - status: initially failed because output directories consumed the entry cap, then passed after treating classified candidate directories as terminal
+  - purpose: preserve scan budget for sibling paths during server model discovery
 - `build_phase5_path_probe(...)` with existing caller environment values
   - status: initially failed because no build function existed, then passed after adding scoped environment injection
   - purpose: verify candidate root probing restores `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` after validation

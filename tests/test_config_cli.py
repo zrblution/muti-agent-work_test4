@@ -565,6 +565,35 @@ def test_phase5_discover_model_candidates_reports_incomplete_hf_cache(tmp_path: 
     assert "missing snapshots" in candidate["reason"]
 
 
+def test_phase5_discover_model_candidates_does_not_descend_into_output_dirs(tmp_path: Path) -> None:
+    output_dir = tmp_path / "20260604_qwen3vl2b_smoke"
+    output_dir.mkdir()
+    (output_dir / "run_manifest.json").write_text("{}\n", encoding="utf-8")
+    for index in range(20):
+        (output_dir / f"artifact_shard_{index:02d}").mkdir()
+    output_path = tmp_path / "model_candidates.json"
+
+    result = run_cli(
+        "phase5-discover-model-candidates",
+        "qwen3_vl_2b_instruct",
+        "--search-root",
+        str(tmp_path),
+        "--output",
+        str(output_path),
+        "--max-entries",
+        "5",
+    )
+
+    assert result.returncode == 0, result.stderr
+    written = json.loads(output_path.read_text(encoding="utf-8"))
+    assert written["status"] == "needs_setup"
+    assert written["searched_roots"][0]["truncated"] is False
+    assert len(written["candidates"]) == 1
+    candidate = written["candidates"][0]
+    assert candidate["candidate_type"] == "run_output_dir"
+    assert candidate["path"] == str(output_dir)
+
+
 def test_export_schemas_cli_writes_json_files(tmp_path: Path) -> None:
     output_dir = tmp_path / "schemas"
     result = run_cli("export-schemas", "--output", str(output_dir))

@@ -136,19 +136,25 @@ def _scan_root(
             continue
         seen_paths.add(resolved_directory)
 
+        terminal_candidate = False
         if directory.name == configured_dir:
             candidates.append(_configured_root_candidate(directory, root_env))
+            terminal_candidate = True
             if len(candidates) >= max_candidates:
                 break
-        if _is_hf_cache_base(directory, configured_dir):
+        elif _is_hf_cache_base(directory, configured_dir):
             for candidate in _hf_cache_candidates(directory):
                 candidates.append(candidate)
                 if len(candidates) >= max_candidates:
                     break
+            terminal_candidate = True
         elif _looks_like_model_output_dir(directory, configured_dir):
             candidates.append(_output_dir_candidate(directory))
+            terminal_candidate = True
             if len(candidates) >= max_candidates:
                 break
+        if terminal_candidate:
+            continue
 
         if depth >= max_depth:
             continue
