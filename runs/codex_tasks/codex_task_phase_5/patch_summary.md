@@ -248,6 +248,10 @@ This phase now contains two related records:
 - `phase5-probe-explicit-model-path` with a temporary qwen-like variant path and POPE benchmark root
   - status: initially failed because the CLI and builder did not exist, then passed after adding the review-only exact-path probe
   - purpose: validate exact variant paths without `REMOTE_MODEL_ROOT`, while preserving `requires_human_approval: true`, environment restoration, and no execution
+- server `phase5-probe-explicit-model-path` for `/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours` plus `/home/vepfs/data/work1/auto-research-test1/benchmarks`
+  - status: `passed`
+  - output: `/tmp/phase5_explicit_model_path_probe_server.json`
+  - finding: no-load model validation, runtime dependencies, benchmark inventory, and benchmark validation pass; `requires_human_approval: true` and all execution safety flags false
 - `build_phase5_explicit_model_path_probe(...)` with existing caller environment values
   - status: initially failed because the builder did not exist, then passed after adding scoped benchmark-root env handling
   - purpose: verify exact-path probing restores `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT`

@@ -152,6 +152,8 @@ Direct no-load validation of those 18 variant paths passed with `Qwen3VLAdapter.
 
 The command marks non-contract paths with `requires_human_approval: true`, restores the caller environment after temporary benchmark-root validation, and records all safety flags as false. It does not mutate config, export env vars, read `.env`, load weights, run generation, submit jobs, run benchmarks, or write raw outputs.
 
+Server verification passed for `/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours` with the POPE benchmark root `/home/vepfs/data/work1/auto-research-test1/benchmarks`. That proves this particular variant path and benchmark root can pass no-load validation together. It remains blocked from real execution until a human explicitly approves using this variant and the config representation is reviewed.
+
 ## Worker Execution Loop Follow-Up
 
 The whitelisted worker now calls the model and benchmark runtime methods after validation and adapter runtime gates pass. The success path writes raw outputs, normalized outputs, metrics, failure cases, experiment summary, reproducibility notes, run manifest, and artifact manifest. It refuses to overwrite existing `raw_outputs.jsonl`.

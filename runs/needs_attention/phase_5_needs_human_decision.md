@@ -27,6 +27,7 @@ Phase 5: minimal real smoke for `qwen3_vl_2b_instruct` + `pope` with `limit=8` a
 - Updated server discovery now also surfaces 18 qwen3-vl-2b-like variant model directories with direct weights under `/home/vepfs/data/LLM_HM_3_models`; these are `needs_review` and are not usable without a reviewed config-path decision.
 - Direct no-load validation of those 18 variant paths passed, so the remaining decision is whether any variant is an acceptable Phase 5 target and how to represent that path without silently changing the configured base model.
 - `phase5-probe-explicit-model-path` can now validate an exact variant model path plus benchmark root as a review-only diagnostic. It marks non-contract paths as requiring human approval and keeps all execution safety flags false.
+- Server exact-path probe passed for `/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours` plus `/home/vepfs/data/work1/auto-research-test1/benchmarks`, but it is still review-only because it does not satisfy the configured base-model root contract.
 
 ## Human Decisions Required
 
