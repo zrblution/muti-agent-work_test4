@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -13,6 +14,26 @@ from stable_core.storage.run_validator import validate_run_artifacts
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _write_missing_transformers_runtime(module_root: Path) -> str:
+    module_root.mkdir()
+    (module_root / "transformers.py").write_text(
+        "raise ImportError('transformers disabled by test')\n",
+        encoding="utf-8",
+    )
+    (module_root / "torch.py").write_text(
+        "\n".join(
+            [
+                "bfloat16 = 'bf16-dtype'",
+                "float16 = 'fp16-dtype'",
+                "float32 = 'fp32-dtype'",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return str(module_root)
 
 
 def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
@@ -213,6 +234,11 @@ def test_remote_runner_submits_whitelisted_worker_after_all_gates_open(monkeypat
     (benchmark_path / "samples.jsonl").write_text("{}\n", encoding="utf-8")
     monkeypatch.setenv("REMOTE_MODEL_ROOT", str(model_root))
     monkeypatch.setenv("REMOTE_BENCHMARK_ROOT", str(benchmark_root))
+    fake_runtime_path = _write_missing_transformers_runtime(tmp_path / "missing_qwen_runtime")
+    monkeypatch.setenv(
+        "PYTHONPATH",
+        os.pathsep.join(item for item in [fake_runtime_path, os.environ.get("PYTHONPATH", "")] if item),
+    )
     server_config.write_text("server:\n  runner_mode: remote_enabled\n", encoding="utf-8")
     budget_config.write_text(
         "budget:\n  allow_real_gpu_jobs: true\n  allow_process_submission: true\n",

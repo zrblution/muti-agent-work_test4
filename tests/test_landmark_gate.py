@@ -37,6 +37,30 @@ def _install_fake_qwen_dependency_runtime(monkeypatch: pytest.MonkeyPatch) -> No
     )
 
 
+def _write_missing_transformers_runtime(module_root: Path) -> str:
+    module_root.mkdir()
+    (module_root / "transformers.py").write_text(
+        "raise ImportError('transformers disabled by test')\n",
+        encoding="utf-8",
+    )
+    (module_root / "torch.py").write_text(
+        "\n".join(
+            [
+                "bfloat16 = 'bf16-dtype'",
+                "float16 = 'fp16-dtype'",
+                "float32 = 'fp32-dtype'",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return str(module_root)
+
+
+def _prepend_pythonpath(path: str, env: dict[str, str]) -> str:
+    return os.pathsep.join(item for item in [path, env.get("PYTHONPATH", "")] if item)
+
+
 def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, "-m", "stable_core.cli", *args],
@@ -349,10 +373,12 @@ def test_landmark_worker_script_records_execution_failure_without_reentering_gat
     benchmark_path.mkdir(parents=True)
     (model_path / "config.json").write_text("{}", encoding="utf-8")
     (benchmark_path / "samples.jsonl").write_text("{}\n", encoding="utf-8")
+    fake_runtime_path = _write_missing_transformers_runtime(tmp_path / "missing_qwen_runtime")
     env = {
         **os.environ,
         "REMOTE_MODEL_ROOT": str(model_root),
         "REMOTE_BENCHMARK_ROOT": str(benchmark_root),
+        "PYTHONPATH": _prepend_pythonpath(fake_runtime_path, os.environ),
     }
 
     result = subprocess.run(
