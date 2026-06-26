@@ -41,6 +41,8 @@ Remote plan update: when the remote-mode and GPU-budget config gates are opened 
 
 Run-id propagation update: once model and benchmark validation pass, `run-landmark` now passes the requested outer `run_id` into the RemoteRunner experiment spec. The reviewable execution plan therefore uses the same run id in `execution_plan.experiment_id` and the worker `--run-id` argument, preventing future real-smoke artifacts from drifting into a derived default run directory.
 
+Remote plan safety update: RemoteRunner now validates an explicit `experiment_id` with the same safe run-id rules used by run directories before it can build an execution plan. Unsafe values such as parent traversal are rejected with `status: failed` and no `execution_plan`.
+
 Worker-entry update: the whitelisted `experiments/landmark_baselines/run_landmark.py` target now exists and is non-recursive. It records a durable `needs_attention` bundle with `failure_type: landmark_worker_not_implemented`, exits nonzero, and does not load models, run benchmarks, or write raw outputs. The reviewable `RemoteRunner` plan now points at this worker path instead of re-entering the top-level `run-landmark` gate.
 
 Remote-gate diagnostics update: `run-landmark` now has separate next-action guidance for the path where model and benchmark validation pass but remote execution is still closed. That branch preserves the validated path setup and points to remote gate, GPU budget, and process-submission approval instead of asking to reconfigure paths again.
@@ -70,6 +72,7 @@ Remote-gate diagnostics update: `run-landmark` now has separate next-action guid
 - `phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_readiness_cli_smoke` with model and benchmark root env vars unset: `needs_attention`, report records missing `REMOTE_MODEL_ROOT`, missing `REMOTE_BENCHMARK_ROOT`, closed `runner_mode`, `real_gpu_budget`, and `process_submission` gates, with no real execution or raw outputs
 - `phase5-readiness` in tests with temporary model `config.json` and POPE `samples.jsonl`: model and benchmark validation pass, but top-level status remains `needs_attention` because remote execution authorization is still closed and the execution plan has `submits_process: false`
 - `run_landmark(...)` with temporary valid model and POPE inventory and `run_id=qwen_pope_requested_run_id`: remote execution plan records `experiment_id=qwen_pope_requested_run_id` and worker argv ends with that same requested run id
+- `RemoteRunner.submit(...)` with `experiment_id=../escape`: `failed`, validation error names `experiment_id`, and no execution plan is returned
 - `validate-run --run-id qwen3vl_pope_limit8_gate`: `passed`, validating the recorded `needs_attention` artifact bundle
 - `validate-run --run-id fake_phase4_acceptance`: `passed`, validating the recorded fake acceptance artifact bundle
 - temporary diagnostic `run-landmark` rerun with missing env vars: exit code `1`, JSON status `needs_attention`, no real model or benchmark execution

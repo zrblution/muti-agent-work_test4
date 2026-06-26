@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from stable_core.schemas.common import ValidationReport
+from stable_core.storage.run_directory import validate_run_id
 from stable_core.validation.preflight import REPO_ROOT, parse_simple_yaml
 
 
@@ -41,6 +42,7 @@ PROCESS_ACTIONS: frozenset[str] = frozenset(
 @dataclass(frozen=True)
 class RemoteAction:
     action: str
+    experiment_id: str | None = None
     allowed_script: str | None = None
     model_id: str | None = None
     benchmark_id: str | None = None
@@ -54,6 +56,11 @@ class RemoteAction:
 def validate_remote_action(action: RemoteAction) -> RemoteAction:
     if action.action not in ALLOWED_REMOTE_ACTIONS:
         raise ValueError(f"remote action {action.action!r} is not whitelisted")
+    if action.experiment_id is not None:
+        try:
+            validate_run_id(str(action.experiment_id))
+        except ValueError as exc:
+            raise ValueError(f"experiment_id must be a safe run id: {exc}") from exc
     if action.allowed_script is not None:
         if action.allowed_script.startswith("/") or ".." in action.allowed_script or "\\" in action.allowed_script:
             raise ValueError("allowed_script must be a safe repository-relative path")
@@ -84,6 +91,7 @@ class RemoteRunner:
         try:
             action = RemoteAction(
                 action=str(experiment_spec.get("action", "")),
+                experiment_id=experiment_spec.get("experiment_id"),
                 allowed_script=experiment_spec.get("allowed_script"),
                 model_id=experiment_spec.get("model_id"),
                 benchmark_id=experiment_spec.get("benchmark_id"),

@@ -111,3 +111,9 @@ This does not resolve the Phase 5 blocker. With temporary valid inventory, model
 `run_landmark()` now passes its requested outer `run_id` into `RemoteRunner.submit()` as `experiment_id`. When validation passes but remote execution remains gated, the failure bundle's reviewable execution plan uses the same id in `execution_plan.experiment_id` and in the worker `--run-id` argument.
 
 This keeps future controlled real-smoke artifacts aligned with the user-requested run directory instead of drifting to the default derived id.
+
+## Remote Plan ID Safety Follow-Up
+
+`RemoteRunner.submit()` now rejects unsafe explicit `experiment_id` values before building a reviewable execution plan. The validation reuses the run-directory `validate_run_id()` rule, so parent traversal, slashes, backslashes, empty values, and leading or trailing whitespace cannot become a future worker `--run-id`.
+
+This keeps the currently non-submitting plan path aligned with the same artifact path safety rules required for real execution.

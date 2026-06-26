@@ -26,6 +26,7 @@ This phase now contains two related records:
 - a follow-up read-only model inventory discovery CLI that writes reviewable metadata candidates without modifying config, downloading, or loading weights.
 - a follow-up Phase 5 readiness bundle CLI that consolidates safe validation, inventory discovery, and execution-gate status without running a model, benchmark, remote job, or raw-output writer.
 - a follow-up run-id propagation fix so `run-landmark` hands the requested outer run id to the RemoteRunner execution plan.
+- a follow-up RemoteRunner experiment-id safety gate so unsafe explicit `experiment_id` values are rejected before any execution plan is produced.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -67,6 +68,7 @@ This phase now contains two related records:
 - `stable_core.cli poll`
 - `stable_core.cli parse-results`
 - `run_landmark()` now includes `experiment_id: run_id` in the RemoteRunner experiment spec once model and benchmark validation pass
+- `RemoteRunner.validate()` now validates explicit `experiment_id` values with `validate_run_id()` before planning
 
 ## Gate Commands
 
@@ -168,6 +170,10 @@ This phase now contains two related records:
   - remote gate still returns `needs_attention`
   - execution plan `experiment_id`: `qwen_pope_requested_run_id`
   - worker argv final `--run-id` value: `qwen_pope_requested_run_id`
+- `RemoteRunner.submit(...)` with `experiment_id=../escape`
+  - status: `failed`
+  - validation error names `experiment_id`
+  - no `execution_plan` is returned
 
 ## Artifacts Added
 
@@ -231,6 +237,13 @@ This phase now contains two related records:
 - `python -m stable_core.cli phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_run_id_readiness_cli_smoke`: `needs_attention`, safety flags all false.
 - Expanded secret scan after run-id propagation: `passed`, no findings.
 - Large-file scan after run-id propagation: no files over 5 MB found.
+- `python -m pytest tests/test_runner.py::test_remote_runner_rejects_unsafe_experiment_id_before_planning -q`: initially `1 failed`, then `1 passed` after validating `experiment_id`.
+- `python -m pytest tests/test_runner.py tests/test_landmark_gate.py tests/test_fake_adapters.py -q`: `32 passed` after validating `experiment_id`.
+- `python -m pytest -q`: `76 passed` after validating `experiment_id`.
+- `python -m stable_core.cli validate-config`: `passed` after validating `experiment_id`.
+- `python -m stable_core.cli phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_experiment_id_readiness_cli_smoke`: `needs_attention`, safety flags all false.
+- Expanded secret scan after validating `experiment_id`: `passed`, no findings.
+- Large-file scan after validating `experiment_id`: no files over 5 MB found.
 - `python -m stable_core.cli discover-model-inventory qwen3_vl_2b_instruct --output /tmp/phase5_qwen_inventory_discovery.json`: `needs_setup`, missing `REMOTE_MODEL_ROOT`, no config write, no load attempted.
 - `python -m pytest tests/test_fake_adapters.py -q`: `11 passed` after adding `discover-model-inventory`.
 - `python -m pytest tests/test_runner.py tests/test_landmark_gate.py -q`: `19 passed` after adding `discover-model-inventory`.

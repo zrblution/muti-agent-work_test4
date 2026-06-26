@@ -82,6 +82,25 @@ def test_remote_runner_reports_configured_execution_gates() -> None:
     }
 
 
+def test_remote_runner_rejects_unsafe_experiment_id_before_planning() -> None:
+    result = RemoteRunner().submit(
+        {
+            "experiment_id": "../escape",
+            "action": "run_model_smoke_test",
+            "allowed_script": "experiments/landmark_baselines/run_landmark.py",
+            "model_id": "qwen3_vl_2b_instruct",
+            "benchmark_id": "pope",
+            "limit": 8,
+            "instrumentation_mode": "none",
+        }
+    )
+
+    assert result["status"] == "failed"
+    assert result["validation"]["status"] == "failed"
+    assert "experiment_id" in result["validation"]["checks"][0]["error"]
+    assert "execution_plan" not in result
+
+
 def test_remote_runner_builds_reviewable_plan_when_process_submission_gate_closed(tmp_path: Path) -> None:
     server_config = tmp_path / "server.yaml"
     budget_config = tmp_path / "experiment_budget.yaml"
