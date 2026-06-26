@@ -234,6 +234,10 @@ This phase now contains two related records:
 - `phase5-discover-model-candidates qwen3_vl_2b_instruct` with a qwen-like variant directory containing `config.json` and a weight placeholder
   - status: initially failed because the directory was not reported, then passed after adding `model_like_variant` classification
   - purpose: make possible fine-tuned or output model directories visible while requiring explicit review before any config-path override
+- server `phase5-discover-model-candidates qwen3_vl_2b_instruct` after variant classification
+  - status: `needs_setup`
+  - output: `/tmp/phase5_model_candidates_variants_server.json`
+  - finding: 27 candidates total: 1 incomplete HF cache base, 8 output directories, and 18 `model_like_variant` directories with weights; none is a usable configured-root candidate
 - `build_phase5_path_probe(...)` with existing caller environment values
   - status: initially failed because no build function existed, then passed after adding scoped environment injection
   - purpose: verify candidate root probing restores `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` after validation

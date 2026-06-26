@@ -142,6 +142,8 @@ After that server run, discovery was tightened so classified candidate directori
 
 Discovery now also reports qwen-like directories with `config.json` as `model_like_variant` candidates. This is intended for the server paths under `/home/vepfs/data/LLM_HM_3_models` that look like training or output model directories. They remain non-runnable until a human reviews whether a config-path override is appropriate.
 
+Server verification after this classifier returned 27 candidates: 1 incomplete HF cache base, 8 output directories, and 18 model-like variants with direct weight files. The blocker remains: no candidate is usable under the current configured-root contract, and substituting any variant would be a separate human decision.
+
 ## Worker Execution Loop Follow-Up
 
 The whitelisted worker now calls the model and benchmark runtime methods after validation and adapter runtime gates pass. The success path writes raw outputs, normalized outputs, metrics, failure cases, experiment summary, reproducibility notes, run manifest, and artifact manifest. It refuses to overwrite existing `raw_outputs.jsonl`.

@@ -24,11 +24,13 @@ Phase 5: minimal real smoke for `qwen3_vl_2b_instruct` + `pope` with `limit=8` a
 - `phase5-probe-paths` now validates candidate model and benchmark roots without mutating env, editing config, loading weights, running benchmarks, submitting jobs, or writing raw outputs.
 - `phase5-discover-model-candidates` now scans only explicit bounded roots and classifies reviewable Qwen model path candidates without mutating env, editing config, downloading, loading weights, or submitting jobs.
 - Latest server discovery returned `needs_setup`: the known HF cache base for Qwen3-VL-2B-Instruct is incomplete, discovered qwen-like paths are output directories, and no usable configured-root model candidate was found in the bounded scan.
+- Updated server discovery now also surfaces 18 qwen3-vl-2b-like variant model directories with direct weights under `/home/vepfs/data/LLM_HM_3_models`; these are `needs_review` and are not usable without a reviewed config-path decision.
 
 ## Human Decisions Required
 
 - Provide approved server environment values for `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` without committing secrets or large artifacts.
 - Review `phase5-discover-model-candidates` output before approving any `REMOTE_MODEL_ROOT` value.
+- Decide whether any `model_like_variant` path is an acceptable substitute for the configured base `Qwen3-VL-2B-Instruct`; do not treat variants as the Phase 5 target without explicit approval.
 - Provide a narrower approved model search root if the existing broad roots are not exhaustive enough; two broad roots hit the discovery entry cap.
 - Confirm the resolved Qwen3-VL directory contains the required offline model inventory, including `config.json`.
 - Confirm the resolved POPE directory contains benchmark metadata or sample files with an accepted suffix such as `.json`, `.jsonl`, `.tsv`, `.csv`, `.txt`, `.yaml`, or `.yml`.
