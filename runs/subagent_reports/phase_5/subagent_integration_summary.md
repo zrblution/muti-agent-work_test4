@@ -144,6 +144,8 @@ Discovery now also reports qwen-like directories with `config.json` as `model_li
 
 Server verification after this classifier returned 27 candidates: 1 incomplete HF cache base, 8 output directories, and 18 model-like variants with direct weight files. The blocker remains: no candidate is usable under the current configured-root contract, and substituting any variant would be a separate human decision.
 
+Direct no-load validation of those 18 variant paths passed with `Qwen3VLAdapter.validate_environment()`. That proves the variants are technically present enough for the adapter preflight, but it does not authorize using them for Phase 5 because the configured target still resolves to `${REMOTE_MODEL_ROOT}/Qwen3-VL-2B-Instruct`.
+
 ## Worker Execution Loop Follow-Up
 
 The whitelisted worker now calls the model and benchmark runtime methods after validation and adapter runtime gates pass. The success path writes raw outputs, normalized outputs, metrics, failure cases, experiment summary, reproducibility notes, run manifest, and artifact manifest. It refuses to overwrite existing `raw_outputs.jsonl`.

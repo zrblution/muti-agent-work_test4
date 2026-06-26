@@ -25,6 +25,7 @@ Phase 5: minimal real smoke for `qwen3_vl_2b_instruct` + `pope` with `limit=8` a
 - `phase5-discover-model-candidates` now scans only explicit bounded roots and classifies reviewable Qwen model path candidates without mutating env, editing config, downloading, loading weights, or submitting jobs.
 - Latest server discovery returned `needs_setup`: the known HF cache base for Qwen3-VL-2B-Instruct is incomplete, discovered qwen-like paths are output directories, and no usable configured-root model candidate was found in the bounded scan.
 - Updated server discovery now also surfaces 18 qwen3-vl-2b-like variant model directories with direct weights under `/home/vepfs/data/LLM_HM_3_models`; these are `needs_review` and are not usable without a reviewed config-path decision.
+- Direct no-load validation of those 18 variant paths passed, so the remaining decision is whether any variant is an acceptable Phase 5 target and how to represent that path without silently changing the configured base model.
 
 ## Human Decisions Required
 

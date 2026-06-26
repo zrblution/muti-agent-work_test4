@@ -238,6 +238,10 @@ This phase now contains two related records:
   - status: `needs_setup`
   - output: `/tmp/phase5_model_candidates_variants_server.json`
   - finding: 27 candidates total: 1 incomplete HF cache base, 8 output directories, and 18 `model_like_variant` directories with weights; none is a usable configured-root candidate
+- direct no-load validation of all 18 server `model_like_variant` paths
+  - status: `passed`
+  - output: `/tmp/phase5_variant_direct_validation_server.json`
+  - finding: inventory and runtime dependencies are ready for those explicit paths, but none is approved under the current configured-root contract
 - `build_phase5_path_probe(...)` with existing caller environment values
   - status: initially failed because no build function existed, then passed after adding scoped environment injection
   - purpose: verify candidate root probing restores `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` after validation
