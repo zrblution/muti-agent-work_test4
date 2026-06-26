@@ -49,6 +49,7 @@ LANDMARK_SMOKE_ARTIFACT_CONTRACT: dict[str, Any] = {
         "failure_cases.jsonl",
         "artifact_manifest.json",
         "experiment_summary.md",
+        "reproducibility_notes.md",
     ],
     "failure_outputs": [
         "run_manifest.json",

@@ -34,6 +34,7 @@ This phase now contains two related records:
 - a follow-up worker runtime gate that identifies validate-only runtime methods after inventory validation passes, without loading models or running benchmarks.
 - a follow-up POPE runtime adapter implementation for local JSON/JSONL sample parsing, canonical request construction, yes/no normalization, metrics, and failure-case extraction, without model execution.
 - a follow-up Qwen3-VL runtime adapter implementation for delayed-import local load/generate/unload methods, without invoking them during validation or readiness.
+- a follow-up reviewed worker execution loop that calls model and benchmark runtime methods, writes success artifacts exactly once, and records execution-failure bundles on exceptions.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -87,7 +88,8 @@ This phase now contains two related records:
 - `POPEAdapter` now implements `build_requests`, `normalize_prediction`, `compute_metrics`, and `extract_failure_cases` for local JSON/JSONL POPE-style files
 - `POPEAdapter.build_requests()` now applies the same unsafe `required_files` rejection used by inventory validation before reading local sample files
 - `Qwen3VLAdapter` now implements local `load`, `generate`, and `unload` methods with delayed Transformers/Torch imports, `local_files_only: true`, configured precision/device settings, local-image multimodal prompt construction, and raw text preservation in `GenerationOutput`
-- after the Qwen3-VL runtime update, temporary valid-inventory worker invocations stop at `landmark_worker_not_implemented` instead of the adapter runtime gate
+- `experiments/landmark_baselines/run_landmark.py` now includes the success worker loop for raw outputs, normalized outputs, metrics, failure cases, experiment summary, reproducibility notes, run manifest, and artifact manifest
+- after the worker loop update, placeholder-inventory subprocess attempts record `landmark_worker_execution_failed`, while monkeypatched runtime-adapter tests verify the success artifact path
 
 ## Gate Commands
 
@@ -139,8 +141,8 @@ This phase now contains two related records:
 - `python experiments/landmark_baselines/run_landmark.py --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --run-id <temporary> --runs-root <temporary>`
   - exit code: `1`
   - status: `needs_attention`
-  - failure type after inventory validation passes and runtime adapters are available: `landmark_worker_not_implemented`
-  - gate failures after the Qwen3-VL runtime update: `landmark-worker`
+  - failure type with placeholder inventory after worker loop implementation: `landmark_worker_execution_failed`
+  - gate failures after the worker loop update: `worker-execution`
 - `python experiments/landmark_baselines/run_landmark.py --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --run-id <temporary> --runs-root <temporary>` with model and benchmark root env vars unset
   - exit code: `1`
   - status: `needs_attention`
@@ -161,7 +163,7 @@ This phase now contains two related records:
   - status: `needs_attention`
   - submitted process: `true`
   - exit code: `1`
-  - worker failure type: `landmark_worker_not_implemented`
+  - worker failure type with placeholder inventory after worker loop implementation: `landmark_worker_execution_failed`
   - raw outputs: not written
 - `POPEAdapter({"required_files": ["annotations/random.json"]})`
   - missing file: `needs_setup`
@@ -187,10 +189,13 @@ This phase now contains two related records:
 - `Qwen3VLAdapter.generate()` with monkeypatched runtime
   - status: initially failed while Qwen inherited the validate-only skeleton, then passed after adding multimodal request generation
   - purpose: verify local image chat construction, device transfer, new-token-only decoding, and `GenerationOutput` metadata without loading a real model
-- `experiments/landmark_baselines/run_landmark.py` worker with temporary valid inventory after Qwen/POPE runtime methods are available
+- `experiments/landmark_baselines/run_landmark.py` worker with temporary placeholder inventory after Qwen/POPE runtime methods are available
   - status: passed in tests
-  - failure type: `landmark_worker_not_implemented`
-  - purpose: verify the remaining blocker is the reviewed worker execution loop, not adapter runtime methods
+  - failure type: `landmark_worker_execution_failed`
+  - purpose: verify execution exceptions produce a reviewed failure bundle and do not write raw outputs
+- `experiments/landmark_baselines/run_landmark.py` worker with monkeypatched Qwen3-VL and POPE runtime adapters
+  - status: initially failed while the worker still stopped at `landmark_worker_not_implemented`, then passed after adding the execution loop
+  - purpose: verify raw outputs, normalized outputs, metrics, failure cases, experiment summary, reproducibility notes, run manifest, artifact manifest, and raw-output overwrite protection
 - `validate-config` with temporary unsafe model and benchmark `required_files`
   - status: `failed`
   - inventory findings identify each unsafe entry before any path resolution
@@ -227,7 +232,7 @@ This phase now contains two related records:
   - validation error names `experiment_id`
   - no `execution_plan` is returned
 - `RemoteRunner.submit(...)` for `run_model_smoke_test` and `experiments/landmark_baselines/run_landmark.py`
-  - `execution_plan.artifact_contract.success_outputs` includes `raw_outputs.jsonl`, `normalized_outputs.jsonl`, `metrics.json`, `failure_cases.jsonl`, and manifests
+  - `execution_plan.artifact_contract.success_outputs` includes `raw_outputs.jsonl`, `normalized_outputs.jsonl`, `metrics.json`, `failure_cases.jsonl`, `experiment_summary.md`, `reproducibility_notes.md`, and manifests
   - `execution_plan.artifact_contract.failure_outputs` includes stdout, stderr, exit code, env snapshot, failure report, and manifests
   - `execution_plan.artifact_contract.never_overwrite`: `["raw_outputs.jsonl"]`
   - `execution_plan.artifact_contract.large_artifact_policy`: `manifest_only`
@@ -236,18 +241,20 @@ This phase now contains two related records:
   - `validate-run` reports `artifact_contract_failure_outputs` as `passed`
 - `/tmp/maes_phase4_venv312/bin/python -m pytest -q`
   - status: passed
-  - result after Qwen3-VL runtime update: `88 passed`
+  - result after worker loop update: `89 passed`
 - `/tmp/maes_phase4_venv312/bin/python -m pytest tests/test_qwen3_vl_adapter.py tests/test_landmark_gate.py::test_landmark_worker_script_records_needs_attention_without_reentering_gate tests/test_runner.py::test_remote_runner_submits_whitelisted_worker_after_all_gates_open -q`
   - status: initially `5 failed`, then `5 passed` after adding Qwen3-VL runtime methods
 - `/tmp/maes_phase4_venv312/bin/python -m pytest tests/test_qwen3_vl_adapter.py tests/test_fake_adapters.py tests/test_landmark_gate.py tests/test_runner.py -q`
   - status: passed
-  - result: `44 passed`
+  - result after worker loop update: `45 passed`
+- `/tmp/maes_phase4_venv312/bin/python -m pytest tests/test_landmark_gate.py::test_landmark_worker_writes_success_artifacts_with_runtime_adapters tests/test_landmark_gate.py::test_landmark_worker_script_records_execution_failure_without_reentering_gate tests/test_runner.py::test_remote_runner_submits_whitelisted_worker_after_all_gates_open -q`
+  - status: initially `3 failed`, then passed after adding the worker execution loop and execution-failure bundles
 - `/tmp/maes_phase4_venv312/bin/python -m stable_core.cli validate-config`
   - status: `passed`
-- `/tmp/maes_phase4_venv312/bin/python -m stable_core.cli phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_qwen_runtime_readiness_cli_smoke`
+- `/tmp/maes_phase4_venv312/bin/python -m stable_core.cli phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_worker_loop_readiness_cli_smoke`
   - status: `needs_attention`
   - safety flags: no real model execution, no real benchmark execution, no remote job submission, no raw outputs, no config write
-- `/tmp/maes_phase4_venv312/bin/python -m stable_core.security.secret_scan --paths ... --output /tmp/phase5_qwen_runtime_secret_scan.json`
+- `/tmp/maes_phase4_venv312/bin/python -m stable_core.security.secret_scan --paths ... --output /tmp/phase5_worker_loop_secret_scan.json`
   - status: `passed`
   - findings: none
 - `find docs project_config stable_core research_tools evidence tests scripts runs adapters experiments idea_plugins instrumentation -type f -size +5M -print`
