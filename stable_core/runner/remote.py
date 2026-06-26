@@ -182,9 +182,7 @@ def _argv_for_action(experiment_spec: dict[str, Any], experiment_id: str) -> lis
     if action == "run_model_smoke_test" and allowed_script == "experiments/landmark_baselines/run_landmark.py":
         return [
             "python",
-            "-m",
-            "stable_core.cli",
-            "run-landmark",
+            allowed_script,
             "--model",
             str(experiment_spec.get("model_id")),
             "--benchmark",

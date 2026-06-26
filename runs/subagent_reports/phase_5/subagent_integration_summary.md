@@ -69,3 +69,9 @@ New `run-landmark` `needs_attention` bundles now include `stdout_tail`, `stderr_
 ## Remote Gate Follow-Up
 
 `RemoteRunner.submit()` now reads `project_config/server.yaml` and `project_config/experiment_budget.yaml` before returning `needs_attention`. It reports structured gate failures for `runner_mode: local_only` and `allow_real_gpu_jobs: false`, rather than a stale hard-coded Phase 3 message. Real remote execution remains closed.
+
+## Worker Entry Follow-Up
+
+The whitelisted `experiments/landmark_baselines/run_landmark.py` path now exists. `RemoteRunner.submit()` reviewable plans target that script directly instead of recursively invoking `stable_core.cli run-landmark`.
+
+The worker is deliberately still a gate: direct invocation records a `needs_attention` run with `failure_type: landmark_worker_not_implemented`, preserves stdout/stderr/exit code/env/git/failure artifacts, and does not create `raw_outputs.jsonl`. This removes the missing-script gap while keeping the real Qwen3-VL + POPE smoke blocked until a reviewed non-recursive worker implementation and process-submission authorization exist.

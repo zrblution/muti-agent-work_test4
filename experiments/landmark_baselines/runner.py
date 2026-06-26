@@ -158,7 +158,7 @@ def _write_needs_attention(
         "stack_trace": None,
         "stdout_tail": _tail_file(run_dir / "stdout.log"),
         "stderr_tail": _tail_file(run_dir / "stderr.log"),
-        "reproduction_command": _reproduction_command(command),
+        "reproduction_command": command.get("reproduction_command") or _reproduction_command(command),
         "config_snapshot": command,
         "state_snapshot": run_manifest,
         "executed_real_model": False,

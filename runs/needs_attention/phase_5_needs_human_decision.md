@@ -17,13 +17,15 @@ Phase 5: minimal real smoke for `qwen3_vl_2b_instruct` + `pope` with `limit=8` a
 - `poll --run-id qwen3vl_pope_limit8_gate_diagnostics` inspects the recorded manifest status without submitting a job.
 - `parse-results --run-id qwen3vl_pope_limit8_gate_diagnostics` validates the artifact bundle and preserves `needs_attention` because no real-smoke metrics exist.
 - `RemoteRunner.submit()` reports config-driven gate failures for `runner_mode: local_only` and `allow_real_gpu_jobs: false`.
-- With open config gates in tests, `RemoteRunner.submit()` returns a whitelisted `execution_plan` with `submits_process: false`.
+- With open config gates in tests, `RemoteRunner.submit()` returns a whitelisted `execution_plan` targeting `experiments/landmark_baselines/run_landmark.py` with `submits_process: false`.
+- The whitelisted worker entry point exists, is non-recursive, and records `landmark_worker_not_implemented` without loading models or running benchmarks.
 
 ## Human Decisions Required
 
 - Provide approved server environment values for `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` without committing secrets or large artifacts.
 - Confirm the resolved Qwen3-VL directory contains the required offline model inventory, including `config.json`.
 - Confirm the resolved POPE directory contains benchmark metadata or sample files with an accepted suffix such as `.json`, `.jsonl`, `.tsv`, `.csv`, `.txt`, `.yaml`, or `.yml`.
+- Replace the current worker stub with a reviewed real-smoke implementation before enabling process submission.
 - Explicitly authorize opening the remote execution gate and GPU budget after validation passes.
 - Approve the transition from reviewable `execution_plan` to actual process submission before any real GPU job is submitted.
 

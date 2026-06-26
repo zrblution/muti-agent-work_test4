@@ -29,6 +29,8 @@ Remote gate update: `RemoteRunner.submit()` now reads `project_config/server.yam
 
 Remote plan update: when those config gates are opened in a controlled test, `RemoteRunner.submit()` returns a reviewable `execution_plan` with whitelisted argv and `submits_process: false`. This narrows the remaining remote-execution gap without launching a process.
 
+Worker-entry update: the whitelisted `experiments/landmark_baselines/run_landmark.py` target now exists and is non-recursive. It records a durable `needs_attention` bundle with `failure_type: landmark_worker_not_implemented`, exits nonzero, and does not load models, run benchmarks, or write raw outputs. The reviewable `RemoteRunner` plan now points at this worker path instead of re-entering the top-level `run-landmark` gate.
+
 Remote-gate diagnostics update: `run-landmark` now has separate next-action guidance for the path where model and benchmark validation pass but remote execution is still closed. That branch preserves the validated path setup and points to remote gate, GPU budget, and process-submission approval instead of asking to reconfigure paths again.
 
 ## Evidence
@@ -51,6 +53,7 @@ Remote-gate diagnostics update: `run-landmark` now has separate next-action guid
 - `validate-run --run-id qwen3vl_pope_limit8_gate_diagnostics`: `passed`, validating the enhanced failure-diagnostics artifact bundle
 - `poll --run-id qwen3vl_pope_limit8_gate_diagnostics`: reports recorded run status `needs_attention`
 - `parse-results --run-id qwen3vl_pope_limit8_gate_diagnostics`: preserves status `needs_attention` and reports validated missing metrics instead of computing benchmark results
+- direct `experiments/landmark_baselines/run_landmark.py` worker invocation with a temporary run root: exit code `1`, JSON status `needs_attention`, failure type `landmark_worker_not_implemented`, no real model or benchmark execution
 - `run_landmark(...)` with temporary valid model and POPE inventory: JSON status `needs_attention`, failure type `landmark_remote_runner_not_enabled`, no real model or benchmark execution
 
 Logs are stored in `runs/phase_5_gate_logs/`.
@@ -66,14 +69,16 @@ The human decision record is stored in `runs/needs_attention/phase_5_needs_human
 - `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` are not configured in the server execution environment.
 - The current Qwen3-VL and POPE adapters are validate-only skeletons.
 - The structured `run-landmark` gate exists, but it correctly stops before real execution because model and benchmark validations are `needs_setup`.
+- The whitelisted worker entry point exists and is non-recursive, but it is intentionally a `needs_attention` stub until the real Qwen3-VL + POPE worker is reviewed.
 - Remote runner execution is config-gated: `project_config/server.yaml` still sets `runner_mode: local_only`.
 - Real GPU jobs are config-gated: `project_config/experiment_budget.yaml` still sets `allow_real_gpu_jobs: false`.
-- Even if those config gates are opened later, the current reviewed path only returns an execution plan with `submits_process: false`; no process-submitting executor is enabled yet.
+- Even if those config gates are opened later, the current reviewed path only returns an execution plan with `submits_process: false`; no process-submitting executor is enabled yet, and the worker itself still records `landmark_worker_not_implemented`.
 
 ## Required Fixes Before Resuming Phase 5
 
 - Configure approved local model and POPE paths without committing secrets or large artifacts.
 - Populate the approved local model and benchmark directories so offline inventory validation passes.
+- Replace the current worker stub with a reviewed non-recursive real-smoke worker that loads the approved Qwen3-VL path, reads approved POPE samples, and preserves raw outputs exactly once.
 - Extend the controlled `run-landmark` gate from reviewable execution plan to reviewed process submission only after validation passes.
 - Preserve all run/failure artifacts for any future real smoke attempt.
 - Keep using `validate-run --run-id <run_id>` before accepting any recorded run artifact bundle.

@@ -62,3 +62,9 @@ Set Phase 5 to `needs_attention` until all of the following exist and pass revie
 2. A present, reviewed `experiments/landmark_baselines/run_landmark.py` or equivalent controlled entry point.
 3. Runner integration that records command manifest, config snapshot, env snapshot, git snapshot, stdout/stderr, exit code, failure diagnostics, and artifact manifest for real smoke attempts.
 4. Explicit remote execution gating that distinguishes validation-only, dry-run, and real execution modes, with remote execution disabled by default unless the gate is intentionally opened.
+
+## Follow-Up Status
+
+After this read-only report, the main implementation added the structured `run-landmark` validation gate and then added `experiments/landmark_baselines/run_landmark.py` as the whitelisted worker entry point. The worker entry point is intentionally non-recursive and non-executing: it records a durable `needs_attention` bundle with `failure_type: landmark_worker_not_implemented`, exits nonzero, and does not load models, run benchmarks, start GPU work, or write raw outputs.
+
+The original gate decision remains in force. Phase 5 still requires approved model and benchmark paths, a reviewed real-smoke worker implementation, process-submission authorization, and a validated real-smoke run or reviewed real-execution failure bundle before later phases can start.

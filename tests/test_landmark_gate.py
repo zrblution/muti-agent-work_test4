@@ -111,3 +111,43 @@ def test_run_landmark_cli_is_validation_gate() -> None:
     assert payload["run_id"] == run_id
     assert (run_dir / "failure.json").exists()
     assert not (run_dir / "raw_outputs.jsonl").exists()
+
+
+def test_landmark_worker_script_records_needs_attention_without_reentering_gate(tmp_path: Path) -> None:
+    run_id = "qwen_worker_gate"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "experiments/landmark_baselines/run_landmark.py",
+            "--model",
+            "qwen3_vl_2b_instruct",
+            "--benchmark",
+            "pope",
+            "--limit",
+            "8",
+            "--instrumentation",
+            "none",
+            "--run-id",
+            run_id,
+            "--runs-root",
+            str(tmp_path),
+        ],
+        cwd=REPO_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    payload = json.loads(result.stdout)
+    run_dir = tmp_path / run_id
+    failure = json.loads((run_dir / "failure.json").read_text(encoding="utf-8"))
+
+    assert result.returncode == 1
+    assert payload["status"] == "needs_attention"
+    assert payload["failure_type"] == "landmark_worker_not_implemented"
+    assert failure["executed_real_model"] is False
+    assert failure["executed_real_benchmark"] is False
+    assert "experiments/landmark_baselines/run_landmark.py" in failure["reproduction_command"]
+    assert "stable_core.cli run-landmark" not in failure["reproduction_command"]
+    assert not (run_dir / "raw_outputs.jsonl").exists()
