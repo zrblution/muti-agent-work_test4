@@ -130,6 +130,12 @@ This is still read-only: it does not read `.env`, download model files, load wei
 
 This lets the server test candidate roots before exporting env vars or changing config. It remains read-only: no `.env` read, no config mutation, no model load, no benchmark execution, no job submission, and no raw outputs.
 
+## Model Candidate Discovery Follow-Up
+
+`phase5-discover-model-candidates` now performs bounded read-only discovery under explicit `--search-root` values. For Qwen3-VL it classifies exact configured-root candidates that can satisfy `${REMOTE_MODEL_ROOT}/Qwen3-VL-2B-Instruct`, incomplete HuggingFace cache bases, HuggingFace snapshots that need a reviewed config override, and output-like result directories that must not be used as model roots.
+
+The command writes an optional JSON report with `write_config: false` and `load_attempted: false`. It is a diagnostic step before `phase5-probe-paths`; it does not export env vars, mutate config, read `.env`, download files, load weights, submit jobs, or write raw outputs.
+
 ## Worker Execution Loop Follow-Up
 
 The whitelisted worker now calls the model and benchmark runtime methods after validation and adapter runtime gates pass. The success path writes raw outputs, normalized outputs, metrics, failure cases, experiment summary, reproducibility notes, run manifest, and artifact manifest. It refuses to overwrite existing `raw_outputs.jsonl`.

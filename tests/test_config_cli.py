@@ -493,6 +493,78 @@ def test_phase5_probe_paths_restores_existing_environment(monkeypatch, tmp_path:
     assert report["safety_flags"]["write_config"] is False
 
 
+def test_phase5_discover_model_candidates_finds_configured_root_candidate(tmp_path: Path) -> None:
+    model_root = tmp_path / "candidate_models"
+    model_path = model_root / "Qwen3-VL-2B-Instruct"
+    model_path.mkdir(parents=True)
+    (model_path / "config.json").write_text("{}\n", encoding="utf-8")
+    (model_path / "model-00001-of-00002.safetensors").write_text("weight placeholder\n", encoding="utf-8")
+    output_path = tmp_path / "model_candidates.json"
+    env = os.environ.copy()
+    env.pop("REMOTE_MODEL_ROOT", None)
+
+    result = run_cli(
+        "phase5-discover-model-candidates",
+        "qwen3_vl_2b_instruct",
+        "--search-root",
+        str(tmp_path),
+        "--output",
+        str(output_path),
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    written = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["command"] == "phase5-discover-model-candidates"
+    assert payload["status"] == "passed"
+    assert written["status"] == "passed"
+    assert written["write_config"] is False
+    assert written["load_attempted"] is False
+    candidate = written["candidates"][0]
+    assert candidate["candidate_type"] == "configured_root"
+    assert candidate["status"] == "passed"
+    assert candidate["path"] == str(model_path)
+    assert candidate["candidate_env"]["REMOTE_MODEL_ROOT"] == str(model_root)
+    assert candidate["usable_with_current_config"] is True
+    assert candidate["has_config"] is True
+    assert candidate["has_weights"] is True
+
+
+def test_phase5_discover_model_candidates_reports_incomplete_hf_cache(tmp_path: Path) -> None:
+    hf_cache_base = tmp_path / "huggingface" / "hub" / "models--Qwen--Qwen3-VL-2B-Instruct"
+    (hf_cache_base / "refs").mkdir(parents=True)
+    (hf_cache_base / "refs" / "main").write_text("abc123\n", encoding="utf-8")
+    output_path = tmp_path / "model_candidates.json"
+    env = os.environ.copy()
+    env.pop("REMOTE_MODEL_ROOT", None)
+
+    result = run_cli(
+        "phase5-discover-model-candidates",
+        "qwen3_vl_2b_instruct",
+        "--search-root",
+        str(tmp_path),
+        "--output",
+        str(output_path),
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    written = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["status"] == "needs_setup"
+    assert written["status"] == "needs_setup"
+    assert written["write_config"] is False
+    assert written["load_attempted"] is False
+    assert len(written["candidates"]) == 1
+    candidate = written["candidates"][0]
+    assert candidate["candidate_type"] == "hf_cache_base"
+    assert candidate["status"] == "needs_setup"
+    assert candidate["path"] == str(hf_cache_base)
+    assert candidate["usable_with_current_config"] is False
+    assert "missing snapshots" in candidate["reason"]
+
+
 def test_export_schemas_cli_writes_json_files(tmp_path: Path) -> None:
     output_dir = tmp_path / "schemas"
     result = run_cli("export-schemas", "--output", str(output_dir))

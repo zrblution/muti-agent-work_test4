@@ -22,10 +22,12 @@ Phase 5: minimal real smoke for `qwen3_vl_2b_instruct` + `pope` with `limit=8` a
 - `Qwen3VLAdapter.validate_environment()` now checks Transformers, Torch, `AutoProcessor`, a supported Qwen-compatible model class, and precision dtype support after offline inventory validation. Missing dependencies return `needs_setup` before model loading.
 - `validate-model-runtime qwen3_vl_2b_instruct` now reports Qwen runtime dependency status without requiring `REMOTE_MODEL_ROOT` or model files, and `phase5-readiness` includes the result as `model_runtime_dependencies`.
 - `phase5-probe-paths` now validates candidate model and benchmark roots without mutating env, editing config, loading weights, running benchmarks, submitting jobs, or writing raw outputs.
+- `phase5-discover-model-candidates` now scans only explicit bounded roots and classifies reviewable Qwen model path candidates without mutating env, editing config, downloading, loading weights, or submitting jobs.
 
 ## Human Decisions Required
 
 - Provide approved server environment values for `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` without committing secrets or large artifacts.
+- Review `phase5-discover-model-candidates` output before approving any `REMOTE_MODEL_ROOT` value.
 - Confirm the resolved Qwen3-VL directory contains the required offline model inventory, including `config.json`.
 - Confirm the resolved POPE directory contains benchmark metadata or sample files with an accepted suffix such as `.json`, `.jsonl`, `.tsv`, `.csv`, `.txt`, `.yaml`, or `.yml`.
 - Confirm runtime dependencies pass `validate-model` for the approved local Qwen3-VL path, then enable process submission only for the reviewed worker to collect a real success bundle or reviewed execution-failure bundle.
@@ -37,6 +39,7 @@ Phase 5: minimal real smoke for `qwen3_vl_2b_instruct` + `pope` with `limit=8` a
 ```bash
 python -m stable_core.cli validate-config
 python -m stable_core.cli validate-model-runtime qwen3_vl_2b_instruct
+python -m stable_core.cli phase5-discover-model-candidates qwen3_vl_2b_instruct --search-root <bounded_model_search_root> --output /tmp/phase5_model_candidates.json
 python -m stable_core.cli phase5-probe-paths --model qwen3_vl_2b_instruct --benchmark pope --model-root <candidate_REMOTE_MODEL_ROOT> --benchmark-root <candidate_REMOTE_BENCHMARK_ROOT> --output /tmp/phase5_candidate_paths.json
 python -m stable_core.cli validate-model qwen3_vl_2b_instruct
 python -m stable_core.cli validate-benchmark pope

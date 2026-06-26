@@ -38,6 +38,7 @@ This phase now contains two related records:
 - a follow-up Qwen3-VL dependency preflight that checks Transformers/Torch/Qwen runtime availability during validation without loading weights.
 - a follow-up read-only model runtime diagnostic CLI that reports runtime dependency readiness independently from model path setup.
 - a follow-up read-only Phase 5 candidate path probe that validates candidate roots without mutating environment or config.
+- a follow-up read-only Phase 5 model candidate discovery CLI that scans only explicit bounded roots and classifies configured-root, HuggingFace cache, snapshot, and output-like candidates without loading weights.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -99,6 +100,8 @@ This phase now contains two related records:
 - `phase5-readiness` now records `model_runtime_dependencies` independently from model inventory/path validation
 - `stable_core.validation.phase5_readiness.build_phase5_path_probe`
 - `stable_core.cli phase5-probe-paths`
+- `stable_core.validation.model_candidates.discover_phase5_model_candidates`
+- `stable_core.cli phase5-discover-model-candidates`
 
 ## Gate Commands
 
@@ -213,6 +216,12 @@ This phase now contains two related records:
 - `phase5-probe-paths` with temporary candidate model and benchmark roots plus monkeypatched runtime dependencies
   - status: initially failed because the CLI did not exist, then passed after adding the read-only path probe
   - purpose: verify candidate roots can be checked without exporting env vars or modifying config
+- `phase5-discover-model-candidates qwen3_vl_2b_instruct` with a temporary configured-root candidate
+  - status: initially failed because the CLI did not exist, then passed after adding bounded read-only discovery
+  - purpose: verify the report proposes a reviewable `REMOTE_MODEL_ROOT` without mutating env, editing config, loading weights, or writing raw outputs
+- `phase5-discover-model-candidates qwen3_vl_2b_instruct` with an incomplete HuggingFace cache base
+  - status: initially failed because the CLI did not exist, then passed after adding bounded read-only discovery
+  - purpose: verify an incomplete cache containing only refs is classified as `needs_setup`, not as a usable model root
 - `build_phase5_path_probe(...)` with existing caller environment values
   - status: initially failed because no build function existed, then passed after adding scoped environment injection
   - purpose: verify candidate root probing restores `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` after validation
