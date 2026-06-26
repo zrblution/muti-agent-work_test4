@@ -21,6 +21,7 @@ This phase now contains two related records:
 - a follow-up config-driven benchmark inventory gate that honors `required_files` when populated.
 - a follow-up inventory safety gate that rejects absolute or parent-traversing `required_files` before checking the filesystem.
 - a follow-up `validate-config` inventory subreport that catches unsafe `required_files` before path resolution.
+- a follow-up block-list parser for `validate-config` inventory checks, so multi-line YAML `required_files` cannot bypass the same safety gate.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -43,6 +44,7 @@ This phase now contains two related records:
 - offline benchmark inventory validation now honors configured `required_files` before falling back to metadata/sample discovery
 - configured model and benchmark inventory entries now fail fast when `required_files` contains an absolute path, a Windows absolute path, an empty entry, or `..` parent traversal
 - `validate-config` now reports an `inventory` subreport and fails when model or benchmark config contains unsafe `required_files`
+- `validate-config` now applies the inventory safety check to both inline and block-list YAML `required_files`
 - recorded run validation for manifests, declared outputs, failure artifacts, and artifact hashes
 - `run-landmark` `failure.json` now includes log tails, reproduction command, config snapshot, and state snapshot
 - `RemoteRunner.submit()` now reports `runner_mode`, `allow_real_gpu_jobs`, and `allow_process_submission` gate failures from config
@@ -127,6 +129,9 @@ This phase now contains two related records:
 - `validate-config` with temporary unsafe model and benchmark `required_files`
   - status: `failed`
   - inventory findings identify each unsafe entry before any path resolution
+- `validate-config` with temporary unsafe block-list model and benchmark `required_files`
+  - status: `failed`
+  - inventory findings identify each unsafe entry before any path resolution
 
 ## Artifacts Added
 
@@ -167,6 +172,12 @@ This phase now contains two related records:
 - `python -m pytest tests/test_config_cli.py::test_validate_config_rejects_unsafe_required_files -q`: initially `1 failed`, then `1 passed` after adding config-level unsafe inventory validation.
 - `python -m pytest tests/test_config_cli.py -q`: `4 passed` after adding config-level unsafe inventory validation.
 - `python -m stable_core.cli validate-config`: `passed` with `inventory.status` `passed`.
+- `python -m pytest tests/test_config_cli.py::test_validate_config_rejects_block_list_required_files -q`: initially failed with `TypeError`, then `1 passed` after adding block-list `required_files` parsing.
+- `python -m pytest tests/test_config_cli.py -q`: `5 passed` after adding block-list `required_files` parsing.
+- `python -m stable_core.cli validate-config`: `passed` with `inventory.status` `passed` after adding block-list parsing.
+- `python -m pytest tests/test_fake_adapters.py -q`: `11 passed` after adding block-list config parsing.
+- `python -m pytest tests/test_runner.py tests/test_landmark_gate.py -q`: `19 passed` after adding block-list config parsing.
+- `python -m pytest -q`: `68 passed` after adding block-list config parsing.
 - `python -m stable_core.cli validate-run --run-id qwen_worker_manual_check --runs-root /tmp/qwen_worker_manual_check_runs`: `passed`.
 - `python -m stable_core.cli parse-results --run-id qwen_worker_manual_check --runs-root /tmp/qwen_worker_manual_check_runs`: `needs_attention` with artifact validation `passed`.
 - `python -m stable_core.cli validate-config`: `passed`.
@@ -174,10 +185,12 @@ This phase now contains two related records:
 - Expanded secret scan after adding the worker stub: `passed`, no findings.
 - Expanded secret scan after adding configured benchmark inventory validation: `passed`, no findings.
 - Expanded secret scan after adding unsafe inventory path validation: `passed`, no findings.
+- Expanded secret scan after adding block-list config parsing: `passed`, no findings.
 - Large-file scan after adding `poll` and `parse-results`: no files over 5 MB found.
 - Large-file scan after adding the worker stub: no files over 5 MB found.
 - Large-file scan after adding configured benchmark inventory validation: no files over 5 MB found.
 - Large-file scan after adding unsafe inventory path validation: no files over 5 MB found.
+- Large-file scan after adding block-list config parsing: no files over 5 MB found.
 - `RemoteRunner().submit(...)`: `needs_attention` with `runner_mode: local_only` and `allow_real_gpu_jobs: false`.
 - CLI validation with unset path env vars reports the missing env var names.
 - CLI validation with temporary existing but empty model and benchmark directories returns `needs_setup` at the inventory gate.

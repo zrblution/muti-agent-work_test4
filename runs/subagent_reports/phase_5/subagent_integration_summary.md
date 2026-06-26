@@ -64,7 +64,7 @@ Benchmark validation now honors `required_files` when a benchmark config provide
 
 Configured model and benchmark `required_files` entries now must be relative paths confined to the resolved model or benchmark root. Absolute paths, Windows absolute paths, empty entries, and `..` parent traversal return `failed` with `unsafe_files` before any file existence check. This prevents a config from satisfying inventory validation by pointing at files elsewhere on the server filesystem.
 
-`validate-config` now performs the same safety check as an `inventory` subreport, so unsafe `required_files` are rejected before path templates, model roots, or benchmark roots are resolved.
+`validate-config` now performs the same safety check as an `inventory` subreport, so unsafe `required_files` are rejected before path templates, model roots, or benchmark roots are resolved. The check covers both inline YAML lists and block-list YAML entries.
 
 ## Run Artifact Validation Follow-Up
 
