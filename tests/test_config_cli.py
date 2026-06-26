@@ -32,8 +32,8 @@ def test_list_model_benchmark_and_agent_clis_read_config() -> None:
     benchmarks = json.loads(run_cli("list-benchmarks").stdout)
     agents = json.loads(run_cli("list-agents").stdout)
 
-    assert models["models"] == ["internvl3_5_4b", "qwen3_vl_2b_instruct"]
-    assert benchmarks["benchmarks"] == ["amber", "chair", "mme", "pope"]
+    assert models["models"] == ["fake_model", "internvl3_5_4b", "qwen3_vl_2b_instruct"]
+    assert benchmarks["benchmarks"] == ["amber", "chair", "fake_benchmark", "mme", "pope"]
     assert agents["providers"] == ["deepseek_v4_pro", "opus4_8_proxy"]
 
 

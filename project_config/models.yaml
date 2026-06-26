@@ -1,12 +1,20 @@
 models:
+  fake_model:
+    family: fake
+    adapter: adapters.models.fake.FakeModelAdapter
+    path: null
+    phase0_status: verified
+    phase0_note: "Phase 4 fake model uses deterministic in-repo responses; no download or load attempted."
   qwen3_vl_2b_instruct:
     family: qwen3_vl
+    adapter: adapters.models.qwen3_vl.Qwen3VLAdapter
     model_root_env: REMOTE_MODEL_ROOT
     path: null
     phase0_status: needs_setup
     phase0_note: "Phase 0 records configuration only; no download or load attempted."
   internvl3_5_4b:
     family: internvl
+    adapter: adapters.models.internvl.InternVLAdapter
     model_root_env: REMOTE_MODEL_ROOT
     path: null
     phase0_status: needs_setup

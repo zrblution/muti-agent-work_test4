@@ -165,12 +165,15 @@ def collect_env_check() -> dict[str, Any]:
 
 
 def collect_gpu_check() -> dict[str, Any]:
-    result = subprocess.run(
-        ["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader"],
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        return {"status": "unavailable", "gpus": [], "message": "nvidia-smi unavailable"}
     if result.returncode != 0:
         return {"status": "unavailable", "gpus": [], "message": "nvidia-smi unavailable"}
     return {"status": "verified", "gpus": [line.strip() for line in result.stdout.splitlines() if line.strip()]}
@@ -276,10 +279,17 @@ def run_preflight(
     benchmark_check = collect_benchmark_check(config)
     provider_check = validate_provider_config(config.provider_config)
     default_scan_paths = [
+        REPO_ROOT / "adapters",
         REPO_ROOT / "docs",
+        REPO_ROOT / "experiments",
+        REPO_ROOT / "idea_plugins",
+        REPO_ROOT / "instrumentation",
         REPO_ROOT / "project_config",
+        REPO_ROOT / "research_tools",
         REPO_ROOT / "stable_core",
         REPO_ROOT / "tests",
+        REPO_ROOT / "scripts",
+        REPO_ROOT / "runs",
         REPO_ROOT / ".env.example",
         REPO_ROOT / ".gitignore",
         REPO_ROOT / "AGENTS.md",

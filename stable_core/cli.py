@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Sequence
 
 from research_tools.baseline_indexer import research_status, write_baseline_reports
+from experiments.fake.evaluator import run_fake_eval, validate_benchmark, validate_model
 from stable_core.config import export_schemas, list_agents, list_benchmarks, list_models, validate_config
 from stable_core.evidence.registry import add_record_from_args, init_registry, list_registry
 from stable_core.runner.local import LocalRunner
@@ -81,6 +82,19 @@ def build_parser() -> argparse.ArgumentParser:
     run_local.add_argument("--message", default="dummy job")
     run_local.add_argument("--fail", action="store_true")
 
+    validate_model_parser = subparsers.add_parser("validate-model", help="Validate a configured model without loading weights.")
+    validate_model_parser.add_argument("model_id")
+
+    validate_benchmark_parser = subparsers.add_parser("validate-benchmark", help="Validate a configured benchmark without running it.")
+    validate_benchmark_parser.add_argument("benchmark_id")
+
+    run_eval = subparsers.add_parser("run-eval", help="Run a controlled evaluation path.")
+    run_eval.add_argument("--model", required=True)
+    run_eval.add_argument("--benchmark", required=True)
+    run_eval.add_argument("--limit", type=int, default=3)
+    run_eval.add_argument("--run-id", default=None)
+    run_eval.add_argument("--instrumentation", default="none")
+
     subparsers.add_parser("research-status", help="Report research artifact status.")
     return parser
 
@@ -152,6 +166,30 @@ def main(argv: Sequence[str] | None = None) -> int:
         result = LocalRunner(DEFAULT_RUNS_ROOT).run_dummy(run_id=args.run_id, message=args.message, fail=args.fail)
         print(json.dumps({"command": "run-local", **result}, ensure_ascii=False))
         return 0 if result["status"] == "succeeded" else 1
+    if args.command == "validate-model":
+        report = validate_model(args.model_id)
+        print(json.dumps({"command": "validate-model", **report}, ensure_ascii=False))
+        return _exit_code(str(report["status"]))
+    if args.command == "validate-benchmark":
+        report = validate_benchmark(args.benchmark_id)
+        print(json.dumps({"command": "validate-benchmark", **report}, ensure_ascii=False))
+        return _exit_code(str(report["status"]))
+    if args.command == "run-eval":
+        run_id = args.run_id or f"{args.model}_{args.benchmark}_fake_eval"
+        try:
+            result = run_fake_eval(
+                run_id=run_id,
+                model_id=args.model,
+                benchmark_id=args.benchmark,
+                limit=args.limit,
+                runs_root=DEFAULT_RUNS_ROOT,
+                instrumentation_mode=args.instrumentation,
+            )
+        except Exception as exc:
+            print(json.dumps({"command": "run-eval", "status": "failed", "error": str(exc)}, ensure_ascii=False))
+            return 1
+        print(json.dumps({"command": "run-eval", **result}, ensure_ascii=False))
+        return 0
     if args.command == "research-status":
         print(json.dumps({"command": "research-status", **research_status(Path("."))}, ensure_ascii=False))
         return 0

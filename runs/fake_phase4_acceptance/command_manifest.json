@@ -1,0 +1,7 @@
+{
+  "run_id": "fake_phase4_acceptance",
+  "command": "run-eval",
+  "model_id": "fake_model",
+  "benchmark_id": "fake_benchmark",
+  "limit": 3
+}

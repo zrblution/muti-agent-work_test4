@@ -1,0 +1,14 @@
+{
+  "run_id": "fake_phase4_acceptance",
+  "benchmark_id": "fake_benchmark",
+  "model_id": "fake_model",
+  "sample_count": 3,
+  "metrics": {
+    "accuracy": 1.0,
+    "hallucination_rate": 0.0,
+    "yes_rate": 0.6666666666666666,
+    "answer_length_mean": 5.0
+  },
+  "parser_version": "fake_normalizer_v1",
+  "computed_at": "2026-06-26T15:17:18Z"
+}

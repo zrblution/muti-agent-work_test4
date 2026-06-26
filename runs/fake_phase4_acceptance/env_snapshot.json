@@ -1,0 +1,8 @@
+{
+  "python_version": "3.12.13",
+  "python_executable": "/tmp/maes_phase4_venv312/bin/python",
+  "platform": "macOS-26.5.1-arm64-arm-64bit",
+  "cwd": "/Users/zrblution/Documents/桌面文件夹/博士阶段/MLLM幻觉消除/work1_test4/phase_work/muti-agent-work_test4",
+  "cuda_visible_devices_set": false,
+  "disk_free_bytes": 253327233024
+}

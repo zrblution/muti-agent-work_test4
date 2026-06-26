@@ -1,17 +1,25 @@
 benchmarks:
+  fake_benchmark:
+    adapter: adapters.benchmarks.fake.FakeBenchmarkAdapter
+    path: null
+    phase0_status: verified
   pope:
+    adapter: adapters.benchmarks.pope.POPEAdapter
     benchmark_root_env: REMOTE_BENCHMARK_ROOT
     path: null
     phase0_status: needs_setup
   chair:
+    adapter: adapters.benchmarks.chair.CHAIRAdapter
     benchmark_root_env: REMOTE_BENCHMARK_ROOT
     path: null
     phase0_status: needs_setup
   amber:
+    adapter: adapters.benchmarks.amber.AMBERAdapter
     benchmark_root_env: REMOTE_BENCHMARK_ROOT
     path: null
     phase0_status: needs_setup
   mme:
+    adapter: adapters.benchmarks.mme.MMEAdapter
     benchmark_root_env: REMOTE_BENCHMARK_ROOT
     path: null
     phase0_status: needs_setup

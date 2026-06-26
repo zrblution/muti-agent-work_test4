@@ -5,7 +5,7 @@
 *.pt
 *.pth
 *.safetensors
-models/
+/models/
 .cache/
 wandb/
 __pycache__/

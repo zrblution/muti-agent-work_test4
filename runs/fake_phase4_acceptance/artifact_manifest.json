@@ -1,0 +1,50 @@
+{
+  "run_id": "fake_phase4_acceptance",
+  "artifacts": [
+    {
+      "path": "command_manifest.json",
+      "size_bytes": 144,
+      "sha256": "1196ea57115f56e896a4a3cd04946a7c698823f3af4738f517325cbf3a36194b"
+    },
+    {
+      "path": "env_snapshot.json",
+      "size_bytes": 344,
+      "sha256": "9c620da8aa5bf396ac0651f39bde7b54f4720edf8fc223539538d528af6ef7f9"
+    },
+    {
+      "path": "experiment_summary.md",
+      "size_bytes": 158,
+      "sha256": "d42294546925006c64dc704c7a77c4a969e037d5135167f9a82294b7f27a08f8"
+    },
+    {
+      "path": "failure_cases.jsonl",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "git_commit.txt",
+      "size_bytes": 41,
+      "sha256": "a380a968143df5e61c121aa66e6648b732a153f7734e49f38af8704d2c0be4ce"
+    },
+    {
+      "path": "metrics.json",
+      "size_bytes": 347,
+      "sha256": "697db21d50c4921ac4539a953b352b1c33685aea2af8b78041f77f630ae68abe"
+    },
+    {
+      "path": "normalized_outputs.jsonl",
+      "size_bytes": 1110,
+      "sha256": "68fee098c125aefdec56373147b47bb917c21ca75d80f0d98bdca362afe292b2"
+    },
+    {
+      "path": "raw_outputs.jsonl",
+      "size_bytes": 848,
+      "sha256": "349a3266fc1c488478aca65602bd0b8da935bd607171a5549e7589c2d413ab1f"
+    },
+    {
+      "path": "run_manifest.json",
+      "size_bytes": 595,
+      "sha256": "b71c642f61b9ca4d651e360ccd50d314104c487f8580df81d566e65df67ffef2"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "run_id": "fake_phase4_acceptance",
+  "run_type": "landmark_baseline",
+  "model_id": "fake_model",
+  "benchmark_id": "fake_benchmark",
+  "idea_id": null,
+  "limit": 3,
+  "instrumentation_mode": "none",
+  "started_at": "2026-06-26T15:17:18Z",
+  "finished_at": "2026-06-26T15:17:18Z",
+  "status": "succeeded",
+  "config_snapshot_sha256": null,
+  "git_commit": "abd626e76753f1cb9a7e19aba1821fd384c2e814",
+  "outputs": {
+    "raw_outputs": "raw_outputs.jsonl",
+    "normalized_outputs": "normalized_outputs.jsonl",
+    "metrics": "metrics.json",
+    "failure_cases": "failure_cases.jsonl"
+  }
+}
