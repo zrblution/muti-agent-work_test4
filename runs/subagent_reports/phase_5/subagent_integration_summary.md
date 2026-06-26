@@ -92,13 +92,19 @@ New `run-landmark` `needs_attention` bundles now include `stdout_tail`, `stderr_
 
 The whitelisted `experiments/landmark_baselines/run_landmark.py` path now exists. `RemoteRunner.submit()` reviewable plans target that script directly instead of recursively invoking `stable_core.cli run-landmark`.
 
-The worker is deliberately still a gate: direct invocation records a `needs_attention` run with `failure_type: landmark_worker_not_implemented`, preserves stdout/stderr/exit code/env/git/failure artifacts, and does not create `raw_outputs.jsonl`. This removes the missing-script gap while keeping the real Qwen3-VL + POPE smoke blocked until a reviewed non-recursive worker implementation and process-submission authorization exist.
+The worker is deliberately still a gate. Direct invocation preserves stdout/stderr/exit code/env/git/failure artifacts and does not create `raw_outputs.jsonl`. This removes the missing-script gap while keeping the real Qwen3-VL + POPE smoke blocked until reviewed runtime adapter methods and process-submission authorization exist.
 
 ## Worker Validation Gate Follow-Up
 
 The worker now applies the same validate-only model and benchmark checks before it reaches the not-implemented stub. If `REMOTE_MODEL_ROOT`, `REMOTE_BENCHMARK_ROOT`, or required inventory files are missing, direct invocation records `failure_type: landmark_worker_validation_gate_not_ready` with `validate-model` and `validate-benchmark` gate payloads.
 
 This keeps the whitelisted target self-gating even if a future process-submitting RemoteRunner calls it directly. It still does not load models, run benchmarks, submit jobs, or write `raw_outputs.jsonl`.
+
+## Worker Runtime Gate Follow-Up
+
+After model and benchmark validation pass, the worker now checks whether the configured Qwen3-VL and POPE adapters still inherit validate-only runtime methods. The current Qwen3-VL adapter still lacks real `load` and `generate` methods, and the current POPE adapter still lacks real sample parsing, normalization, metrics, and failure-case extraction.
+
+When these runtime methods are missing, direct invocation records `failure_type: landmark_worker_runtime_gate_not_ready` with `model-runtime` and `benchmark-runtime` payloads. This is a narrower blocker than the previous generic worker stub and still performs no model loading, benchmark execution, or raw-output write.
 
 ## Process Submission Gate Follow-Up
 
@@ -108,7 +114,7 @@ This keeps the whitelisted target self-gating even if a future process-submittin
 
 `RemoteRunner.submit()` now includes a reviewed synchronous subprocess path for whitelisted scripts only. It can submit a process only after `runner_mode: remote_enabled`, `allow_real_gpu_jobs: true`, and `allow_process_submission: true` are all set, and only when the caller does not request `plan_only`.
 
-`phase5-readiness` always calls `RemoteRunner.submit(..., plan_only=True)`, so readiness bundles stay read-only even if config gates are opened. In tests with temporary valid inventory and a temporary run root, the executor launches only `experiments/landmark_baselines/run_landmark.py`; the worker records `landmark_worker_not_implemented`, exits nonzero, and still does not load models, run benchmarks, or write `raw_outputs.jsonl`.
+`phase5-readiness` always calls `RemoteRunner.submit(..., plan_only=True)`, so readiness bundles stay read-only even if config gates are opened. In tests with temporary valid inventory and a temporary run root, the executor launches only `experiments/landmark_baselines/run_landmark.py`; the worker records `landmark_worker_runtime_gate_not_ready`, exits nonzero, and still does not load models, run benchmarks, or write `raw_outputs.jsonl`.
 
 ## Phase 5 Readiness Bundle Follow-Up
 

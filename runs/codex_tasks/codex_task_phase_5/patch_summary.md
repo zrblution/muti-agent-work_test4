@@ -31,6 +31,7 @@ This phase now contains two related records:
 - a follow-up recorded artifact contract so landmark `needs_attention` manifests carry the same contract and `validate-run` checks required failure outputs.
 - a follow-up worker-side validation gate so the whitelisted worker checks model and benchmark readiness before reaching the current non-executing stub.
 - a follow-up reviewed synchronous subprocess executor that can only launch whitelisted scripts after all remote, GPU, and process-submission gates are explicitly opened, while readiness remains plan-only.
+- a follow-up worker runtime gate that identifies validate-only Qwen3-VL and POPE adapter methods after inventory validation passes, without loading models or running benchmarks.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -66,7 +67,7 @@ This phase now contains two related records:
 - `RemoteRunner.submit()` now returns a whitelisted `execution_plan` with `submits_process: false` while the process-submission gate remains closed
 - `project_config/experiment_budget.yaml` now keeps `allow_process_submission: false` by default
 - `RemoteRunner.submit()` reviewable plans now target `experiments/landmark_baselines/run_landmark.py` directly instead of recursively invoking `stable_core.cli run-landmark`
-- `experiments/landmark_baselines/run_landmark.py` now exists as a controlled non-executing worker stub that records `landmark_worker_not_implemented`
+- `experiments/landmark_baselines/run_landmark.py` now exists as a controlled non-executing worker entry point that records durable `needs_attention` bundles
 - `run-landmark` now records remote-gate-specific recommended next actions once model and benchmark validation pass
 - `stable_core.storage.run_results` reads recorded run manifests and metrics without recomputation
 - `stable_core.cli poll`
@@ -76,10 +77,11 @@ This phase now contains two related records:
 - `RemoteRunner` reviewable landmark execution plans now include `artifact_contract`
 - landmark `run_manifest.json` now includes `artifact_contract` for `needs_attention` bundles
 - `validate-run` now checks `artifact_contract_failure_outputs` for failed or `needs_attention` runs with a declared contract
-- `experiments/landmark_baselines/run_landmark.py` now calls validate-only model and benchmark gates before recording the current worker stub state
+- `experiments/landmark_baselines/run_landmark.py` now calls validate-only model and benchmark gates before reaching runtime execution checks
 - `RemoteRunner.submit(..., plan_only=True)` now returns a non-submitting plan even when config gates are open
 - `RemoteRunner.submit(...)` now runs the whitelisted worker subprocess only when remote mode, GPU budget, and process submission are all explicitly enabled
 - `phase5-readiness` now always calls `RemoteRunner.submit(..., plan_only=True)` so readiness bundles cannot submit processes
+- `experiments/landmark_baselines/run_landmark.py` now records `landmark_worker_runtime_gate_not_ready` when Qwen3-VL or POPE still inherit validate-only runtime methods
 
 ## Gate Commands
 
@@ -131,7 +133,8 @@ This phase now contains two related records:
 - `python experiments/landmark_baselines/run_landmark.py --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --run-id <temporary> --runs-root <temporary>`
   - exit code: `1`
   - status: `needs_attention`
-  - failure type: `landmark_worker_not_implemented`
+  - failure type after inventory validation passes: `landmark_worker_runtime_gate_not_ready`
+  - gate failures: `model-runtime`, `benchmark-runtime`
 - `python experiments/landmark_baselines/run_landmark.py --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --run-id <temporary> --runs-root <temporary>` with model and benchmark root env vars unset
   - exit code: `1`
   - status: `needs_attention`
@@ -152,7 +155,7 @@ This phase now contains two related records:
   - status: `needs_attention`
   - submitted process: `true`
   - exit code: `1`
-  - worker failure type: `landmark_worker_not_implemented`
+  - worker failure type: `landmark_worker_runtime_gate_not_ready`
   - raw outputs: not written
 - `POPEAdapter({"required_files": ["annotations/random.json"]})`
   - missing file: `needs_setup`
@@ -309,6 +312,13 @@ This phase now contains two related records:
 - `python -m stable_core.cli phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_executor_readiness_cli_smoke_final`: `needs_attention`, safety flags all false.
 - Expanded secret scan after adding the gated subprocess executor: `passed`, no findings.
 - Large-file scan after adding the gated subprocess executor: no files over 5 MB found.
+- `python -m pytest tests/test_landmark_gate.py::test_landmark_worker_script_records_needs_attention_without_reentering_gate tests/test_runner.py::test_remote_runner_submits_whitelisted_worker_after_all_gates_open -q`: initially `2 failed`, then `2 passed` after adding the worker runtime gate.
+- `python -m pytest tests/test_runner.py tests/test_landmark_gate.py tests/test_fake_adapters.py -q`: `38 passed` after adding the worker runtime gate.
+- `python -m pytest -q`: `82 passed` after adding the worker runtime gate.
+- `python -m stable_core.cli validate-config`: `passed` after adding the worker runtime gate.
+- `python -m stable_core.cli phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_worker_runtime_readiness_cli_smoke`: `needs_attention`, safety flags all false.
+- Expanded secret scan after adding the worker runtime gate: `passed`, no findings.
+- Large-file scan after adding the worker runtime gate: no files over 5 MB found.
 - `python -m stable_core.cli discover-model-inventory qwen3_vl_2b_instruct --output /tmp/phase5_qwen_inventory_discovery.json`: `needs_setup`, missing `REMOTE_MODEL_ROOT`, no config write, no load attempted.
 - `python -m pytest tests/test_fake_adapters.py -q`: `11 passed` after adding `discover-model-inventory`.
 - `python -m pytest tests/test_runner.py tests/test_landmark_gate.py -q`: `19 passed` after adding `discover-model-inventory`.

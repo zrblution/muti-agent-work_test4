@@ -18,14 +18,14 @@ Phase 5: minimal real smoke for `qwen3_vl_2b_instruct` + `pope` with `limit=8` a
 - `parse-results --run-id qwen3vl_pope_limit8_gate_diagnostics` validates the artifact bundle and preserves `needs_attention` because no real-smoke metrics exist.
 - `RemoteRunner.submit()` reports config-driven gate failures for `runner_mode: local_only`, `allow_real_gpu_jobs: false`, and `allow_process_submission: false`.
 - With remote mode and GPU budget open but process submission closed in tests, `RemoteRunner.submit()` returns a whitelisted `execution_plan` targeting `experiments/landmark_baselines/run_landmark.py` with `submits_process: false` and a `process_submission` gate failure.
-- The whitelisted worker entry point exists, is non-recursive, and records `landmark_worker_not_implemented` without loading models or running benchmarks.
+- The whitelisted worker entry point exists, is non-recursive, and records `landmark_worker_runtime_gate_not_ready` after validation passes because Qwen3-VL and POPE still inherit validate-only runtime methods. It does not load models or run benchmarks.
 
 ## Human Decisions Required
 
 - Provide approved server environment values for `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` without committing secrets or large artifacts.
 - Confirm the resolved Qwen3-VL directory contains the required offline model inventory, including `config.json`.
 - Confirm the resolved POPE directory contains benchmark metadata or sample files with an accepted suffix such as `.json`, `.jsonl`, `.tsv`, `.csv`, `.txt`, `.yaml`, or `.yml`.
-- Replace the current worker stub with a reviewed real-smoke implementation before enabling process submission.
+- Implement reviewed Qwen3-VL load/generate methods and POPE sample parsing/normalization/metrics/failure-case methods before enabling process submission for a real smoke.
 - Explicitly authorize opening the remote execution gate and GPU budget after validation passes.
 - Approve the transition from reviewable `execution_plan` to actual process submission by setting `allow_process_submission: true` only after validation passes and the real-smoke worker is reviewed.
 

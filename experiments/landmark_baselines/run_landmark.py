@@ -4,13 +4,15 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Sequence
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from experiments.fake.evaluator import validate_benchmark, validate_model
+from adapters.benchmarks._skeleton import ValidateOnlyBenchmarkAdapter
+from adapters.models._skeleton import ValidateOnlyModelAdapter
+from experiments.fake.evaluator import BENCHMARK_ADAPTERS, MODEL_ADAPTERS, validate_benchmark, validate_model
 from experiments.landmark_baselines.runner import _write_needs_attention
 from stable_core.storage.run_directory import (
     collect_env_snapshot,
@@ -125,6 +127,26 @@ def record_worker_not_implemented(
             ],
         )
 
+    runtime_gate_failures = _runtime_gate_failures(model_id=model_id, benchmark_id=benchmark_id)
+    if runtime_gate_failures:
+        message = "Landmark worker runtime gates did not pass; no real model or benchmark execution was attempted."
+        write_text(run_dir / "stderr.log", message + "\n")
+        write_text(run_dir / "exit_code.txt", "1\n")
+        return _write_needs_attention(
+            run_dir=run_dir,
+            run_id=run_id,
+            command=command,
+            failure_type="landmark_worker_runtime_gate_not_ready",
+            failure_message=message,
+            gate_failures=runtime_gate_failures,
+            started_at=started_at,
+            recommended_next_action=[
+                "Implement Qwen3-VL adapter load and generate methods for the approved local model path.",
+                "Implement POPE sample parsing, normalization, metrics, and failure-case extraction.",
+                "Keep the worker behind the reviewed RemoteRunner process submission gate.",
+            ],
+        )
+
     message = "Reviewed real-smoke worker is not implemented; no real model or benchmark execution was attempted."
     write_text(run_dir / "stderr.log", message + "\n")
     write_text(run_dir / "exit_code.txt", "1\n")
@@ -152,6 +174,82 @@ def record_worker_not_implemented(
         ],
     )
     return result
+
+
+def _runtime_gate_failures(*, model_id: str, benchmark_id: str) -> list[dict[str, Any]]:
+    failures: list[dict[str, Any]] = []
+    model_class = MODEL_ADAPTERS.get(model_id)
+    if model_class is None:
+        failures.append(
+            {
+                "gate": "model-runtime",
+                "payload": {
+                    "status": "failed",
+                    "model_id": model_id,
+                    "message": "No model adapter is registered for runtime execution.",
+                },
+            }
+        )
+    else:
+        unimplemented_model_methods = _inherited_methods(
+            model_class,
+            ValidateOnlyModelAdapter,
+            ["load", "generate"],
+        )
+        if unimplemented_model_methods:
+            failures.append(
+                {
+                    "gate": "model-runtime",
+                    "payload": {
+                        "status": "needs_attention",
+                        "model_id": model_id,
+                        "adapter": model_class.__name__,
+                        "unimplemented_methods": unimplemented_model_methods,
+                        "message": "Model adapter still inherits validate-only runtime methods.",
+                    },
+                }
+            )
+
+    benchmark_class = BENCHMARK_ADAPTERS.get(benchmark_id)
+    if benchmark_class is None:
+        failures.append(
+            {
+                "gate": "benchmark-runtime",
+                "payload": {
+                    "status": "failed",
+                    "benchmark_id": benchmark_id,
+                    "message": "No benchmark adapter is registered for runtime execution.",
+                },
+            }
+        )
+    else:
+        unimplemented_benchmark_methods = _inherited_methods(
+            benchmark_class,
+            ValidateOnlyBenchmarkAdapter,
+            ["build_requests", "normalize_prediction", "compute_metrics", "extract_failure_cases"],
+        )
+        if unimplemented_benchmark_methods:
+            failures.append(
+                {
+                    "gate": "benchmark-runtime",
+                    "payload": {
+                        "status": "needs_attention",
+                        "benchmark_id": benchmark_id,
+                        "adapter": benchmark_class.__name__,
+                        "unimplemented_methods": unimplemented_benchmark_methods,
+                        "message": "Benchmark adapter still inherits validate-only runtime methods.",
+                    },
+                }
+            )
+    return failures
+
+
+def _inherited_methods(adapter_class: type, base_class: type, method_names: list[str]) -> list[str]:
+    return [
+        method_name
+        for method_name in method_names
+        if getattr(adapter_class, method_name) is getattr(base_class, method_name)
+    ]
 
 
 def _reproduction_command(
