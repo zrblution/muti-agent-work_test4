@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from adapters.inventory import BENCHMARK_METADATA_SUFFIXES, discover_benchmark_metadata
+from adapters.inventory import BENCHMARK_METADATA_SUFFIXES, discover_benchmark_metadata, missing_required_files
 from adapters.path_resolution import resolve_env_path
 from stable_core.schemas.common import GenerationOutput, GenerationRequest, ValidationReport
 
@@ -42,6 +42,14 @@ class ValidateOnlyBenchmarkAdapter:
             checks.append({"name": "benchmark_path", "status": "needs_setup", "raw_path": resolved.raw_value, "path": str(benchmark_path), "message": "Benchmark path must be a directory."})
             return ValidationReport(status="needs_setup", checks=checks, summary=f"{self.display_name} path is not a directory; no benchmark was run.")
         checks.append({"name": "benchmark_path", "status": "passed", "raw_path": resolved.raw_value, "path": str(benchmark_path)})
+        required_files = list(self.config.get("required_files") or [])
+        if required_files:
+            missing = missing_required_files(benchmark_path, required_files)
+            if missing:
+                checks.append({"name": "benchmark_inventory", "status": "needs_setup", "path": str(benchmark_path), "missing_files": missing})
+                return ValidationReport(status="needs_setup", checks=checks, summary=f"{self.display_name} configured inventory is incomplete; no benchmark was run.")
+            checks.append({"name": "benchmark_inventory", "status": "passed", "path": str(benchmark_path), "required_files": required_files})
+            return ValidationReport(status="passed", checks=checks, summary=f"{self.display_name} configured inventory exists; sample parsing is a later gate.")
         discovered_files = discover_benchmark_metadata(benchmark_path)
         if not discovered_files:
             checks.append(

@@ -56,6 +56,10 @@ The validate-only adapters now perform a lightweight offline inventory gate afte
 
 This removes the previous "existing empty directory passes validation" limitation. The remaining blocker is external environment setup, populated local model and benchmark directories, and real execution authorization.
 
+## Configured Benchmark Inventory Follow-Up
+
+Benchmark validation now honors `required_files` when a benchmark config provides that list. If the list is empty, validation keeps the generic shallow metadata/sample discovery fallback required by the spec, so Codex still does not assume POPE-specific filenames before preflight discovery.
+
 ## Run Artifact Validation Follow-Up
 
 The framework now exposes `validate-run --run-id <run_id>` for recorded run directories. It validates safe run IDs, run manifests, declared output paths, required failure artifacts for `failed` or `needs_attention` runs, and `artifact_manifest.json` hashes.

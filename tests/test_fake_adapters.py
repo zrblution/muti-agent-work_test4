@@ -90,6 +90,31 @@ def test_validate_only_skeletons_reject_empty_inventory_dirs(tmp_path: Path) -> 
     assert benchmark_report.checks[-1]["name"] == "benchmark_inventory"
 
 
+def test_benchmark_inventory_honors_configured_required_files(tmp_path: Path) -> None:
+    benchmark_path = tmp_path / "pope"
+    benchmark_path.mkdir()
+    (benchmark_path / "samples.jsonl").write_text("{}\n", encoding="utf-8")
+
+    report = POPEAdapter({"path": str(benchmark_path), "required_files": ["annotations/random.json"]}).validate_paths()
+
+    assert report.status == "needs_setup"
+    assert report.checks[-1]["name"] == "benchmark_inventory"
+    assert report.checks[-1]["missing_files"] == ["annotations/random.json"]
+
+
+def test_benchmark_inventory_accepts_configured_required_files(tmp_path: Path) -> None:
+    benchmark_path = tmp_path / "pope"
+    annotation_path = benchmark_path / "annotations" / "random.json"
+    annotation_path.parent.mkdir(parents=True)
+    annotation_path.write_text("[]\n", encoding="utf-8")
+
+    report = POPEAdapter({"path": str(benchmark_path), "required_files": ["annotations/random.json"]}).validate_paths()
+
+    assert report.status == "passed"
+    assert report.checks[-1]["name"] == "benchmark_inventory"
+    assert report.checks[-1]["required_files"] == ["annotations/random.json"]
+
+
 def test_validate_only_skeletons_resolve_env_templates(monkeypatch, tmp_path: Path) -> None:
     model_root = tmp_path / "model_root"
     benchmark_root = tmp_path / "benchmark_root"

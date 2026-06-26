@@ -18,6 +18,7 @@ This phase now contains two related records:
 - a follow-up recorded-run lifecycle CLI for `poll` and `parse-results`, still with no model, benchmark, or job execution.
 - a follow-up whitelisted landmark worker entry point that records `needs_attention` without re-entering the top-level gate or executing real model/benchmark work.
 - a follow-up explicit `allow_process_submission` budget gate before any remote runner process could be submitted.
+- a follow-up config-driven benchmark inventory gate that honors `required_files` when populated.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -37,6 +38,7 @@ This phase now contains two related records:
 - path-template handling in validate-only model and benchmark skeletons
 - offline model inventory validation requiring `config.json` by default
 - offline benchmark inventory discovery for shallow metadata/sample files
+- offline benchmark inventory validation now honors configured `required_files` before falling back to metadata/sample discovery
 - recorded run validation for manifests, declared outputs, failure artifacts, and artifact hashes
 - `run-landmark` `failure.json` now includes log tails, reproduction command, config snapshot, and state snapshot
 - `RemoteRunner.submit()` now reports `runner_mode`, `allow_real_gpu_jobs`, and `allow_process_submission` gate failures from config
@@ -109,6 +111,9 @@ This phase now contains two related records:
 - `RemoteRunner.submit(...)` with remote mode, GPU budget, and process submission open
   - status: `needs_attention`
   - gate failure: `remote_executor`
+- `POPEAdapter({"required_files": ["annotations/random.json"]})`
+  - missing file: `needs_setup`
+  - present file: `passed`
 
 ## Artifacts Added
 
@@ -138,13 +143,19 @@ This phase now contains two related records:
 - `python -m pytest tests/test_runner.py tests/test_landmark_gate.py -q`: `18 passed` after adding the worker stub.
 - `python -m pytest -q`: `61 passed` after adding the worker stub.
 - `python -m pytest tests/test_runner.py::test_remote_runner_reports_configured_execution_gates tests/test_runner.py::test_remote_runner_builds_reviewable_plan_when_process_submission_gate_closed tests/test_runner.py::test_remote_runner_reaches_executor_gate_after_process_submission_gate_opens -q`: `3 passed` after adding the process-submission gate.
+- `python -m pytest tests/test_fake_adapters.py::test_benchmark_inventory_honors_configured_required_files tests/test_fake_adapters.py::test_benchmark_inventory_accepts_configured_required_files -q`: `2 passed` after adding configured benchmark inventory validation.
+- `python -m pytest tests/test_fake_adapters.py -q`: `9 passed` after adding configured benchmark inventory validation.
+- `python -m pytest tests/test_runner.py tests/test_landmark_gate.py -q`: `19 passed` after adding configured benchmark inventory validation.
+- `python -m pytest -q`: `64 passed` after adding configured benchmark inventory validation.
 - `python -m stable_core.cli validate-run --run-id qwen_worker_manual_check --runs-root /tmp/qwen_worker_manual_check_runs`: `passed`.
 - `python -m stable_core.cli parse-results --run-id qwen_worker_manual_check --runs-root /tmp/qwen_worker_manual_check_runs`: `needs_attention` with artifact validation `passed`.
 - `python -m stable_core.cli validate-config`: `passed`.
 - Expanded secret scan after adding `poll` and `parse-results`: `passed`, no findings.
 - Expanded secret scan after adding the worker stub: `passed`, no findings.
+- Expanded secret scan after adding configured benchmark inventory validation: `passed`, no findings.
 - Large-file scan after adding `poll` and `parse-results`: no files over 5 MB found.
 - Large-file scan after adding the worker stub: no files over 5 MB found.
+- Large-file scan after adding configured benchmark inventory validation: no files over 5 MB found.
 - `RemoteRunner().submit(...)`: `needs_attention` with `runner_mode: local_only` and `allow_real_gpu_jobs: false`.
 - CLI validation with unset path env vars reports the missing env var names.
 - CLI validation with temporary existing but empty model and benchmark directories returns `needs_setup` at the inventory gate.

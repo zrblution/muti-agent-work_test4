@@ -17,7 +17,7 @@ Continuation update: a structured `run-landmark` validation gate now exists. It 
 
 Path-template update: real model and benchmark configs now use `${REMOTE_MODEL_ROOT}` and `${REMOTE_BENCHMARK_ROOT}` templates. Validation reports a missing env var when those are unset, and validation continues to a lightweight offline inventory gate when the env vars point to existing directories. This does not read `.env`, download models, or execute benchmarks.
 
-Inventory update: model validation now requires an offline `config.json` in the resolved model directory. Benchmark validation now requires at least one shallow metadata or sample-like file with an accepted suffix such as `.json`, `.jsonl`, `.tsv`, `.csv`, `.txt`, `.yaml`, or `.yml`. The benchmark check is intentionally generic and does not assume a POPE-specific filename.
+Inventory update: model validation now requires an offline `config.json` in the resolved model directory. Benchmark validation now honors configured `required_files` when present, and otherwise requires at least one shallow metadata or sample-like file with an accepted suffix such as `.json`, `.jsonl`, `.tsv`, `.csv`, `.txt`, `.yaml`, or `.yml`. The fallback benchmark check is intentionally generic and does not assume a POPE-specific filename.
 
 Run-validation update: `validate-run --run-id` now validates recorded run directories without executing models or benchmarks. It checks safe run IDs, manifests, declared outputs, failure artifacts for `failed`/`needs_attention` runs, and artifact hashes.
 
@@ -45,6 +45,8 @@ Remote-gate diagnostics update: `run-landmark` now has separate next-action guid
 - `validate-benchmark pope` with a temporary `REMOTE_BENCHMARK_ROOT` pointing to an existing but empty `POPE` directory: `needs_setup`, missing shallow metadata/sample files
 - `validate-model qwen3_vl_2b_instruct` with a temporary `REMOTE_MODEL_ROOT` pointing to a `Qwen3-VL-2B-Instruct` directory containing `config.json`: `passed`
 - `validate-benchmark pope` with a temporary `REMOTE_BENCHMARK_ROOT` pointing to a `POPE` directory containing `samples.jsonl`: `passed`
+- `POPEAdapter({"required_files": ["annotations/random.json"]})` with the file missing: `needs_setup`, missing configured file
+- `POPEAdapter({"required_files": ["annotations/random.json"]})` with the file present: `passed`
 - `validate-run --run-id qwen3vl_pope_limit8_gate`: `passed`, validating the recorded `needs_attention` artifact bundle
 - `validate-run --run-id fake_phase4_acceptance`: `passed`, validating the recorded fake acceptance artifact bundle
 - temporary diagnostic `run-landmark` rerun with missing env vars: exit code `1`, JSON status `needs_attention`, no real model or benchmark execution
