@@ -148,6 +148,11 @@ def _scan_root(
                 if len(candidates) >= max_candidates:
                     break
             terminal_candidate = True
+        elif _is_model_like_variant(directory, configured_dir):
+            candidates.append(_model_like_variant_candidate(directory))
+            terminal_candidate = True
+            if len(candidates) >= max_candidates:
+                break
         elif _looks_like_model_output_dir(directory, configured_dir):
             candidates.append(_output_dir_candidate(directory))
             terminal_candidate = True
@@ -283,6 +288,23 @@ def _output_dir_candidate(directory: Path) -> dict[str, Any]:
     }
 
 
+def _model_like_variant_candidate(directory: Path) -> dict[str, Any]:
+    weight_files = _direct_weight_files(directory)
+    return {
+        "candidate_type": "model_like_variant",
+        "status": "needs_review" if weight_files else "needs_setup",
+        "path": str(directory),
+        "usable_with_current_config": False,
+        "requires_config_path_override": True,
+        "has_config": True,
+        "has_weights": bool(weight_files),
+        "weight_files_sample": weight_files[:5],
+        "reason": "directory contains model-like Qwen files but does not match the configured root/subdirectory contract",
+        "write_config": False,
+        "load_attempted": False,
+    }
+
+
 def _direct_weight_files(directory: Path) -> list[str]:
     try:
         return sorted(path.name for path in directory.iterdir() if path.is_file() and path.suffix.lower() in WEIGHT_SUFFIXES)
@@ -302,6 +324,15 @@ def _looks_like_model_output_dir(directory: Path, configured_dir: str) -> bool:
     if "qwen" not in lower_name and normalized_config_name not in normalized_dir_name:
         return False
     return any((directory / name).is_file() for name in OUTPUT_HINT_FILES)
+
+
+def _is_model_like_variant(directory: Path, configured_dir: str) -> bool:
+    if not (directory / "config.json").is_file():
+        return False
+    normalized_path = str(directory).lower().replace("-", "").replace("_", "")
+    normalized_config_name = configured_dir.lower().replace("-", "").replace("_", "")
+    family_hint = normalized_config_name.replace("instruct", "")
+    return normalized_config_name in normalized_path or family_hint in normalized_path
 
 
 def _is_usable_passed_candidate(candidate: dict[str, Any]) -> bool:

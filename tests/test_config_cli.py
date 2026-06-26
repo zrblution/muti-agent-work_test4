@@ -594,6 +594,36 @@ def test_phase5_discover_model_candidates_does_not_descend_into_output_dirs(tmp_
     assert candidate["path"] == str(output_dir)
 
 
+def test_phase5_discover_model_candidates_reports_model_like_variants(tmp_path: Path) -> None:
+    variant_path = tmp_path / "output-model" / "Qwen3-VL-2B-3epoch" / "Ours"
+    variant_path.mkdir(parents=True)
+    (variant_path / "config.json").write_text("{}\n", encoding="utf-8")
+    (variant_path / "model.safetensors").write_text("weight placeholder\n", encoding="utf-8")
+    output_path = tmp_path / "model_candidates.json"
+
+    result = run_cli(
+        "phase5-discover-model-candidates",
+        "qwen3_vl_2b_instruct",
+        "--search-root",
+        str(tmp_path),
+        "--output",
+        str(output_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+    written = json.loads(output_path.read_text(encoding="utf-8"))
+    assert written["status"] == "needs_setup"
+    assert len(written["candidates"]) == 1
+    candidate = written["candidates"][0]
+    assert candidate["candidate_type"] == "model_like_variant"
+    assert candidate["status"] == "needs_review"
+    assert candidate["path"] == str(variant_path)
+    assert candidate["usable_with_current_config"] is False
+    assert candidate["requires_config_path_override"] is True
+    assert candidate["has_config"] is True
+    assert candidate["has_weights"] is True
+
+
 def test_export_schemas_cli_writes_json_files(tmp_path: Path) -> None:
     output_dir = tmp_path / "schemas"
     result = run_cli("export-schemas", "--output", str(output_dir))
