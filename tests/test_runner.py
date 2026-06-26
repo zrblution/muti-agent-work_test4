@@ -178,3 +178,55 @@ def test_validate_run_cli_reports_artifact_status(tmp_path: Path) -> None:
 
     assert result.returncode == 0
     assert payload["status"] == "passed"
+
+
+def test_poll_cli_reports_recorded_run_manifest(tmp_path: Path) -> None:
+    run_fake_eval(run_id="fake_cli_poll", runs_root=tmp_path, limit=1)
+
+    result = run_cli("poll", "--run-id", "fake_cli_poll", "--runs-root", str(tmp_path))
+    payload = json.loads(result.stdout)
+
+    assert result.returncode == 0
+    assert payload["status"] == "recorded"
+    assert payload["run_status"] == "succeeded"
+    assert payload["run_manifest"].endswith("fake_cli_poll/run_manifest.json")
+
+
+def test_parse_results_cli_reads_existing_metrics_without_execution(tmp_path: Path) -> None:
+    run_fake_eval(run_id="fake_cli_parse", runs_root=tmp_path, limit=2)
+    metrics_path = tmp_path / "fake_cli_parse" / "metrics.json"
+    original_metrics = metrics_path.read_text(encoding="utf-8")
+
+    result = run_cli("parse-results", "--run-id", "fake_cli_parse", "--runs-root", str(tmp_path))
+    payload = json.loads(result.stdout)
+
+    assert result.returncode == 0
+    assert payload["status"] == "passed"
+    assert payload["run_status"] == "succeeded"
+    assert payload["metrics"]["sample_count"] == 2
+    assert payload["metrics"]["metrics"]["accuracy"] == 1.0
+    assert metrics_path.read_text(encoding="utf-8") == original_metrics
+
+
+def test_parse_results_cli_preserves_needs_attention_run(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.delenv("REMOTE_MODEL_ROOT", raising=False)
+    monkeypatch.delenv("REMOTE_BENCHMARK_ROOT", raising=False)
+    run_landmark(
+        run_id="qwen_cli_parse_gate",
+        model_id="qwen3_vl_2b_instruct",
+        benchmark_id="pope",
+        limit=8,
+        runs_root=tmp_path,
+    )
+
+    result = run_cli("parse-results", "--run-id", "qwen_cli_parse_gate", "--runs-root", str(tmp_path))
+    payload = json.loads(result.stdout)
+
+    assert result.returncode == 0
+    assert payload["status"] == "needs_attention"
+    assert payload["run_status"] == "needs_attention"
+    assert payload["artifact_validation_status"] == "passed"
+    assert "metrics" not in payload
+    assert payload["missing_outputs"]["metrics"] == "No real smoke outputs exist to score."

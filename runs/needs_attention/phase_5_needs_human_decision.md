@@ -14,6 +14,8 @@ Phase 5: minimal real smoke for `qwen3_vl_2b_instruct` + `pope` with `limit=8` a
 - Offline inventory validation rejects empty model and benchmark directories.
 - `validate-run --run-id qwen3vl_pope_limit8_gate` validates the recorded `needs_attention` artifact bundle.
 - `validate-run --run-id qwen3vl_pope_limit8_gate_diagnostics` validates the enhanced failure-diagnostics artifact bundle.
+- `poll --run-id qwen3vl_pope_limit8_gate_diagnostics` inspects the recorded manifest status without submitting a job.
+- `parse-results --run-id qwen3vl_pope_limit8_gate_diagnostics` validates the artifact bundle and preserves `needs_attention` because no real-smoke metrics exist.
 - `RemoteRunner.submit()` reports config-driven gate failures for `runner_mode: local_only` and `allow_real_gpu_jobs: false`.
 - With open config gates in tests, `RemoteRunner.submit()` returns a whitelisted `execution_plan` with `submits_process: false`.
 
@@ -32,8 +34,12 @@ python -m stable_core.cli validate-config
 python -m stable_core.cli validate-model qwen3_vl_2b_instruct
 python -m stable_core.cli validate-benchmark pope
 python -m stable_core.cli validate-run --run-id qwen3vl_pope_limit8_gate_diagnostics
+python -m stable_core.cli poll --run-id qwen3vl_pope_limit8_gate_diagnostics
+python -m stable_core.cli parse-results --run-id qwen3vl_pope_limit8_gate_diagnostics
 python -m stable_core.cli run-landmark --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --run-id qwen3vl_pope_limit8_real_smoke
 python -m stable_core.cli validate-run --run-id qwen3vl_pope_limit8_real_smoke
+python -m stable_core.cli poll --run-id qwen3vl_pope_limit8_real_smoke
+python -m stable_core.cli parse-results --run-id qwen3vl_pope_limit8_real_smoke
 ```
 
 ## Do Not Continue Automatically

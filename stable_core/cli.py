@@ -12,6 +12,7 @@ from stable_core.config import export_schemas, list_agents, list_benchmarks, lis
 from stable_core.evidence.registry import add_record_from_args, init_registry, list_registry
 from stable_core.runner.local import LocalRunner
 from stable_core.state_machine.state_manager import StateManager
+from stable_core.storage.run_results import parse_recorded_results, poll_recorded_run
 from stable_core.storage.run_validator import validate_run_artifacts
 from stable_core.validation.preflight import run_preflight
 
@@ -103,6 +104,14 @@ def build_parser() -> argparse.ArgumentParser:
     run_landmark_parser.add_argument("--limit", type=int, required=True)
     run_landmark_parser.add_argument("--instrumentation", default="none")
     run_landmark_parser.add_argument("--run-id", default=None)
+
+    poll_parser = subparsers.add_parser("poll", help="Poll a recorded run directory without executing jobs.")
+    poll_parser.add_argument("--run-id", required=True)
+    poll_parser.add_argument("--runs-root", default=str(DEFAULT_RUNS_ROOT))
+
+    parse_results_parser = subparsers.add_parser("parse-results", help="Read and summarize recorded run results.")
+    parse_results_parser.add_argument("--run-id", required=True)
+    parse_results_parser.add_argument("--runs-root", default=str(DEFAULT_RUNS_ROOT))
 
     validate_run_parser = subparsers.add_parser("validate-run", help="Validate a recorded run directory.")
     validate_run_parser.add_argument("--run-id", required=True)
@@ -219,6 +228,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 1
         print(json.dumps({"command": "run-landmark", **result}, ensure_ascii=False))
         return 0 if result["status"] == "succeeded" else 1
+    if args.command == "poll":
+        report = poll_recorded_run(run_id=args.run_id, runs_root=args.runs_root)
+        print(json.dumps({"command": "poll", **report}, ensure_ascii=False))
+        return _exit_code(str(report["status"]))
+    if args.command == "parse-results":
+        report = parse_recorded_results(run_id=args.run_id, runs_root=args.runs_root)
+        print(json.dumps({"command": "parse-results", **report}, ensure_ascii=False))
+        return _exit_code(str(report["status"]))
     if args.command == "validate-run":
         report = validate_run_artifacts(run_id=args.run_id, runs_root=args.runs_root)
         print(json.dumps({"command": "validate-run", "run_id": args.run_id, **report}, ensure_ascii=False))

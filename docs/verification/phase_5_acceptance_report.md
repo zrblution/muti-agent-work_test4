@@ -21,6 +21,8 @@ Inventory update: model validation now requires an offline `config.json` in the 
 
 Run-validation update: `validate-run --run-id` now validates recorded run directories without executing models or benchmarks. It checks safe run IDs, manifests, declared outputs, failure artifacts for `failed`/`needs_attention` runs, and artifact hashes.
 
+Run-lifecycle CLI update: top-level `poll --run-id` and `parse-results --run-id` commands now inspect recorded run directories without submitting jobs, loading models, running benchmarks, or recomputing metrics. `poll` reports the recorded manifest status; `parse-results` validates the artifact bundle and reads the declared metrics file when one exists, while preserving `needs_attention` when the real-smoke gate has no outputs to score.
+
 Failure-diagnostics update: new `run-landmark` `needs_attention` bundles now include `stdout_tail`, `stderr_tail`, `reproduction_command`, `config_snapshot`, and `state_snapshot` in `failure.json`, while still preserving `stdout.log`, `stderr.log`, `exit_code.txt`, `env_snapshot.json`, and `git_commit.txt`.
 
 Remote gate update: `RemoteRunner.submit()` now reads `project_config/server.yaml` and `project_config/experiment_budget.yaml` and reports structured gate failures for `runner_mode` and `allow_real_gpu_jobs`. It still does not submit real remote or GPU work.
@@ -47,6 +49,8 @@ Remote-gate diagnostics update: `run-landmark` now has separate next-action guid
 - `validate-run --run-id qwen_pope_gate_diagnostic_check`: `passed` before the temporary run directory was removed
 - current diagnostic `run-landmark --run-id qwen3vl_pope_limit8_gate_diagnostics`: exit code `1`, JSON status `needs_attention`, no real model or benchmark execution
 - `validate-run --run-id qwen3vl_pope_limit8_gate_diagnostics`: `passed`, validating the enhanced failure-diagnostics artifact bundle
+- `poll --run-id qwen3vl_pope_limit8_gate_diagnostics`: reports recorded run status `needs_attention`
+- `parse-results --run-id qwen3vl_pope_limit8_gate_diagnostics`: preserves status `needs_attention` and reports validated missing metrics instead of computing benchmark results
 - `run_landmark(...)` with temporary valid model and POPE inventory: JSON status `needs_attention`, failure type `landmark_remote_runner_not_enabled`, no real model or benchmark execution
 
 Logs are stored in `runs/phase_5_gate_logs/`.
@@ -73,6 +77,7 @@ The human decision record is stored in `runs/needs_attention/phase_5_needs_human
 - Extend the controlled `run-landmark` gate from reviewable execution plan to reviewed process submission only after validation passes.
 - Preserve all run/failure artifacts for any future real smoke attempt.
 - Keep using `validate-run --run-id <run_id>` before accepting any recorded run artifact bundle.
+- Use `poll --run-id <run_id>` and `parse-results --run-id <run_id>` only as recorded-artifact inspection steps until a reviewed process-submitting remote executor exists.
 - Explicitly approve real GPU execution only after validation gates pass.
 
 ## Why Work Stops Here
