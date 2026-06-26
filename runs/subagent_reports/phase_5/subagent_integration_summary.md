@@ -102,15 +102,21 @@ This keeps the whitelisted target self-gating even if a future process-submittin
 
 ## Worker Runtime Gate Follow-Up
 
-After model and benchmark validation pass, the worker now checks whether the configured Qwen3-VL and POPE adapters still inherit validate-only runtime methods. The current Qwen3-VL adapter still lacks real `load` and `generate` methods.
+After model and benchmark validation pass, the worker checks whether the configured Qwen3-VL and POPE adapters still inherit validate-only runtime methods. Qwen3-VL now has reviewed local `load`, `generate`, and `unload` methods, and POPE has local parsing, normalization, metrics, and failure-case extraction.
 
-When these runtime methods are missing, direct invocation records `failure_type: landmark_worker_runtime_gate_not_ready` with a `model-runtime` payload. This is a narrower blocker than the previous generic worker stub and still performs no model loading, benchmark execution, or raw-output write.
+When runtime methods are missing, direct invocation records `failure_type: landmark_worker_runtime_gate_not_ready`. For the current Qwen3-VL + POPE target, the adapter runtime gate now passes and direct invocation advances to `failure_type: landmark_worker_not_implemented`. This is a narrower blocker than the previous adapter runtime gate and still performs no model loading, benchmark execution, or raw-output write.
+
+## Qwen3-VL Runtime Follow-Up
+
+`Qwen3VLAdapter` now implements delayed-import local runtime methods. `load()` validates approved local inventory before importing Transformers/Torch, loads the processor and model with `local_files_only: true`, and honors configured precision and device map. `generate()` builds a local-image multimodal chat request, decodes only newly generated tokens, and returns a `GenerationOutput` carrying model, benchmark, sample, and generation metadata. `unload()` releases adapter references.
+
+This enables the adapter contract only; it does not execute a real smoke by itself. The remaining implementation blocker is the worker loop that calls these runtime methods and writes the success artifacts exactly once.
 
 ## POPE Runtime Follow-Up
 
 `POPEAdapter` now implements local JSON/JSONL sample parsing, canonical request construction, yes/no normalization, metrics, and failure-case extraction. This only enables adapter-level parsing and scoring from local files; it does not execute the first Qwen3-VL + POPE smoke, submit a job, or write raw outputs.
 
-With temporary valid inventory, the worker runtime gate now stops only on Qwen3-VL `load` and `generate`.
+With temporary valid inventory, the worker runtime gate now passes for the current Qwen3-VL + POPE target and the worker stops at the explicit real-loop-not-implemented gate.
 
 ## Process Submission Gate Follow-Up
 
@@ -120,7 +126,7 @@ With temporary valid inventory, the worker runtime gate now stops only on Qwen3-
 
 `RemoteRunner.submit()` now includes a reviewed synchronous subprocess path for whitelisted scripts only. It can submit a process only after `runner_mode: remote_enabled`, `allow_real_gpu_jobs: true`, and `allow_process_submission: true` are all set, and only when the caller does not request `plan_only`.
 
-`phase5-readiness` always calls `RemoteRunner.submit(..., plan_only=True)`, so readiness bundles stay read-only even if config gates are opened. In tests with temporary valid inventory and a temporary run root, the executor launches only `experiments/landmark_baselines/run_landmark.py`; the worker records `landmark_worker_runtime_gate_not_ready` for Qwen3-VL model runtime, exits nonzero, and still does not load models, run benchmarks, or write `raw_outputs.jsonl`.
+`phase5-readiness` always calls `RemoteRunner.submit(..., plan_only=True)`, so readiness bundles stay read-only even if config gates are opened. In tests with temporary valid inventory and a temporary run root, the executor launches only `experiments/landmark_baselines/run_landmark.py`; the worker records `landmark_worker_not_implemented`, exits nonzero, and still does not load models, run benchmarks, or write `raw_outputs.jsonl`.
 
 ## Phase 5 Readiness Bundle Follow-Up
 

@@ -141,8 +141,7 @@ def record_worker_not_implemented(
             gate_failures=runtime_gate_failures,
             started_at=started_at,
             recommended_next_action=[
-                "Implement Qwen3-VL adapter load and generate methods for the approved local model path.",
-                "Implement POPE sample parsing, normalization, metrics, and failure-case extraction.",
+                "Implement runtime methods for the adapters listed in gate_failures.",
                 "Keep the worker behind the reviewed RemoteRunner process submission gate.",
             ],
         )

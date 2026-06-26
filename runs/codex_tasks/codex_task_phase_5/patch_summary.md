@@ -33,6 +33,7 @@ This phase now contains two related records:
 - a follow-up reviewed synchronous subprocess executor that can only launch whitelisted scripts after all remote, GPU, and process-submission gates are explicitly opened, while readiness remains plan-only.
 - a follow-up worker runtime gate that identifies validate-only runtime methods after inventory validation passes, without loading models or running benchmarks.
 - a follow-up POPE runtime adapter implementation for local JSON/JSONL sample parsing, canonical request construction, yes/no normalization, metrics, and failure-case extraction, without model execution.
+- a follow-up Qwen3-VL runtime adapter implementation for delayed-import local load/generate/unload methods, without invoking them during validation or readiness.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -85,7 +86,8 @@ This phase now contains two related records:
 - `experiments/landmark_baselines/run_landmark.py` now records `landmark_worker_runtime_gate_not_ready` when runtime adapters still inherit validate-only runtime methods
 - `POPEAdapter` now implements `build_requests`, `normalize_prediction`, `compute_metrics`, and `extract_failure_cases` for local JSON/JSONL POPE-style files
 - `POPEAdapter.build_requests()` now applies the same unsafe `required_files` rejection used by inventory validation before reading local sample files
-- after the POPE runtime update, temporary valid-inventory worker invocations now stop only at the Qwen3-VL `model-runtime` gate
+- `Qwen3VLAdapter` now implements local `load`, `generate`, and `unload` methods with delayed Transformers/Torch imports, `local_files_only: true`, configured precision/device settings, local-image multimodal prompt construction, and raw text preservation in `GenerationOutput`
+- after the Qwen3-VL runtime update, temporary valid-inventory worker invocations stop at `landmark_worker_not_implemented` instead of the adapter runtime gate
 
 ## Gate Commands
 
@@ -137,8 +139,8 @@ This phase now contains two related records:
 - `python experiments/landmark_baselines/run_landmark.py --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --run-id <temporary> --runs-root <temporary>`
   - exit code: `1`
   - status: `needs_attention`
-  - failure type after inventory validation passes: `landmark_worker_runtime_gate_not_ready`
-  - gate failures after the POPE runtime update: `model-runtime`
+  - failure type after inventory validation passes and runtime adapters are available: `landmark_worker_not_implemented`
+  - gate failures after the Qwen3-VL runtime update: `landmark-worker`
 - `python experiments/landmark_baselines/run_landmark.py --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --run-id <temporary> --runs-root <temporary>` with model and benchmark root env vars unset
   - exit code: `1`
   - status: `needs_attention`
@@ -159,7 +161,7 @@ This phase now contains two related records:
   - status: `needs_attention`
   - submitted process: `true`
   - exit code: `1`
-  - worker failure type: `landmark_worker_runtime_gate_not_ready`
+  - worker failure type: `landmark_worker_not_implemented`
   - raw outputs: not written
 - `POPEAdapter({"required_files": ["annotations/random.json"]})`
   - missing file: `needs_setup`
@@ -179,6 +181,16 @@ This phase now contains two related records:
 - `POPEAdapter().normalize_prediction(...)`, `compute_metrics(...)`, and `extract_failure_cases(...)`
   - status: passed in tests
   - purpose: verify yes/no normalization, accuracy, hallucination rate, yes rate, and failed sample extraction from local normalized JSONL
+- `Qwen3VLAdapter.load()` with monkeypatched Transformers/Torch runtime
+  - status: initially failed while Qwen inherited the validate-only skeleton, then passed after adding delayed-import local runtime loading
+  - purpose: verify local-only loading, configured precision, device map, trust setting, and eval mode without loading a real model
+- `Qwen3VLAdapter.generate()` with monkeypatched runtime
+  - status: initially failed while Qwen inherited the validate-only skeleton, then passed after adding multimodal request generation
+  - purpose: verify local image chat construction, device transfer, new-token-only decoding, and `GenerationOutput` metadata without loading a real model
+- `experiments/landmark_baselines/run_landmark.py` worker with temporary valid inventory after Qwen/POPE runtime methods are available
+  - status: passed in tests
+  - failure type: `landmark_worker_not_implemented`
+  - purpose: verify the remaining blocker is the reviewed worker execution loop, not adapter runtime methods
 - `validate-config` with temporary unsafe model and benchmark `required_files`
   - status: `failed`
   - inventory findings identify each unsafe entry before any path resolution
@@ -224,13 +236,18 @@ This phase now contains two related records:
   - `validate-run` reports `artifact_contract_failure_outputs` as `passed`
 - `/tmp/maes_phase4_venv312/bin/python -m pytest -q`
   - status: passed
-  - result: `85 passed`
+  - result after Qwen3-VL runtime update: `88 passed`
+- `/tmp/maes_phase4_venv312/bin/python -m pytest tests/test_qwen3_vl_adapter.py tests/test_landmark_gate.py::test_landmark_worker_script_records_needs_attention_without_reentering_gate tests/test_runner.py::test_remote_runner_submits_whitelisted_worker_after_all_gates_open -q`
+  - status: initially `5 failed`, then `5 passed` after adding Qwen3-VL runtime methods
+- `/tmp/maes_phase4_venv312/bin/python -m pytest tests/test_qwen3_vl_adapter.py tests/test_fake_adapters.py tests/test_landmark_gate.py tests/test_runner.py -q`
+  - status: passed
+  - result: `44 passed`
 - `/tmp/maes_phase4_venv312/bin/python -m stable_core.cli validate-config`
   - status: `passed`
-- `/tmp/maes_phase4_venv312/bin/python -m stable_core.cli phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_pope_runtime_readiness_cli_smoke`
+- `/tmp/maes_phase4_venv312/bin/python -m stable_core.cli phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_qwen_runtime_readiness_cli_smoke`
   - status: `needs_attention`
   - safety flags: no real model execution, no real benchmark execution, no remote job submission, no raw outputs, no config write
-- `/tmp/maes_phase4_venv312/bin/python -m stable_core.security.secret_scan --paths ... --output /tmp/phase5_pope_runtime_secret_scan.json`
+- `/tmp/maes_phase4_venv312/bin/python -m stable_core.security.secret_scan --paths ... --output /tmp/phase5_qwen_runtime_secret_scan.json`
   - status: `passed`
   - findings: none
 - `find docs project_config stable_core research_tools evidence tests scripts runs adapters experiments idea_plugins instrumentation -type f -size +5M -print`

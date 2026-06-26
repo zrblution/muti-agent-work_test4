@@ -219,9 +219,9 @@ def test_landmark_worker_script_records_needs_attention_without_reentering_gate(
 
     assert result.returncode == 1
     assert payload["status"] == "needs_attention"
-    assert payload["failure_type"] == "landmark_worker_runtime_gate_not_ready"
-    assert failure["failure_type"] == "landmark_worker_runtime_gate_not_ready"
-    assert {item["gate"] for item in failure["gate_failures"]} == {"model-runtime"}
+    assert payload["failure_type"] == "landmark_worker_not_implemented"
+    assert failure["failure_type"] == "landmark_worker_not_implemented"
+    assert {item["gate"] for item in failure["gate_failures"]} == {"landmark-worker"}
     assert failure["executed_real_model"] is False
     assert failure["executed_real_benchmark"] is False
     assert "experiments/landmark_baselines/run_landmark.py" in failure["reproduction_command"]

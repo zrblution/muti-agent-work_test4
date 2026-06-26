@@ -39,7 +39,7 @@ Remote gate update: `RemoteRunner.submit()` now reads `project_config/server.yam
 
 Remote plan update: when the remote-mode and GPU-budget config gates are opened in a controlled test but process submission remains closed, `RemoteRunner.submit()` returns a reviewable `execution_plan` with whitelisted argv, `submits_process: false`, and a `process_submission` gate failure. This narrows the remaining remote-execution gap without launching a process.
 
-Process executor update: `RemoteRunner.submit()` now has a reviewed synchronous subprocess path for whitelisted scripts only after `runner_mode: remote_enabled`, `allow_real_gpu_jobs: true`, and `allow_process_submission: true` are all set, and only when the caller is not using `plan_only`. Non-process actions such as `poll_job` return `needs_attention` without process submission. `phase5-readiness` always uses `plan_only`, so readiness bundles cannot submit processes. In tests, the executor can launch the whitelisted worker against temporary validated inventory and a temporary run root; the worker records `landmark_worker_runtime_gate_not_ready` without loading a model, running a benchmark, or writing raw outputs.
+Process executor update: `RemoteRunner.submit()` now has a reviewed synchronous subprocess path for whitelisted scripts only after `runner_mode: remote_enabled`, `allow_real_gpu_jobs: true`, and `allow_process_submission: true` are all set, and only when the caller is not using `plan_only`. Non-process actions such as `poll_job` return `needs_attention` without process submission. `phase5-readiness` always uses `plan_only`, so readiness bundles cannot submit processes. In tests, the executor can launch the whitelisted worker against temporary validated inventory and a temporary run root; after Qwen3-VL and POPE runtime methods were added, the worker records `landmark_worker_not_implemented` without loading a model, running a benchmark, or writing raw outputs.
 
 Artifact-contract update: the reviewable landmark smoke execution plan now declares `artifact_contract` for successful and failed runs. It lists required success outputs, required failure outputs, `never_overwrite: ["raw_outputs.jsonl"]`, and `large_artifact_policy: manifest_only` so the process-submitting path remains auditable against Phase 5 artifact rules.
 
@@ -53,9 +53,11 @@ Worker-entry update: the whitelisted `experiments/landmark_baselines/run_landmar
 
 Worker validation update: the whitelisted worker now runs the same validate-only model and benchmark gates before reaching the current not-implemented stub. Missing or unapproved inventory records `failure_type: landmark_worker_validation_gate_not_ready`, preserves the failure bundle, exits nonzero, and still does not load models, run benchmarks, or write raw outputs.
 
-Worker runtime update: after model and benchmark validation pass, the worker checks whether the configured runtime adapters still inherit validate-only methods. Before the POPE runtime follow-up this branch recorded both `model-runtime` and `benchmark-runtime`; after the POPE update it records only `model-runtime` because Qwen3-VL still lacks reviewed `load` and `generate` methods. No model load, benchmark execution, or raw-output write is attempted.
+Worker runtime update: after model and benchmark validation pass, the worker checks whether the configured runtime adapters still inherit validate-only methods. Before the POPE runtime follow-up this branch recorded both `model-runtime` and `benchmark-runtime`; after the POPE update it recorded only `model-runtime`. After the Qwen3-VL runtime update, both configured adapters have reviewed runtime methods, so temporary valid-inventory worker runs now advance to `landmark_worker_not_implemented` instead of the adapter runtime gate. No model load, benchmark execution, or raw-output write is attempted.
 
-POPE runtime update: `POPEAdapter` now implements local JSON/JSONL sample parsing, canonical request construction, yes/no prediction normalization, metrics, and failure-case extraction. This is file-local adapter logic only; it does not load a model, submit a runner job, or execute a real benchmark smoke. After this update, the worker runtime gate for temporary valid inventory narrows to `model-runtime` because Qwen3-VL still lacks reviewed `load` and `generate` methods.
+POPE runtime update: `POPEAdapter` now implements local JSON/JSONL sample parsing, canonical request construction, yes/no prediction normalization, metrics, and failure-case extraction. This is file-local adapter logic only; it does not load a model, submit a runner job, or execute a real benchmark smoke. This first narrowed the worker runtime gate to Qwen3-VL; after the Qwen3-VL runtime update below, the current target advances past adapter runtime checks.
+
+Qwen3-VL runtime update: `Qwen3VLAdapter` now implements delayed-import `load`, `generate`, and `unload` methods for approved local model paths. Loading forces `local_files_only: true`, uses configured precision/device settings, and does not run during validation or readiness checks. Generation constructs a local-image multimodal chat request, decodes only newly generated tokens, and preserves raw text in `GenerationOutput`. This enables the adapter contract but does not execute a real smoke until the worker loop and RemoteRunner gates are reviewed.
 
 Remote-gate diagnostics update: `run-landmark` now has separate next-action guidance for the path where model and benchmark validation pass but remote execution is still closed. That branch preserves the validated path setup and points to remote gate, GPU budget, and process-submission approval instead of asking to reconfigure paths again.
 
@@ -78,6 +80,8 @@ Remote-gate diagnostics update: `run-landmark` now has separate next-action guid
 - `POPEAdapter.build_requests(...)` with local JSONL samples: constructs canonical requests with stable request ids, sample ids, prompts, image paths, task type, and reference answers without model execution
 - `POPEAdapter.normalize_prediction(...)`, `compute_metrics(...)`, and `extract_failure_cases(...)`: normalize yes/no outputs and compute sample count, accuracy, yes rate, hallucination rate, and failed samples from local normalized JSONL
 - `POPEAdapter.build_requests(...)` with unsafe configured `required_files`: rejects parent-traversing paths before reading sample files
+- `Qwen3VLAdapter.load(...)` with a monkeypatched local runtime: validates local inventory, imports Transformers/Torch only during load, passes `local_files_only: true`, honors precision/device config, and calls model `eval()`
+- `Qwen3VLAdapter.generate(...)` with a monkeypatched local runtime: builds a local-image multimodal chat request, sends tensors to the model device, decodes only newly generated tokens, and returns `GenerationOutput` metadata without reading `.env` or loading a real model
 - `validate-config` with temporary unsafe model and benchmark `required_files`: `failed`, inventory findings identify the unsafe entries
 - `validate-config` with temporary unsafe block-list `required_files`: `failed`, inventory findings identify the unsafe entries
 - `discover-benchmark-inventory pope` with `REMOTE_BENCHMARK_ROOT` unset: `needs_setup`, report records the missing env var and writes no config
@@ -87,7 +91,7 @@ Remote-gate diagnostics update: `run-landmark` now has separate next-action guid
 - `phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_readiness_cli_smoke` with model and benchmark root env vars unset: `needs_attention`, report records missing `REMOTE_MODEL_ROOT`, missing `REMOTE_BENCHMARK_ROOT`, closed `runner_mode`, `real_gpu_budget`, and `process_submission` gates, with no real execution or raw outputs
 - `phase5-readiness` in tests with temporary model `config.json` and POPE `samples.jsonl`: model and benchmark validation pass, but top-level status remains `needs_attention` because remote execution authorization is still closed and the execution plan has `submits_process: false`
 - `RemoteRunner.submit(...)` for the landmark smoke worker with remote mode and GPU budget open but process submission closed: execution plan includes required success outputs, failure outputs, raw-output no-overwrite policy, and manifest-only large artifact policy
-- `RemoteRunner.submit(...)` with remote mode, GPU budget, process submission, temporary valid inventory, and a temporary run root: submits the whitelisted worker subprocess, exits code `1`, returns JSON status `needs_attention`, records `failure_type: landmark_worker_runtime_gate_not_ready` with only `model-runtime`, and writes no raw outputs
+- `RemoteRunner.submit(...)` with remote mode, GPU budget, process submission, temporary valid inventory, and a temporary run root: submits the whitelisted worker subprocess, exits code `1`, returns JSON status `needs_attention`, records `failure_type: landmark_worker_not_implemented`, and writes no raw outputs
 - `RemoteRunner.submit(..., plan_only=True)` with all config gates open: returns `needs_attention` with `plan_only`, `submitted_process: false`, `submits_process: false`, and creates no run directory
 - `run_landmark(...)` recorded `needs_attention` manifest now includes `artifact_contract.failure_outputs`, and `validate-run` reports `artifact_contract_failure_outputs: passed`
 - `run_landmark(...)` with temporary valid model and POPE inventory and `run_id=qwen_pope_requested_run_id`: remote execution plan records `experiment_id=qwen_pope_requested_run_id` and worker argv ends with that same requested run id
@@ -100,7 +104,7 @@ Remote-gate diagnostics update: `run-landmark` now has separate next-action guid
 - `validate-run --run-id qwen3vl_pope_limit8_gate_diagnostics`: `passed`, validating the enhanced failure-diagnostics artifact bundle
 - `poll --run-id qwen3vl_pope_limit8_gate_diagnostics`: reports recorded run status `needs_attention`
 - `parse-results --run-id qwen3vl_pope_limit8_gate_diagnostics`: preserves status `needs_attention` and reports validated missing metrics instead of computing benchmark results
-- direct `experiments/landmark_baselines/run_landmark.py` worker invocation with a temporary valid model and benchmark inventory: exit code `1`, JSON status `needs_attention`, failure type `landmark_worker_runtime_gate_not_ready`, gate failure `model-runtime`, no real model or benchmark execution
+- direct `experiments/landmark_baselines/run_landmark.py` worker invocation with a temporary valid model and benchmark inventory: exit code `1`, JSON status `needs_attention`, failure type `landmark_worker_not_implemented`, gate failure `landmark-worker`, no real model or benchmark execution
 - direct `experiments/landmark_baselines/run_landmark.py` worker invocation with missing `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT`: exit code `1`, JSON status `needs_attention`, failure type `landmark_worker_validation_gate_not_ready`, gate failures `validate-model` and `validate-benchmark`, no raw outputs
 - `run_landmark(...)` with temporary valid model and POPE inventory: JSON status `needs_attention`, failure type `landmark_remote_runner_not_enabled`, no real model or benchmark execution
 
@@ -115,20 +119,20 @@ The human decision record is stored in `runs/needs_attention/phase_5_needs_human
 ## Root Cause Hypothesis
 
 - `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` are not configured in the server execution environment.
-- The current Qwen3-VL adapter is still a validate-only skeleton for runtime loading and generation.
+- The current Qwen3-VL adapter now has reviewed local runtime methods, but they are not yet called by the worker loop.
 - The structured `run-landmark` gate exists, but it correctly stops before real execution because model and benchmark validations are `needs_setup`.
-- The whitelisted worker entry point exists and is non-recursive, but Qwen3-VL still inherits validate-only runtime methods.
+- The whitelisted worker entry point exists and is non-recursive, but the real execution loop that loads Qwen3-VL, iterates POPE samples, writes raw outputs once, normalizes outputs, and computes metrics is still not implemented.
 - Configured inventory paths are now constrained to the model or benchmark root, so external setup still must populate approved directories instead of pointing validation at files elsewhere on the filesystem.
 - Remote runner execution is config-gated: `project_config/server.yaml` still sets `runner_mode: local_only`.
 - Real GPU jobs are config-gated: `project_config/experiment_budget.yaml` still sets `allow_real_gpu_jobs: false`.
 - Process submission is config-gated: `project_config/experiment_budget.yaml` still sets `allow_process_submission: false`.
-- Even if the remote-mode, GPU-budget, and process-submission config gates are opened later, the reviewed subprocess executor can only launch the whitelisted worker. The worker itself now stops at the Qwen3-VL model runtime gate, so a real Qwen3-VL + POPE smoke still cannot complete until Qwen3-VL load/generate methods are implemented.
+- Even if the remote-mode, GPU-budget, and process-submission config gates are opened later, the reviewed subprocess executor can only launch the whitelisted worker. The worker itself now stops at `landmark_worker_not_implemented`, so a real Qwen3-VL + POPE smoke still cannot complete until the reviewed worker execution loop is implemented.
 
 ## Required Fixes Before Resuming Phase 5
 
 - Configure approved local model and POPE paths without committing secrets or large artifacts.
 - Populate the approved local model and benchmark directories so offline inventory validation passes.
-- Implement reviewed Qwen3-VL load/generate methods and connect them into the non-recursive worker while preserving raw outputs exactly once.
+- Connect the reviewed Qwen3-VL and POPE runtime methods into the non-recursive worker while preserving raw outputs exactly once.
 - Keep `phase5-readiness` in `plan_only` mode, and use the reviewed subprocess executor only after validation passes and `allow_process_submission` is explicitly set to `true`.
 - Preserve all run/failure artifacts for any future real smoke attempt.
 - Keep using `validate-run --run-id <run_id>` before accepting any recorded run artifact bundle.

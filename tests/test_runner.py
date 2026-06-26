@@ -237,10 +237,10 @@ def test_remote_runner_submits_whitelisted_worker_after_all_gates_open(monkeypat
     assert result["status"] == "needs_attention"
     assert result["submitted_process"] is True
     assert result["exit_code"] == 1
-    assert result["worker_payload"]["failure_type"] == "landmark_worker_runtime_gate_not_ready"
+    assert result["worker_payload"]["failure_type"] == "landmark_worker_not_implemented"
     assert result["execution_plan"]["submits_process"] is True
-    assert failure["failure_type"] == "landmark_worker_runtime_gate_not_ready"
-    assert {item["gate"] for item in failure["gate_failures"]} == {"model-runtime"}
+    assert failure["failure_type"] == "landmark_worker_not_implemented"
+    assert {item["gate"] for item in failure["gate_failures"]} == {"landmark-worker"}
     assert failure["executed_real_model"] is False
     assert failure["executed_real_benchmark"] is False
     assert not (run_dir / "raw_outputs.jsonl").exists()
