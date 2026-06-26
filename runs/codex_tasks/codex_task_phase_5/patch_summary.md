@@ -10,6 +10,7 @@ This phase now contains two related records:
 - a follow-up framework improvement adding a structured `run-landmark` validation gate that still stops safely at `needs_attention`.
 - a follow-up config improvement resolving `${REMOTE_MODEL_ROOT}` and `${REMOTE_BENCHMARK_ROOT}` path templates without reading `.env`.
 - a follow-up inventory improvement that rejects empty model and benchmark directories before any real execution can start.
+- a follow-up run-artifact validator for auditing recorded run directories without re-running models or benchmarks.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -24,9 +25,12 @@ This phase now contains two related records:
 - `tests/test_landmark_gate.py`
 - `adapters/path_resolution.py`
 - `adapters/inventory.py`
+- `stable_core.storage.run_validator`
+- `stable_core.cli validate-run`
 - path-template handling in validate-only model and benchmark skeletons
 - offline model inventory validation requiring `config.json` by default
 - offline benchmark inventory discovery for shallow metadata/sample files
+- recorded run validation for manifests, declared outputs, failure artifacts, and artifact hashes
 
 ## Gate Commands
 
@@ -53,6 +57,9 @@ This phase now contains two related records:
   - exit code: `1`
   - status: `needs_attention`
   - log: `runs/phase_5_gate_logs/run_landmark_gate.json`
+- `python -m stable_core.cli validate-run --run-id qwen3vl_pope_limit8_gate`
+  - exit code: `0`
+  - status: `passed`
 
 ## Artifacts Added
 
@@ -68,10 +75,13 @@ This phase now contains two related records:
 - `python -m pytest tests/test_landmark_gate.py tests/test_fake_runner.py tests/test_runner.py tests/test_state_machine.py -q`: `14 passed`.
 - `python -m pytest tests/test_fake_adapters.py -q`: `7 passed`.
 - `python -m pytest tests/test_landmark_gate.py -q`: `2 passed`.
-- `python -m pytest -q`: `49 passed`.
+- `python -m pytest tests/test_runner.py tests/test_landmark_gate.py tests/test_fake_adapters.py -q`: `17 passed`.
+- `python -m pytest tests/test_runner.py -q`: `8 passed`.
+- `python -m pytest -q`: `53 passed`.
 - CLI validation with unset path env vars reports the missing env var names.
 - CLI validation with temporary existing but empty model and benchmark directories returns `needs_setup` at the inventory gate.
 - CLI validation with temporary model `config.json` and benchmark `samples.jsonl` returns `passed`.
+- CLI `validate-run` passes for `qwen3vl_pope_limit8_gate` and `fake_phase4_acceptance`.
 - No file over 5 MB was added.
 - No `.env` file was read.
 - No model was downloaded or loaded.

@@ -55,3 +55,9 @@ This removes the previous `path: null` framework limitation.
 The validate-only adapters now perform a lightweight offline inventory gate after path resolution. Model validation requires `config.json` by default. Benchmark validation requires at least one shallow metadata or sample-like file with an accepted suffix such as `.json`, `.jsonl`, `.tsv`, `.csv`, `.txt`, `.yaml`, or `.yml`.
 
 This removes the previous "existing empty directory passes validation" limitation. The remaining blocker is external environment setup, populated local model and benchmark directories, and real execution authorization.
+
+## Run Artifact Validation Follow-Up
+
+The framework now exposes `validate-run --run-id <run_id>` for recorded run directories. It validates safe run IDs, run manifests, declared output paths, required failure artifacts for `failed` or `needs_attention` runs, and `artifact_manifest.json` hashes.
+
+This closes the Task 011 validation-command gap without re-running the model or benchmark. It does not change the remaining Phase 5 blocker: the real Qwen3-VL + POPE smoke still needs approved paths, inventory, and execution authorization.

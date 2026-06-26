@@ -12,6 +12,7 @@ from stable_core.config import export_schemas, list_agents, list_benchmarks, lis
 from stable_core.evidence.registry import add_record_from_args, init_registry, list_registry
 from stable_core.runner.local import LocalRunner
 from stable_core.state_machine.state_manager import StateManager
+from stable_core.storage.run_validator import validate_run_artifacts
 from stable_core.validation.preflight import run_preflight
 
 DEFAULT_REGISTRY = Path("evidence/registry.jsonl")
@@ -102,6 +103,10 @@ def build_parser() -> argparse.ArgumentParser:
     run_landmark_parser.add_argument("--limit", type=int, required=True)
     run_landmark_parser.add_argument("--instrumentation", default="none")
     run_landmark_parser.add_argument("--run-id", default=None)
+
+    validate_run_parser = subparsers.add_parser("validate-run", help="Validate a recorded run directory.")
+    validate_run_parser.add_argument("--run-id", required=True)
+    validate_run_parser.add_argument("--runs-root", default=str(DEFAULT_RUNS_ROOT))
 
     subparsers.add_parser("research-status", help="Report research artifact status.")
     return parser
@@ -214,6 +219,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 1
         print(json.dumps({"command": "run-landmark", **result}, ensure_ascii=False))
         return 0 if result["status"] == "succeeded" else 1
+    if args.command == "validate-run":
+        report = validate_run_artifacts(run_id=args.run_id, runs_root=args.runs_root)
+        print(json.dumps({"command": "validate-run", "run_id": args.run_id, **report}, ensure_ascii=False))
+        return 0 if report["status"] == "passed" else 1
     if args.command == "research-status":
         print(json.dumps({"command": "research-status", **research_status(Path("."))}, ensure_ascii=False))
         return 0
