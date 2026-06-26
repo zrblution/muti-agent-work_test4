@@ -5,8 +5,13 @@ import json
 from pathlib import Path
 from typing import Sequence
 
+from research_tools.baseline_indexer import research_status, write_baseline_reports
 from stable_core.config import export_schemas, list_agents, list_benchmarks, list_models, validate_config
+from stable_core.evidence.registry import add_record_from_args, init_registry, list_registry
 from stable_core.validation.preflight import run_preflight
+
+DEFAULT_REGISTRY = Path("evidence/registry.jsonl")
+DEFAULT_RESEARCH_DIR = Path("docs/research")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -25,6 +30,36 @@ def build_parser() -> argparse.ArgumentParser:
 
     export = subparsers.add_parser("export-schemas", help="Export schema JSON files.")
     export.add_argument("--output", required=True, help="Output directory for schema JSON files.")
+
+    evidence = subparsers.add_parser("evidence", help="Manage the JSONL evidence registry.")
+    evidence_subparsers = evidence.add_subparsers(dest="evidence_command", required=True)
+    evidence_init = evidence_subparsers.add_parser("init", help="Create an evidence registry file.")
+    evidence_init.add_argument("--registry", default=str(DEFAULT_REGISTRY))
+    evidence_add = evidence_subparsers.add_parser("add", help="Append one evidence record.")
+    evidence_add.add_argument("--registry", default=str(DEFAULT_REGISTRY))
+    evidence_add.add_argument("--evidence-id", required=True)
+    evidence_add.add_argument("--source-type", required=True)
+    evidence_add.add_argument("--source-name", required=True)
+    evidence_add.add_argument("--claim-supported", required=True)
+    evidence_add.add_argument("--claim-scope", required=True)
+    evidence_add.add_argument("--confidence", required=True)
+    evidence_add.add_argument("--created-by", required=True)
+    evidence_add.add_argument("--path", default=None)
+    evidence_add.add_argument("--url", default=None)
+    evidence_add.add_argument("--commit", default=None)
+    evidence_add.add_argument("--line-start", type=int, default=None)
+    evidence_add.add_argument("--line-end", type=int, default=None)
+    evidence_add.add_argument("--run-id", default=None)
+    evidence_add.add_argument("--artifact-id", default=None)
+    evidence_list = evidence_subparsers.add_parser("list", help="List evidence records.")
+    evidence_list.add_argument("--registry", default=str(DEFAULT_REGISTRY))
+
+    index = subparsers.add_parser("index-baselines", help="Index baseline MANIFEST.tsv into research outputs.")
+    index.add_argument("--manifest", required=True)
+    index.add_argument("--output-dir", default=str(DEFAULT_RESEARCH_DIR))
+    index.add_argument("--registry", default=str(DEFAULT_REGISTRY))
+
+    subparsers.add_parser("research-status", help="Report research artifact status.")
     return parser
 
 
@@ -58,6 +93,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "export-schemas":
         schemas = export_schemas(Path(args.output))
         print(json.dumps({"command": "export-schemas", "schemas": schemas}, ensure_ascii=False))
+        return 0
+    if args.command == "evidence":
+        if args.evidence_command == "init":
+            print(json.dumps({"command": "evidence init", **init_registry(args.registry)}, ensure_ascii=False))
+            return 0
+        if args.evidence_command == "add":
+            print(json.dumps({"command": "evidence add", **add_record_from_args(args)}, ensure_ascii=False))
+            return 0
+        if args.evidence_command == "list":
+            print(json.dumps({"command": "evidence list", **list_registry(args.registry)}, ensure_ascii=False))
+            return 0
+    if args.command == "index-baselines":
+        summary = write_baseline_reports(args.manifest, args.output_dir, args.registry)
+        print(json.dumps({"command": "index-baselines", **summary}, ensure_ascii=False))
+        return 0
+    if args.command == "research-status":
+        print(json.dumps({"command": "research-status", **research_status(Path("."))}, ensure_ascii=False))
         return 0
     return 2
 

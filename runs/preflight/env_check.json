@@ -10,5 +10,5 @@
     "accelerate": true,
     "vllm": false
   },
-  "disk_free_bytes": 342653782720512
+  "disk_free_bytes": 343380072595456
 }
