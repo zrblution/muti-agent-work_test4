@@ -41,10 +41,14 @@ Remote gate update: `RemoteRunner.submit()` now reads `project_config/server.yam
 - `validate-run --run-id fake_phase4_acceptance`: `passed`, validating the recorded fake acceptance artifact bundle
 - temporary diagnostic `run-landmark` rerun with missing env vars: exit code `1`, JSON status `needs_attention`, no real model or benchmark execution
 - `validate-run --run-id qwen_pope_gate_diagnostic_check`: `passed` before the temporary run directory was removed
+- current diagnostic `run-landmark --run-id qwen3vl_pope_limit8_gate_diagnostics`: exit code `1`, JSON status `needs_attention`, no real model or benchmark execution
+- `validate-run --run-id qwen3vl_pope_limit8_gate_diagnostics`: `passed`, validating the enhanced failure-diagnostics artifact bundle
 
 Logs are stored in `runs/phase_5_gate_logs/`.
 
 Current structured gate artifacts are stored in `runs/qwen3vl_pope_limit8_gate/`.
+
+Current enhanced diagnostic gate artifacts are stored in `runs/qwen3vl_pope_limit8_gate_diagnostics/`.
 
 The human decision record is stored in `runs/needs_attention/phase_5_needs_human_decision.md`.
 

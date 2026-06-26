@@ -71,6 +71,13 @@ This phase now contains two related records:
 - `python -m stable_core.cli validate-run --run-id qwen_pope_gate_diagnostic_check`
   - exit code: `0`
   - status: `passed`
+- `python -m stable_core.cli run-landmark --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --run-id qwen3vl_pope_limit8_gate_diagnostics`
+  - exit code: `1`
+  - status: `needs_attention`
+  - artifact: `runs/qwen3vl_pope_limit8_gate_diagnostics/`
+- `python -m stable_core.cli validate-run --run-id qwen3vl_pope_limit8_gate_diagnostics`
+  - exit code: `0`
+  - status: `passed`
 
 ## Artifacts Added
 
@@ -78,6 +85,7 @@ This phase now contains two related records:
 - `runs/subagent_reports/phase_5/`
 - `runs/qwen3vl_pope_limit8_needs_attention/`
 - `runs/qwen3vl_pope_limit8_gate/`
+- `runs/qwen3vl_pope_limit8_gate_diagnostics/`
 - `runs/needs_attention/phase_5_needs_human_decision.md`
 - `docs/verification/phase_5_acceptance_report.md`
 

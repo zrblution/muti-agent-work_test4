@@ -1,0 +1,101 @@
+{
+  "phase": "Phase 5",
+  "status": "needs_attention",
+  "failure_type": "landmark_validation_gate_not_ready",
+  "failure_message": "Landmark validation gates did not pass; no real model or benchmark execution was attempted.",
+  "gate_failures": [
+    {
+      "gate": "validate-model",
+      "payload": {
+        "model_id": "qwen3_vl_2b_instruct",
+        "status": "needs_setup",
+        "checks": [
+          {
+            "name": "download_allowed",
+            "status": "not_attempted",
+            "value": false
+          },
+          {
+            "name": "load_attempted",
+            "status": "not_attempted"
+          },
+          {
+            "name": "model_path",
+            "status": "needs_setup",
+            "raw_path": "${REMOTE_MODEL_ROOT}/Qwen3-VL-2B-Instruct",
+            "env_var": "REMOTE_MODEL_ROOT",
+            "message": "Required path environment variable is not set."
+          }
+        ],
+        "summary": "Qwen3-VL-2B-Instruct path template needs environment setup; no download or load was attempted."
+      }
+    },
+    {
+      "gate": "validate-benchmark",
+      "payload": {
+        "benchmark_id": "pope",
+        "status": "needs_setup",
+        "checks": [
+          {
+            "name": "adapter",
+            "status": "passed",
+            "value": "POPEAdapter"
+          },
+          {
+            "name": "benchmark_path",
+            "status": "needs_setup",
+            "raw_path": "${REMOTE_BENCHMARK_ROOT}/POPE",
+            "env_var": "REMOTE_BENCHMARK_ROOT",
+            "message": "Required path environment variable is not set."
+          }
+        ],
+        "summary": "POPE path template needs environment setup; no benchmark was run."
+      }
+    }
+  ],
+  "stack_trace": null,
+  "stdout_tail": "",
+  "stderr_tail": "Landmark validation gates did not pass; no real model or benchmark execution was attempted.\n",
+  "reproduction_command": "python -m stable_core.cli run-landmark --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --run-id qwen3vl_pope_limit8_gate_diagnostics",
+  "config_snapshot": {
+    "run_id": "qwen3vl_pope_limit8_gate_diagnostics",
+    "command": "run-landmark",
+    "model_id": "qwen3_vl_2b_instruct",
+    "benchmark_id": "pope",
+    "limit": 8,
+    "instrumentation_mode": "none",
+    "controlled": true
+  },
+  "state_snapshot": {
+    "run_id": "qwen3vl_pope_limit8_gate_diagnostics",
+    "run_type": "landmark_baseline",
+    "model_id": "qwen3_vl_2b_instruct",
+    "benchmark_id": "pope",
+    "idea_id": null,
+    "limit": 8,
+    "instrumentation_mode": "none",
+    "started_at": "2026-06-26T16:01:46Z",
+    "finished_at": "2026-06-26T16:01:46Z",
+    "status": "needs_attention",
+    "git_commit": "6a68c2b460b6f193b565a6d7334f26fba0848a02",
+    "outputs": {
+      "stdout": "stdout.log",
+      "stderr": "stderr.log",
+      "exit_code": "exit_code.txt"
+    },
+    "missing_outputs": {
+      "raw_outputs": "Landmark validation gates did not pass; no real model or benchmark execution was attempted.",
+      "normalized_outputs": "No raw outputs exist to normalize.",
+      "metrics": "No real smoke outputs exist to score.",
+      "failure_cases": "No real benchmark outputs exist to inspect."
+    }
+  },
+  "executed_real_model": false,
+  "executed_real_benchmark": false,
+  "recommended_next_action": [
+    "Configure approved model and benchmark paths.",
+    "Re-run validate-model and validate-benchmark until both return passed.",
+    "Open a reviewed remote execution gate before any real GPU run."
+  ],
+  "do_not_continue_reason": "Required validation and execution gates are not satisfied."
+}
