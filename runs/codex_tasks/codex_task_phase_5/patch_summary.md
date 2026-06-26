@@ -17,6 +17,7 @@ This phase now contains two related records:
 - a follow-up branch-specific diagnostic for the path where model and benchmark validation pass but remote execution remains closed.
 - a follow-up recorded-run lifecycle CLI for `poll` and `parse-results`, still with no model, benchmark, or job execution.
 - a follow-up whitelisted landmark worker entry point that records `needs_attention` without re-entering the top-level gate or executing real model/benchmark work.
+- a follow-up explicit `allow_process_submission` budget gate before any remote runner process could be submitted.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -38,8 +39,9 @@ This phase now contains two related records:
 - offline benchmark inventory discovery for shallow metadata/sample files
 - recorded run validation for manifests, declared outputs, failure artifacts, and artifact hashes
 - `run-landmark` `failure.json` now includes log tails, reproduction command, config snapshot, and state snapshot
-- `RemoteRunner.submit()` now reports `runner_mode` and `allow_real_gpu_jobs` gate failures from config
-- `RemoteRunner.submit()` now returns a whitelisted `execution_plan` with `submits_process: false` when config gates are open in tests
+- `RemoteRunner.submit()` now reports `runner_mode`, `allow_real_gpu_jobs`, and `allow_process_submission` gate failures from config
+- `RemoteRunner.submit()` now returns a whitelisted `execution_plan` with `submits_process: false` while the process-submission gate remains closed
+- `project_config/experiment_budget.yaml` now keeps `allow_process_submission: false` by default
 - `RemoteRunner.submit()` reviewable plans now target `experiments/landmark_baselines/run_landmark.py` directly instead of recursively invoking `stable_core.cli run-landmark`
 - `experiments/landmark_baselines/run_landmark.py` now exists as a controlled non-executing worker stub that records `landmark_worker_not_implemented`
 - `run-landmark` now records remote-gate-specific recommended next actions once model and benchmark validation pass
@@ -98,6 +100,15 @@ This phase now contains two related records:
   - exit code: `1`
   - status: `needs_attention`
   - failure type: `landmark_worker_not_implemented`
+- `RemoteRunner.submit(...)` with default config gates
+  - status: `needs_attention`
+  - gate failures: `runner_mode`, `real_gpu_budget`, `process_submission`
+- `RemoteRunner.submit(...)` with remote mode and GPU budget open but process submission closed
+  - status: `needs_attention`
+  - gate failure: `process_submission`
+- `RemoteRunner.submit(...)` with remote mode, GPU budget, and process submission open
+  - status: `needs_attention`
+  - gate failure: `remote_executor`
 
 ## Artifacts Added
 
@@ -126,6 +137,7 @@ This phase now contains two related records:
 - `python -m pytest tests/test_runner.py::test_remote_runner_builds_reviewable_execution_plan_when_config_gates_open tests/test_runner.py::test_remote_runner_execution_plan_targets_existing_non_recursive_worker tests/test_landmark_gate.py::test_landmark_worker_script_records_needs_attention_without_reentering_gate -q`: `3 passed` after adding the worker stub.
 - `python -m pytest tests/test_runner.py tests/test_landmark_gate.py -q`: `18 passed` after adding the worker stub.
 - `python -m pytest -q`: `61 passed` after adding the worker stub.
+- `python -m pytest tests/test_runner.py::test_remote_runner_reports_configured_execution_gates tests/test_runner.py::test_remote_runner_builds_reviewable_plan_when_process_submission_gate_closed tests/test_runner.py::test_remote_runner_reaches_executor_gate_after_process_submission_gate_opens -q`: `3 passed` after adding the process-submission gate.
 - `python -m stable_core.cli validate-run --run-id qwen_worker_manual_check --runs-root /tmp/qwen_worker_manual_check_runs`: `passed`.
 - `python -m stable_core.cli parse-results --run-id qwen_worker_manual_check --runs-root /tmp/qwen_worker_manual_check_runs`: `needs_attention` with artifact validation `passed`.
 - `python -m stable_core.cli validate-config`: `passed`.

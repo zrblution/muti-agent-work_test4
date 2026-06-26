@@ -33,6 +33,9 @@ ALLOWED_REMOTE_SCRIPTS: frozenset[str] = frozenset(
 DEFAULT_SERVER_CONFIG = REPO_ROOT / "project_config" / "server.yaml"
 DEFAULT_BUDGET_CONFIG = REPO_ROOT / "project_config" / "experiment_budget.yaml"
 GPU_ACTIONS: frozenset[str] = frozenset({"run_model_smoke_test", "run_benchmark_adapter"})
+PROCESS_ACTIONS: frozenset[str] = frozenset(
+    {"run_fake_benchmark", "run_model_smoke_test", "run_benchmark_adapter"}
+)
 
 
 @dataclass(frozen=True)
@@ -100,6 +103,8 @@ class RemoteRunner:
         budget = parse_simple_yaml(self.budget_config).get("budget", {})
         runner_mode = str(server.get("runner_mode", "local_only"))
         allow_real_gpu_jobs = _as_bool(budget.get("allow_real_gpu_jobs"), default=False)
+        allow_process_submission = _as_bool(budget.get("allow_process_submission"), default=False)
+        action_name = str(experiment_spec.get("action"))
 
         gate_failures = []
         if runner_mode != "remote_enabled":
@@ -111,7 +116,7 @@ class RemoteRunner:
                     "actual": runner_mode,
                 }
             )
-        if str(experiment_spec.get("action")) in GPU_ACTIONS and not allow_real_gpu_jobs:
+        if action_name in GPU_ACTIONS and not allow_real_gpu_jobs:
             gate_failures.append(
                 {
                     "name": "real_gpu_budget",
@@ -120,11 +125,23 @@ class RemoteRunner:
                     "actual": allow_real_gpu_jobs,
                 }
             )
+        if action_name in PROCESS_ACTIONS and not allow_process_submission:
+            gate_failures.append(
+                {
+                    "name": "process_submission",
+                    "status": "needs_attention",
+                    "expected": True,
+                    "actual": allow_process_submission,
+                }
+            )
+        execution_plan = _build_execution_plan(experiment_spec)
         if gate_failures:
             return {
                 "status": "needs_attention",
                 "runner_mode": runner_mode,
                 "allow_real_gpu_jobs": allow_real_gpu_jobs,
+                "allow_process_submission": allow_process_submission,
+                "execution_plan": execution_plan,
                 "gate_failures": gate_failures,
                 "message": "Remote execution gate is closed by configuration.",
             }
@@ -132,7 +149,8 @@ class RemoteRunner:
             "status": "needs_attention",
             "runner_mode": runner_mode,
             "allow_real_gpu_jobs": allow_real_gpu_jobs,
-            "execution_plan": _build_execution_plan(experiment_spec),
+            "allow_process_submission": allow_process_submission,
+            "execution_plan": execution_plan,
             "gate_failures": [
                 {
                     "name": "remote_executor",

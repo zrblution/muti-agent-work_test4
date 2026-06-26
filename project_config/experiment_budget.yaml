@@ -2,3 +2,4 @@ budget:
   max_runtime_minutes: 60
   max_artifact_gb: 2
   allow_real_gpu_jobs: false
+  allow_process_submission: false

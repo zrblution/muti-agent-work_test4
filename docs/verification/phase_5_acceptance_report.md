@@ -25,9 +25,9 @@ Run-lifecycle CLI update: top-level `poll --run-id` and `parse-results --run-id`
 
 Failure-diagnostics update: new `run-landmark` `needs_attention` bundles now include `stdout_tail`, `stderr_tail`, `reproduction_command`, `config_snapshot`, and `state_snapshot` in `failure.json`, while still preserving `stdout.log`, `stderr.log`, `exit_code.txt`, `env_snapshot.json`, and `git_commit.txt`.
 
-Remote gate update: `RemoteRunner.submit()` now reads `project_config/server.yaml` and `project_config/experiment_budget.yaml` and reports structured gate failures for `runner_mode` and `allow_real_gpu_jobs`. It still does not submit real remote or GPU work.
+Remote gate update: `RemoteRunner.submit()` now reads `project_config/server.yaml` and `project_config/experiment_budget.yaml` and reports structured gate failures for `runner_mode`, `allow_real_gpu_jobs`, and `allow_process_submission`. It still does not submit real remote or GPU work.
 
-Remote plan update: when those config gates are opened in a controlled test, `RemoteRunner.submit()` returns a reviewable `execution_plan` with whitelisted argv and `submits_process: false`. This narrows the remaining remote-execution gap without launching a process.
+Remote plan update: when the remote-mode and GPU-budget config gates are opened in a controlled test but process submission remains closed, `RemoteRunner.submit()` returns a reviewable `execution_plan` with whitelisted argv, `submits_process: false`, and a `process_submission` gate failure. This narrows the remaining remote-execution gap without launching a process.
 
 Worker-entry update: the whitelisted `experiments/landmark_baselines/run_landmark.py` target now exists and is non-recursive. It records a durable `needs_attention` bundle with `failure_type: landmark_worker_not_implemented`, exits nonzero, and does not load models, run benchmarks, or write raw outputs. The reviewable `RemoteRunner` plan now points at this worker path instead of re-entering the top-level `run-landmark` gate.
 
@@ -72,14 +72,15 @@ The human decision record is stored in `runs/needs_attention/phase_5_needs_human
 - The whitelisted worker entry point exists and is non-recursive, but it is intentionally a `needs_attention` stub until the real Qwen3-VL + POPE worker is reviewed.
 - Remote runner execution is config-gated: `project_config/server.yaml` still sets `runner_mode: local_only`.
 - Real GPU jobs are config-gated: `project_config/experiment_budget.yaml` still sets `allow_real_gpu_jobs: false`.
-- Even if those config gates are opened later, the current reviewed path only returns an execution plan with `submits_process: false`; no process-submitting executor is enabled yet, and the worker itself still records `landmark_worker_not_implemented`.
+- Process submission is config-gated: `project_config/experiment_budget.yaml` still sets `allow_process_submission: false`.
+- Even if the remote-mode, GPU-budget, and process-submission config gates are opened later, the current reviewed path only returns an execution plan with `submits_process: false`; no process-submitting executor is enabled yet, and the worker itself still records `landmark_worker_not_implemented`.
 
 ## Required Fixes Before Resuming Phase 5
 
 - Configure approved local model and POPE paths without committing secrets or large artifacts.
 - Populate the approved local model and benchmark directories so offline inventory validation passes.
 - Replace the current worker stub with a reviewed non-recursive real-smoke worker that loads the approved Qwen3-VL path, reads approved POPE samples, and preserves raw outputs exactly once.
-- Extend the controlled `run-landmark` gate from reviewable execution plan to reviewed process submission only after validation passes.
+- Extend the controlled `run-landmark` gate from reviewable execution plan to reviewed process submission only after validation passes and `allow_process_submission` is explicitly set to `true`.
 - Preserve all run/failure artifacts for any future real smoke attempt.
 - Keep using `validate-run --run-id <run_id>` before accepting any recorded run artifact bundle.
 - Use `poll --run-id <run_id>` and `parse-results --run-id <run_id>` only as recorded-artifact inspection steps until a reviewed process-submitting remote executor exists.

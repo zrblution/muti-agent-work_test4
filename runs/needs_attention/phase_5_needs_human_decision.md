@@ -16,8 +16,8 @@ Phase 5: minimal real smoke for `qwen3_vl_2b_instruct` + `pope` with `limit=8` a
 - `validate-run --run-id qwen3vl_pope_limit8_gate_diagnostics` validates the enhanced failure-diagnostics artifact bundle.
 - `poll --run-id qwen3vl_pope_limit8_gate_diagnostics` inspects the recorded manifest status without submitting a job.
 - `parse-results --run-id qwen3vl_pope_limit8_gate_diagnostics` validates the artifact bundle and preserves `needs_attention` because no real-smoke metrics exist.
-- `RemoteRunner.submit()` reports config-driven gate failures for `runner_mode: local_only` and `allow_real_gpu_jobs: false`.
-- With open config gates in tests, `RemoteRunner.submit()` returns a whitelisted `execution_plan` targeting `experiments/landmark_baselines/run_landmark.py` with `submits_process: false`.
+- `RemoteRunner.submit()` reports config-driven gate failures for `runner_mode: local_only`, `allow_real_gpu_jobs: false`, and `allow_process_submission: false`.
+- With remote mode and GPU budget open but process submission closed in tests, `RemoteRunner.submit()` returns a whitelisted `execution_plan` targeting `experiments/landmark_baselines/run_landmark.py` with `submits_process: false` and a `process_submission` gate failure.
 - The whitelisted worker entry point exists, is non-recursive, and records `landmark_worker_not_implemented` without loading models or running benchmarks.
 
 ## Human Decisions Required
@@ -27,7 +27,7 @@ Phase 5: minimal real smoke for `qwen3_vl_2b_instruct` + `pope` with `limit=8` a
 - Confirm the resolved POPE directory contains benchmark metadata or sample files with an accepted suffix such as `.json`, `.jsonl`, `.tsv`, `.csv`, `.txt`, `.yaml`, or `.yml`.
 - Replace the current worker stub with a reviewed real-smoke implementation before enabling process submission.
 - Explicitly authorize opening the remote execution gate and GPU budget after validation passes.
-- Approve the transition from reviewable `execution_plan` to actual process submission before any real GPU job is submitted.
+- Approve the transition from reviewable `execution_plan` to actual process submission by setting `allow_process_submission: true` only after validation passes and the real-smoke worker is reviewed.
 
 ## Commands To Resume
 
