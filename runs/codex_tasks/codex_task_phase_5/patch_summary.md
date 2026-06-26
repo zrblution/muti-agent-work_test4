@@ -31,7 +31,8 @@ This phase now contains two related records:
 - a follow-up recorded artifact contract so landmark `needs_attention` manifests carry the same contract and `validate-run` checks required failure outputs.
 - a follow-up worker-side validation gate so the whitelisted worker checks model and benchmark readiness before reaching the current non-executing stub.
 - a follow-up reviewed synchronous subprocess executor that can only launch whitelisted scripts after all remote, GPU, and process-submission gates are explicitly opened, while readiness remains plan-only.
-- a follow-up worker runtime gate that identifies validate-only Qwen3-VL and POPE adapter methods after inventory validation passes, without loading models or running benchmarks.
+- a follow-up worker runtime gate that identifies validate-only runtime methods after inventory validation passes, without loading models or running benchmarks.
+- a follow-up POPE runtime adapter implementation for local JSON/JSONL sample parsing, canonical request construction, yes/no normalization, metrics, and failure-case extraction, without model execution.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -81,7 +82,10 @@ This phase now contains two related records:
 - `RemoteRunner.submit(..., plan_only=True)` now returns a non-submitting plan even when config gates are open
 - `RemoteRunner.submit(...)` now runs the whitelisted worker subprocess only when remote mode, GPU budget, and process submission are all explicitly enabled
 - `phase5-readiness` now always calls `RemoteRunner.submit(..., plan_only=True)` so readiness bundles cannot submit processes
-- `experiments/landmark_baselines/run_landmark.py` now records `landmark_worker_runtime_gate_not_ready` when Qwen3-VL or POPE still inherit validate-only runtime methods
+- `experiments/landmark_baselines/run_landmark.py` now records `landmark_worker_runtime_gate_not_ready` when runtime adapters still inherit validate-only runtime methods
+- `POPEAdapter` now implements `build_requests`, `normalize_prediction`, `compute_metrics`, and `extract_failure_cases` for local JSON/JSONL POPE-style files
+- `POPEAdapter.build_requests()` now applies the same unsafe `required_files` rejection used by inventory validation before reading local sample files
+- after the POPE runtime update, temporary valid-inventory worker invocations now stop only at the Qwen3-VL `model-runtime` gate
 
 ## Gate Commands
 
@@ -134,7 +138,7 @@ This phase now contains two related records:
   - exit code: `1`
   - status: `needs_attention`
   - failure type after inventory validation passes: `landmark_worker_runtime_gate_not_ready`
-  - gate failures: `model-runtime`, `benchmark-runtime`
+  - gate failures after the POPE runtime update: `model-runtime`
 - `python experiments/landmark_baselines/run_landmark.py --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --run-id <temporary> --runs-root <temporary>` with model and benchmark root env vars unset
   - exit code: `1`
   - status: `needs_attention`
@@ -166,6 +170,15 @@ This phase now contains two related records:
 - `POPEAdapter({"required_files": ["/absolute/outside.json"]})`
   - root-external file present: `failed`
   - unsafe path reported in `unsafe_files`
+- `POPEAdapter({"path": <temporary POPE dir>, "required_files": ["samples.jsonl"]}).build_requests(split="validation", limit=2)`
+  - status: passed in tests
+  - purpose: verify canonical request construction from local JSONL without model execution
+- `POPEAdapter({"path": <temporary POPE dir>, "required_files": ["../outside.json"]}).build_requests(split="validation", limit=1)`
+  - status: passed in tests
+  - purpose: verify direct runtime parsing rejects unsafe configured inventory paths before reading files
+- `POPEAdapter().normalize_prediction(...)`, `compute_metrics(...)`, and `extract_failure_cases(...)`
+  - status: passed in tests
+  - purpose: verify yes/no normalization, accuracy, hallucination rate, yes rate, and failed sample extraction from local normalized JSONL
 - `validate-config` with temporary unsafe model and benchmark `required_files`
   - status: `failed`
   - inventory findings identify each unsafe entry before any path resolution
@@ -209,6 +222,21 @@ This phase now contains two related records:
 - `run_landmark(...)` with missing model and benchmark env vars
   - `run_manifest.json` includes `artifact_contract.failure_outputs`
   - `validate-run` reports `artifact_contract_failure_outputs` as `passed`
+- `/tmp/maes_phase4_venv312/bin/python -m pytest -q`
+  - status: passed
+  - result: `85 passed`
+- `/tmp/maes_phase4_venv312/bin/python -m stable_core.cli validate-config`
+  - status: `passed`
+- `/tmp/maes_phase4_venv312/bin/python -m stable_core.cli phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_pope_runtime_readiness_cli_smoke`
+  - status: `needs_attention`
+  - safety flags: no real model execution, no real benchmark execution, no remote job submission, no raw outputs, no config write
+- `/tmp/maes_phase4_venv312/bin/python -m stable_core.security.secret_scan --paths ... --output /tmp/phase5_pope_runtime_secret_scan.json`
+  - status: `passed`
+  - findings: none
+- `find docs project_config stable_core research_tools evidence tests scripts runs adapters experiments idea_plugins instrumentation -type f -size +5M -print`
+  - result: no oversized files reported
+- `git diff --check`
+  - status: passed
 
 ## Artifacts Added
 

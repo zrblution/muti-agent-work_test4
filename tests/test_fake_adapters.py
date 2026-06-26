@@ -1,4 +1,7 @@
+import json
 from pathlib import Path
+
+import pytest
 
 from adapters.benchmarks.fake import FakeBenchmarkAdapter
 from adapters.benchmarks.pope import POPEAdapter
@@ -113,6 +116,108 @@ def test_benchmark_inventory_accepts_configured_required_files(tmp_path: Path) -
     assert report.status == "passed"
     assert report.checks[-1]["name"] == "benchmark_inventory"
     assert report.checks[-1]["required_files"] == ["annotations/random.json"]
+
+
+def test_pope_adapter_builds_canonical_requests_from_jsonl(tmp_path: Path) -> None:
+    benchmark_path = tmp_path / "pope"
+    benchmark_path.mkdir()
+    (benchmark_path / "samples.jsonl").write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "sample_id": "pope_random_0001",
+                        "subset": "random",
+                        "image_path": "images/0001.jpg",
+                        "question": "Is there a cat in the image?",
+                        "reference_answer": "yes",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "question_id": "pope_popular_0002",
+                        "category": "popular",
+                        "image": "images/0002.jpg",
+                        "text": "Is there a bus in the image?",
+                        "label": "no",
+                    }
+                ),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    requests = POPEAdapter({"path": str(benchmark_path), "required_files": ["samples.jsonl"]}).build_requests(
+        split="validation",
+        limit=2,
+    )
+
+    assert [request.sample_id for request in requests] == ["pope_random_0001", "pope_popular_0002"]
+    assert requests[0].request_id == "pope_req_0001"
+    assert requests[0].benchmark_id == "pope"
+    assert requests[0].prompt == "Is there a cat in the image?"
+    assert requests[0].metadata["reference_answer"] == "yes"
+    assert requests[0].metadata["task_type"] == "yes_no_vqa"
+    assert requests[1].metadata["subset"] == "popular"
+    assert requests[1].image_path == str(benchmark_path / "images/0002.jpg")
+
+
+def test_pope_adapter_normalizes_metrics_and_failure_cases(tmp_path: Path) -> None:
+    adapter = POPEAdapter()
+    rows = [
+        adapter.normalize_prediction(
+            GenerationOutput(
+                request_id="pope_req_0001",
+                raw_text="Yes, there is.",
+                metadata={"sample_id": "pope_0001", "reference_answer": "yes"},
+            )
+        ),
+        adapter.normalize_prediction(
+            GenerationOutput(
+                request_id="pope_req_0002",
+                raw_text="yes",
+                metadata={"sample_id": "pope_0002", "reference_answer": "no"},
+            )
+        ),
+        adapter.normalize_prediction(
+            GenerationOutput(
+                request_id="pope_req_0003",
+                raw_text="unclear",
+                metadata={"sample_id": "pope_0003", "reference_answer": "yes"},
+            )
+        ),
+    ]
+    normalized_path = tmp_path / "normalized_outputs.jsonl"
+    normalized_path.write_text(
+        "".join(json.dumps(row) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+
+    metrics = adapter.compute_metrics(normalized_path)
+    failures = adapter.extract_failure_cases(normalized_path)
+
+    assert rows[0]["normalized_prediction"] == "yes"
+    assert rows[0]["is_correct"] is True
+    assert rows[1]["hallucination_label"] is True
+    assert rows[2]["normalized_prediction"] == "other"
+    assert metrics["sample_count"] == 3
+    assert metrics["metrics"]["accuracy"] == 1 / 3
+    assert metrics["metrics"]["yes_rate"] == 2 / 3
+    assert metrics["metrics"]["hallucination_rate"] == 2 / 3
+    assert [failure["sample_id"] for failure in failures] == ["pope_0002", "pope_0003"]
+
+
+def test_pope_adapter_build_requests_rejects_unsafe_required_files(tmp_path: Path) -> None:
+    benchmark_path = tmp_path / "pope"
+    benchmark_path.mkdir()
+    outside_path = tmp_path / "outside.json"
+    outside_path.write_text('{"sample_id": "outside"}\n', encoding="utf-8")
+
+    adapter = POPEAdapter({"path": str(benchmark_path), "required_files": ["../outside.json"]})
+
+    with pytest.raises(RuntimeError, match="unsafe required file"):
+        adapter.build_requests(split="validation", limit=1)
 
 
 def test_model_inventory_rejects_parent_traversal_required_files(tmp_path: Path) -> None:
