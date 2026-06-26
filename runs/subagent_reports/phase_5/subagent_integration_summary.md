@@ -123,3 +123,9 @@ This keeps the currently non-submitting plan path aligned with the same artifact
 The reviewable `RemoteRunner` plan for `run_model_smoke_test` targeting `experiments/landmark_baselines/run_landmark.py` now includes an `artifact_contract`.
 
 The contract declares required success outputs, required failure outputs, `never_overwrite: ["raw_outputs.jsonl"]`, and `large_artifact_policy: manifest_only`. This makes the future process-submitting executor reviewable against Phase 5 artifact preservation rules before any real model, benchmark, GPU job, or remote process can run.
+
+## Recorded Artifact Contract Follow-Up
+
+Landmark `needs_attention` manifests now carry the same artifact contract used by the RemoteRunner plan. `validate-run` reads the contract and checks required failure outputs for `failed` and `needs_attention` runs.
+
+This closes the gap where a reviewable plan declared preservation rules but recorded diagnostic bundles could only be validated through fixed generic checks.

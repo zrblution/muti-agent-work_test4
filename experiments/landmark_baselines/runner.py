@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from experiments.fake.evaluator import validate_benchmark, validate_model
-from stable_core.runner.remote import RemoteRunner
+from stable_core.runner.remote import LANDMARK_SMOKE_ARTIFACT_CONTRACT, RemoteRunner
 from stable_core.storage.run_directory import (
     artifact_manifest_for,
     collect_env_snapshot,
@@ -149,6 +149,7 @@ def _write_needs_attention(
             "metrics": "No real smoke outputs exist to score.",
             "failure_cases": "No real benchmark outputs exist to inspect.",
         },
+        "artifact_contract": dict(LANDMARK_SMOKE_ARTIFACT_CONTRACT),
     }
     failure = {
         "phase": "Phase 5",

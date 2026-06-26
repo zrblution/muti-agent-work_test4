@@ -37,6 +37,7 @@ def validate_run_artifacts(*, run_id: str, runs_root: str | Path = Path("runs"))
     _check_support_files(run_dir, checks)
     _check_declared_outputs(run_dir, manifest, checks)
     _check_failure_artifacts(run_dir, manifest_status, checks)
+    _check_artifact_contract(run_dir, manifest, manifest_status, checks)
     _check_artifact_manifest(run_dir, run_id, checks)
 
     status = "failed" if any(check["status"] == "failed" for check in checks) else "passed"
@@ -87,6 +88,40 @@ def _check_failure_artifacts(run_dir: Path, manifest_status: str, checks: list[d
         return
     missing = [name for name in ["failure.json", "failure_report.md"] if not (run_dir / name).is_file()]
     checks.append({"name": "failure_artifacts", "status": "failed" if missing else "passed", "missing": missing})
+
+
+def _check_artifact_contract(run_dir: Path, manifest: dict[str, Any], manifest_status: str, checks: list[dict[str, Any]]) -> None:
+    contract = manifest.get("artifact_contract")
+    if not isinstance(contract, dict):
+        checks.append({"name": "artifact_contract", "status": "skipped", "reason": "No artifact contract declared."})
+        return
+    checks.append({"name": "artifact_contract", "status": "passed"})
+
+    if manifest_status in {"failed", "needs_attention"}:
+        _check_contract_outputs(run_dir, contract.get("failure_outputs"), checks, "artifact_contract_failure_outputs")
+    elif manifest_status == "succeeded":
+        _check_contract_outputs(run_dir, contract.get("success_outputs"), checks, "artifact_contract_success_outputs")
+
+
+def _check_contract_outputs(
+    run_dir: Path,
+    outputs: Any,
+    checks: list[dict[str, Any]],
+    check_name: str,
+) -> None:
+    if not isinstance(outputs, list):
+        checks.append({"name": check_name, "status": "failed", "message": "Contract outputs must be a list."})
+        return
+    missing = []
+    unsafe = []
+    for relative_path in outputs:
+        path = Path(str(relative_path))
+        if path.is_absolute() or ".." in path.parts:
+            unsafe.append(str(relative_path))
+            continue
+        if not (run_dir / path).is_file():
+            missing.append(str(relative_path))
+    checks.append({"name": check_name, "status": "failed" if missing or unsafe else "passed", "missing": missing, "unsafe_paths": unsafe})
 
 
 def _check_artifact_manifest(run_dir: Path, run_id: str, checks: list[dict[str, Any]]) -> None:

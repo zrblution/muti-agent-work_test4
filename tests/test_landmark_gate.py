@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from experiments.landmark_baselines.runner import run_landmark
+from stable_core.storage.run_validator import validate_run_artifacts
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -50,6 +51,36 @@ def test_run_landmark_records_needs_attention_without_real_execution(tmp_path: P
     assert manifest["outputs"]["exit_code"] == "exit_code.txt"
     assert not (run_dir / "raw_outputs.jsonl").exists()
     assert (run_dir / "failure_report.md").exists()
+
+
+def test_run_landmark_manifest_carries_artifact_contract_for_validation(tmp_path: Path) -> None:
+    run_landmark(
+        run_id="qwen_pope_contract_gate",
+        model_id="qwen3_vl_2b_instruct",
+        benchmark_id="pope",
+        limit=8,
+        instrumentation_mode="none",
+        runs_root=tmp_path,
+    )
+
+    run_dir = tmp_path / "qwen_pope_contract_gate"
+    manifest = json.loads((run_dir / "run_manifest.json").read_text(encoding="utf-8"))
+    validation = validate_run_artifacts(run_id="qwen_pope_contract_gate", runs_root=tmp_path)
+
+    assert manifest["artifact_contract"]["failure_outputs"] == [
+        "run_manifest.json",
+        "stdout.log",
+        "stderr.log",
+        "exit_code.txt",
+        "env_snapshot.json",
+        "failure.json",
+        "failure_report.md",
+        "artifact_manifest.json",
+    ]
+    assert any(
+        check["name"] == "artifact_contract_failure_outputs" and check["status"] == "passed"
+        for check in validation["checks"]
+    )
 
 
 def test_run_landmark_reports_remote_gate_after_validation_passes(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
