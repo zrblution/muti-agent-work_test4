@@ -117,3 +117,9 @@ This keeps future controlled real-smoke artifacts aligned with the user-requeste
 `RemoteRunner.submit()` now rejects unsafe explicit `experiment_id` values before building a reviewable execution plan. The validation reuses the run-directory `validate_run_id()` rule, so parent traversal, slashes, backslashes, empty values, and leading or trailing whitespace cannot become a future worker `--run-id`.
 
 This keeps the currently non-submitting plan path aligned with the same artifact path safety rules required for real execution.
+
+## Artifact Contract Follow-Up
+
+The reviewable `RemoteRunner` plan for `run_model_smoke_test` targeting `experiments/landmark_baselines/run_landmark.py` now includes an `artifact_contract`.
+
+The contract declares required success outputs, required failure outputs, `never_overwrite: ["raw_outputs.jsonl"]`, and `large_artifact_policy: manifest_only`. This makes the future process-submitting executor reviewable against Phase 5 artifact preservation rules before any real model, benchmark, GPU job, or remote process can run.

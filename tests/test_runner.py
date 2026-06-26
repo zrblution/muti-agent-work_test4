@@ -143,6 +143,29 @@ def test_remote_runner_builds_reviewable_plan_when_process_submission_gate_close
         ],
         "cwd": ".",
         "submits_process": False,
+        "artifact_contract": {
+            "success_outputs": [
+                "run_manifest.json",
+                "raw_outputs.jsonl",
+                "normalized_outputs.jsonl",
+                "metrics.json",
+                "failure_cases.jsonl",
+                "artifact_manifest.json",
+                "experiment_summary.md",
+            ],
+            "failure_outputs": [
+                "run_manifest.json",
+                "stdout.log",
+                "stderr.log",
+                "exit_code.txt",
+                "env_snapshot.json",
+                "failure.json",
+                "failure_report.md",
+                "artifact_manifest.json",
+            ],
+            "never_overwrite": ["raw_outputs.jsonl"],
+            "large_artifact_policy": "manifest_only",
+        },
     }
 
 
@@ -172,6 +195,49 @@ def test_remote_runner_reaches_executor_gate_after_process_submission_gate_opens
     assert result["gate_failures"][0]["name"] == "remote_executor"
     assert result["execution_plan"]["submits_process"] is False
     assert "job_id" not in result
+
+
+def test_remote_runner_landmark_plan_declares_artifact_contract(tmp_path: Path) -> None:
+    server_config = tmp_path / "server.yaml"
+    budget_config = tmp_path / "experiment_budget.yaml"
+    server_config.write_text("server:\n  runner_mode: remote_enabled\n", encoding="utf-8")
+    budget_config.write_text("budget:\n  allow_real_gpu_jobs: true\n", encoding="utf-8")
+
+    result = RemoteRunner(server_config=server_config, budget_config=budget_config).submit(
+        {
+            "experiment_id": "qwen3vl_pope_limit8_real_smoke",
+            "action": "run_model_smoke_test",
+            "allowed_script": "experiments/landmark_baselines/run_landmark.py",
+            "model_id": "qwen3_vl_2b_instruct",
+            "benchmark_id": "pope",
+            "limit": 8,
+            "instrumentation_mode": "none",
+        }
+    )
+
+    assert result["execution_plan"]["artifact_contract"] == {
+        "success_outputs": [
+            "run_manifest.json",
+            "raw_outputs.jsonl",
+            "normalized_outputs.jsonl",
+            "metrics.json",
+            "failure_cases.jsonl",
+            "artifact_manifest.json",
+            "experiment_summary.md",
+        ],
+        "failure_outputs": [
+            "run_manifest.json",
+            "stdout.log",
+            "stderr.log",
+            "exit_code.txt",
+            "env_snapshot.json",
+            "failure.json",
+            "failure_report.md",
+            "artifact_manifest.json",
+        ],
+        "never_overwrite": ["raw_outputs.jsonl"],
+        "large_artifact_policy": "manifest_only",
+    }
 
 
 def test_remote_runner_execution_plan_targets_existing_non_recursive_worker(tmp_path: Path) -> None:

@@ -27,6 +27,7 @@ This phase now contains two related records:
 - a follow-up Phase 5 readiness bundle CLI that consolidates safe validation, inventory discovery, and execution-gate status without running a model, benchmark, remote job, or raw-output writer.
 - a follow-up run-id propagation fix so `run-landmark` hands the requested outer run id to the RemoteRunner execution plan.
 - a follow-up RemoteRunner experiment-id safety gate so unsafe explicit `experiment_id` values are rejected before any execution plan is produced.
+- a follow-up landmark artifact contract in the reviewable RemoteRunner plan, covering success outputs, failure outputs, raw-output no-overwrite policy, and manifest-only large artifact policy.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -69,6 +70,7 @@ This phase now contains two related records:
 - `stable_core.cli parse-results`
 - `run_landmark()` now includes `experiment_id: run_id` in the RemoteRunner experiment spec once model and benchmark validation pass
 - `RemoteRunner.validate()` now validates explicit `experiment_id` values with `validate_run_id()` before planning
+- `RemoteRunner` reviewable landmark execution plans now include `artifact_contract`
 
 ## Gate Commands
 
@@ -174,6 +176,11 @@ This phase now contains two related records:
   - status: `failed`
   - validation error names `experiment_id`
   - no `execution_plan` is returned
+- `RemoteRunner.submit(...)` for `run_model_smoke_test` and `experiments/landmark_baselines/run_landmark.py`
+  - `execution_plan.artifact_contract.success_outputs` includes `raw_outputs.jsonl`, `normalized_outputs.jsonl`, `metrics.json`, `failure_cases.jsonl`, and manifests
+  - `execution_plan.artifact_contract.failure_outputs` includes stdout, stderr, exit code, env snapshot, failure report, and manifests
+  - `execution_plan.artifact_contract.never_overwrite`: `["raw_outputs.jsonl"]`
+  - `execution_plan.artifact_contract.large_artifact_policy`: `manifest_only`
 
 ## Artifacts Added
 
@@ -244,6 +251,14 @@ This phase now contains two related records:
 - `python -m stable_core.cli phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_experiment_id_readiness_cli_smoke`: `needs_attention`, safety flags all false.
 - Expanded secret scan after validating `experiment_id`: `passed`, no findings.
 - Large-file scan after validating `experiment_id`: no files over 5 MB found.
+- `python -m pytest tests/test_runner.py::test_remote_runner_landmark_plan_declares_artifact_contract -q`: initially `1 failed`, then `1 passed` after adding the plan artifact contract.
+- `python -m pytest tests/test_runner.py::test_remote_runner_landmark_plan_declares_artifact_contract tests/test_runner.py::test_remote_runner_builds_reviewable_plan_when_process_submission_gate_closed -q`: `2 passed`.
+- `python -m pytest tests/test_runner.py tests/test_landmark_gate.py tests/test_fake_adapters.py -q`: `33 passed` after adding the artifact contract.
+- `python -m pytest -q`: `77 passed` after adding the artifact contract.
+- `python -m stable_core.cli validate-config`: `passed` after adding the artifact contract.
+- `python -m stable_core.cli phase5-readiness --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_artifact_contract_readiness_cli_smoke`: `needs_attention`, safety flags all false.
+- Expanded secret scan after adding the artifact contract: `passed`, no findings.
+- Large-file scan after adding the artifact contract: no files over 5 MB found.
 - `python -m stable_core.cli discover-model-inventory qwen3_vl_2b_instruct --output /tmp/phase5_qwen_inventory_discovery.json`: `needs_setup`, missing `REMOTE_MODEL_ROOT`, no config write, no load attempted.
 - `python -m pytest tests/test_fake_adapters.py -q`: `11 passed` after adding `discover-model-inventory`.
 - `python -m pytest tests/test_runner.py tests/test_landmark_gate.py -q`: `19 passed` after adding `discover-model-inventory`.

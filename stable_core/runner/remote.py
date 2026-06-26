@@ -199,7 +199,38 @@ def _build_execution_plan(experiment_spec: dict[str, Any]) -> dict[str, Any]:
         "cwd": ".",
         "submits_process": False,
     }
+    artifact_contract = _artifact_contract_for_action(action, allowed_script)
+    if artifact_contract:
+        plan["artifact_contract"] = artifact_contract
     return plan
+
+
+def _artifact_contract_for_action(action: str, allowed_script: str) -> dict[str, Any]:
+    if action != "run_model_smoke_test" or allowed_script != "experiments/landmark_baselines/run_landmark.py":
+        return {}
+    return {
+        "success_outputs": [
+            "run_manifest.json",
+            "raw_outputs.jsonl",
+            "normalized_outputs.jsonl",
+            "metrics.json",
+            "failure_cases.jsonl",
+            "artifact_manifest.json",
+            "experiment_summary.md",
+        ],
+        "failure_outputs": [
+            "run_manifest.json",
+            "stdout.log",
+            "stderr.log",
+            "exit_code.txt",
+            "env_snapshot.json",
+            "failure.json",
+            "failure_report.md",
+            "artifact_manifest.json",
+        ],
+        "never_overwrite": ["raw_outputs.jsonl"],
+        "large_artifact_policy": "manifest_only",
+    }
 
 
 def _argv_for_action(experiment_spec: dict[str, Any], experiment_id: str) -> list[str]:
