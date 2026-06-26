@@ -1,0 +1,20 @@
+{
+  "run_id": "qwen3vl_pope_limit8_gate",
+  "run_type": "landmark_baseline",
+  "model_id": "qwen3_vl_2b_instruct",
+  "benchmark_id": "pope",
+  "idea_id": null,
+  "limit": 8,
+  "instrumentation_mode": "none",
+  "started_at": "2026-06-26T15:30:16Z",
+  "finished_at": "2026-06-26T15:30:16Z",
+  "status": "needs_attention",
+  "git_commit": "4ef144306a7e683866b0068c4701e936eb3d82c8",
+  "outputs": {},
+  "missing_outputs": {
+    "raw_outputs": "Landmark validation gates did not pass; no real model or benchmark execution was attempted.",
+    "normalized_outputs": "No raw outputs exist to normalize.",
+    "metrics": "No real smoke outputs exist to score.",
+    "failure_cases": "No real benchmark outputs exist to inspect."
+  }
+}

@@ -13,22 +13,27 @@ Status: `needs_attention`
 
 The real smoke was blocked before execution. This is the correct outcome under the project rules because required setup and execution gates are missing.
 
+Continuation update: a structured `run-landmark` validation gate now exists. It records a `needs_attention` run directory without loading models, running benchmarks, or starting GPU work.
+
 ## Evidence
 
 - `validate-config`: `passed`
 - `preflight --dry-run`: `needs_setup`
 - `validate-model qwen3_vl_2b_instruct`: `needs_setup`
 - `validate-benchmark pope`: `needs_setup`
-- `run-landmark`: CLI command missing, argparse exit code `2`
+- historical `run-landmark` attempt before the gate existed: argparse exit code `2`
+- current `run-landmark --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --run-id qwen3vl_pope_limit8_gate`: exit code `1`, JSON status `needs_attention`
 
 Logs are stored in `runs/phase_5_gate_logs/`.
+
+Current structured gate artifacts are stored in `runs/qwen3vl_pope_limit8_gate/`.
 
 ## Root Cause Hypothesis
 
 - `project_config/models.yaml` has `qwen3_vl_2b_instruct` path set to `null`.
 - `project_config/benchmarks.yaml` has `pope` path set to `null`.
 - The current Qwen3-VL and POPE adapters are validate-only skeletons.
-- `stable_core.cli` does not implement `run-landmark`.
+- The structured `run-landmark` gate exists, but it correctly stops before real execution because model and benchmark validations are `needs_setup`.
 - Remote runner execution is disabled and returns `needs_attention`.
 - Real GPU jobs are disabled in `project_config/experiment_budget.yaml`.
 
@@ -36,7 +41,7 @@ Logs are stored in `runs/phase_5_gate_logs/`.
 
 - Configure approved local model and POPE paths without committing secrets or large artifacts.
 - Add offline model and benchmark inventory validation.
-- Implement a controlled `run-landmark` or equivalent runner command.
+- Extend the controlled `run-landmark` gate with reviewed real execution only after validation passes.
 - Preserve all run/failure artifacts for any future real smoke attempt.
 - Explicitly approve real GPU execution only after validation gates pass.
 

@@ -1,0 +1,1 @@
+{"command": "run-landmark", "run_id": "qwen3vl_pope_limit8_gate", "run_dir": "runs/qwen3vl_pope_limit8_gate", "status": "needs_attention", "failure_type": "landmark_validation_gate_not_ready", "executed_real_model": false, "executed_real_benchmark": false}

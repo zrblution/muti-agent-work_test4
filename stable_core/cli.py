@@ -7,6 +7,7 @@ from typing import Sequence
 
 from research_tools.baseline_indexer import research_status, write_baseline_reports
 from experiments.fake.evaluator import run_fake_eval, validate_benchmark, validate_model
+from experiments.landmark_baselines.runner import run_landmark
 from stable_core.config import export_schemas, list_agents, list_benchmarks, list_models, validate_config
 from stable_core.evidence.registry import add_record_from_args, init_registry, list_registry
 from stable_core.runner.local import LocalRunner
@@ -94,6 +95,13 @@ def build_parser() -> argparse.ArgumentParser:
     run_eval.add_argument("--limit", type=int, default=3)
     run_eval.add_argument("--run-id", default=None)
     run_eval.add_argument("--instrumentation", default="none")
+
+    run_landmark_parser = subparsers.add_parser("run-landmark", help="Run or gate a controlled landmark evaluation.")
+    run_landmark_parser.add_argument("--model", required=True)
+    run_landmark_parser.add_argument("--benchmark", required=True)
+    run_landmark_parser.add_argument("--limit", type=int, required=True)
+    run_landmark_parser.add_argument("--instrumentation", default="none")
+    run_landmark_parser.add_argument("--run-id", default=None)
 
     subparsers.add_parser("research-status", help="Report research artifact status.")
     return parser
@@ -190,6 +198,22 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 1
         print(json.dumps({"command": "run-eval", **result}, ensure_ascii=False))
         return 0
+    if args.command == "run-landmark":
+        run_id = args.run_id or f"{args.model}_{args.benchmark}_limit{args.limit}"
+        try:
+            result = run_landmark(
+                run_id=run_id,
+                model_id=args.model,
+                benchmark_id=args.benchmark,
+                limit=args.limit,
+                runs_root=DEFAULT_RUNS_ROOT,
+                instrumentation_mode=args.instrumentation,
+            )
+        except Exception as exc:
+            print(json.dumps({"command": "run-landmark", "status": "failed", "error": str(exc)}, ensure_ascii=False))
+            return 1
+        print(json.dumps({"command": "run-landmark", **result}, ensure_ascii=False))
+        return 0 if result["status"] == "succeeded" else 1
     if args.command == "research-status":
         print(json.dumps({"command": "research-status", **research_status(Path("."))}, ensure_ascii=False))
         return 0

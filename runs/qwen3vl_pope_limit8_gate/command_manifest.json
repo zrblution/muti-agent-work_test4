@@ -1,0 +1,9 @@
+{
+  "run_id": "qwen3vl_pope_limit8_gate",
+  "command": "run-landmark",
+  "model_id": "qwen3_vl_2b_instruct",
+  "benchmark_id": "pope",
+  "limit": 8,
+  "instrumentation_mode": "none",
+  "controlled": true
+}

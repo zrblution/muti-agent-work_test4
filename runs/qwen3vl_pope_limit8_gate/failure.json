@@ -1,0 +1,60 @@
+{
+  "phase": "Phase 5",
+  "status": "needs_attention",
+  "failure_type": "landmark_validation_gate_not_ready",
+  "failure_message": "Landmark validation gates did not pass; no real model or benchmark execution was attempted.",
+  "gate_failures": [
+    {
+      "gate": "validate-model",
+      "payload": {
+        "model_id": "qwen3_vl_2b_instruct",
+        "status": "needs_setup",
+        "checks": [
+          {
+            "name": "download_allowed",
+            "status": "not_attempted",
+            "value": false
+          },
+          {
+            "name": "load_attempted",
+            "status": "not_attempted"
+          },
+          {
+            "name": "model_path",
+            "status": "needs_setup",
+            "message": "No local model path configured."
+          }
+        ],
+        "summary": "Qwen3-VL-2B-Instruct is a validate-only skeleton; model path is not configured."
+      }
+    },
+    {
+      "gate": "validate-benchmark",
+      "payload": {
+        "benchmark_id": "pope",
+        "status": "needs_setup",
+        "checks": [
+          {
+            "name": "adapter",
+            "status": "passed",
+            "value": "POPEAdapter"
+          },
+          {
+            "name": "benchmark_path",
+            "status": "needs_setup",
+            "message": "No benchmark path configured."
+          }
+        ],
+        "summary": "POPE is validate-only; benchmark path is not configured."
+      }
+    }
+  ],
+  "executed_real_model": false,
+  "executed_real_benchmark": false,
+  "recommended_next_action": [
+    "Configure approved model and benchmark paths.",
+    "Re-run validate-model and validate-benchmark until both return passed.",
+    "Open a reviewed remote execution gate before any real GPU run."
+  ],
+  "do_not_continue_reason": "Required validation and execution gates are not satisfied."
+}

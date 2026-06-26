@@ -1,0 +1,50 @@
+{
+  "run_id": "qwen3vl_pope_limit8_gate",
+  "artifacts": [
+    {
+      "path": "command_manifest.json",
+      "size_bytes": 206,
+      "sha256": "88d21b65de0a0f9f5147d83349f0ac3be35d90369b97d666eb35789e10027155"
+    },
+    {
+      "path": "env_snapshot.json",
+      "size_bytes": 344,
+      "sha256": "d6a2af55c980bce0b7e6d817bfc4759b987f5b0578fd891354d3d02a13b17dd2"
+    },
+    {
+      "path": "exit_code.txt",
+      "size_bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "failure.json",
+      "size_bytes": 1839,
+      "sha256": "373182475ab6118b6e7d2dfbb98d9699b3a9fbd33adaff54cfa9c4c11f384a5f"
+    },
+    {
+      "path": "failure_report.md",
+      "size_bytes": 282,
+      "sha256": "e8004913d4df9215a554e3fdbbc2005567f4dd8e7fc8761131f642fc4bcc4920"
+    },
+    {
+      "path": "git_commit.txt",
+      "size_bytes": 41,
+      "sha256": "8af0fbb96c294b8b46f45116d959dcf7530b413c322041c9065d2debdff29ad1"
+    },
+    {
+      "path": "run_manifest.json",
+      "size_bytes": 727,
+      "sha256": "8f1940a9f4103b0fe575b3a7285238abbeaf62a18c78fa766e5473a0ea8fec3d"
+    },
+    {
+      "path": "stderr.log",
+      "size_bytes": 92,
+      "sha256": "6fe648480d0b0c8771cdef1140e0d4a1c084115cf2c7ffc03b7d7b323a60c937"
+    },
+    {
+      "path": "stdout.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}
