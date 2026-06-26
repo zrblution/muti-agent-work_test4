@@ -6,20 +6,20 @@ benchmarks:
   pope:
     adapter: adapters.benchmarks.pope.POPEAdapter
     benchmark_root_env: REMOTE_BENCHMARK_ROOT
-    path: null
+    path: ${REMOTE_BENCHMARK_ROOT}/POPE
     phase0_status: needs_setup
   chair:
     adapter: adapters.benchmarks.chair.CHAIRAdapter
     benchmark_root_env: REMOTE_BENCHMARK_ROOT
-    path: null
+    path: ${REMOTE_BENCHMARK_ROOT}/CHAIR-standalone
     phase0_status: needs_setup
   amber:
     adapter: adapters.benchmarks.amber.AMBERAdapter
     benchmark_root_env: REMOTE_BENCHMARK_ROOT
-    path: null
+    path: ${REMOTE_BENCHMARK_ROOT}/AMBER
     phase0_status: needs_setup
   mme:
     adapter: adapters.benchmarks.mme.MMEAdapter
     benchmark_root_env: REMOTE_BENCHMARK_ROOT
-    path: null
+    path: ${REMOTE_BENCHMARK_ROOT}/MME
     phase0_status: needs_setup

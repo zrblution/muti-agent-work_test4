@@ -8,6 +8,7 @@ This phase now contains two related records:
 
 - the original audited Phase 5 stop condition for the first real smoke target;
 - a follow-up framework improvement adding a structured `run-landmark` validation gate that still stops safely at `needs_attention`.
+- a follow-up config improvement resolving `${REMOTE_MODEL_ROOT}` and `${REMOTE_BENCHMARK_ROOT}` path templates without reading `.env`.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -20,6 +21,8 @@ This phase now contains two related records:
 - `experiments/landmark_baselines/__init__.py`
 - `stable_core.cli run-landmark`
 - `tests/test_landmark_gate.py`
+- `adapters/path_resolution.py`
+- path-template handling in validate-only model and benchmark skeletons
 
 ## Gate Commands
 
@@ -59,7 +62,10 @@ This phase now contains two related records:
 
 - Expanded secret scan over docs, config, code, tests, scripts, runs, adapters, experiments, idea plugins, instrumentation, and top-level metadata passed.
 - `python -m pytest tests/test_landmark_gate.py tests/test_fake_runner.py tests/test_runner.py tests/test_state_machine.py -q`: `14 passed`.
-- `python -m pytest -q`: `46 passed`.
+- `python -m pytest tests/test_fake_adapters.py -q`: `6 passed`.
+- `python -m pytest -q`: `48 passed`.
+- CLI validation with unset path env vars reports the missing env var names.
+- CLI validation with temporary existing model and benchmark directories returns `passed`.
 - No file over 5 MB was added.
 - No `.env` file was read.
 - No model was downloaded or loaded.

@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from adapters.path_resolution import resolve_env_path
 from stable_core.schemas.common import GenerationOutput, GenerationRequest, ValidationReport
 
 
@@ -20,11 +21,23 @@ class ValidateOnlyBenchmarkAdapter:
         if not path_value:
             checks.append({"name": "benchmark_path", "status": "needs_setup", "message": "No benchmark path configured."})
             return ValidationReport(status="needs_setup", checks=checks, summary=f"{self.display_name} is validate-only; benchmark path is not configured.")
-        benchmark_path = Path(str(path_value))
+        resolved = resolve_env_path(str(path_value))
+        if resolved.missing_env_var is not None:
+            checks.append(
+                {
+                    "name": "benchmark_path",
+                    "status": "needs_setup",
+                    "raw_path": resolved.raw_value,
+                    "env_var": resolved.missing_env_var,
+                    "message": "Required path environment variable is not set.",
+                }
+            )
+            return ValidationReport(status="needs_setup", checks=checks, summary=f"{self.display_name} path template needs environment setup; no benchmark was run.")
+        benchmark_path = resolved.path or Path(str(path_value))
         if not benchmark_path.exists():
-            checks.append({"name": "benchmark_path", "status": "needs_setup", "path": str(benchmark_path)})
+            checks.append({"name": "benchmark_path", "status": "needs_setup", "raw_path": resolved.raw_value, "path": str(benchmark_path)})
             return ValidationReport(status="needs_setup", checks=checks, summary=f"{self.display_name} path is not present; no benchmark was run.")
-        checks.append({"name": "benchmark_path", "status": "passed", "path": str(benchmark_path)})
+        checks.append({"name": "benchmark_path", "status": "passed", "raw_path": resolved.raw_value, "path": str(benchmark_path)})
         return ValidationReport(status="passed", checks=checks, summary=f"{self.display_name} path exists; sample parsing is a later gate.")
 
     def build_requests(self, split: str, limit: int | None) -> list[GenerationRequest]:

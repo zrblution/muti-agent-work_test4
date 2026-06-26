@@ -70,3 +70,32 @@ def test_validate_only_skeletons_use_configured_paths(tmp_path: Path) -> None:
     assert model_report.checks[-1]["path"] == str(model_path)
     assert benchmark_report.status == "passed"
     assert benchmark_report.checks[-1]["path"] == str(benchmark_path)
+
+
+def test_validate_only_skeletons_resolve_env_templates(monkeypatch, tmp_path: Path) -> None:
+    model_root = tmp_path / "model_root"
+    benchmark_root = tmp_path / "benchmark_root"
+    model_path = model_root / "Qwen3-VL-2B-Instruct"
+    benchmark_path = benchmark_root / "POPE"
+    model_path.mkdir(parents=True)
+    benchmark_path.mkdir(parents=True)
+    monkeypatch.setenv("REMOTE_MODEL_ROOT", str(model_root))
+    monkeypatch.setenv("REMOTE_BENCHMARK_ROOT", str(benchmark_root))
+
+    model_report = Qwen3VLAdapter({"local_path": "${REMOTE_MODEL_ROOT}/Qwen3-VL-2B-Instruct"}).validate_environment()
+    benchmark_report = POPEAdapter({"path": "${REMOTE_BENCHMARK_ROOT}/POPE"}).validate_paths()
+
+    assert model_report.status == "passed"
+    assert model_report.checks[-1]["path"] == str(model_path)
+    assert benchmark_report.status == "passed"
+    assert benchmark_report.checks[-1]["path"] == str(benchmark_path)
+
+
+def test_validate_only_skeletons_report_missing_env_templates() -> None:
+    model_report = Qwen3VLAdapter({"local_path": "${MISSING_MODEL_ROOT}/Qwen3-VL-2B-Instruct"}).validate_environment()
+    benchmark_report = POPEAdapter({"path": "${MISSING_BENCHMARK_ROOT}/POPE"}).validate_paths()
+
+    assert model_report.status == "needs_setup"
+    assert model_report.checks[-1]["env_var"] == "MISSING_MODEL_ROOT"
+    assert benchmark_report.status == "needs_setup"
+    assert benchmark_report.checks[-1]["env_var"] == "MISSING_BENCHMARK_ROOT"

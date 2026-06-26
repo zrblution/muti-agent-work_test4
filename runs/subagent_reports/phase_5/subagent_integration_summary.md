@@ -43,3 +43,9 @@ No real model was loaded, no benchmark was run, and no benchmark result was fabr
 After the subagent reports, the main agent added a structured `run-landmark` command and `experiments/landmark_baselines/runner.py`. The command creates an auditable `needs_attention` run at `runs/qwen3vl_pope_limit8_gate/` and explicitly records `executed_real_model: false` and `executed_real_benchmark: false`.
 
 The Phase 5 blocker is reduced but not resolved: model and benchmark paths are still not configured, and real execution remains gated off.
+
+## Path Template Follow-Up
+
+The framework now supports config values such as `${REMOTE_MODEL_ROOT}/Qwen3-VL-2B-Instruct` and `${REMOTE_BENCHMARK_ROOT}/POPE` in validate-only adapters. Missing env vars are reported as `needs_setup` with the exact env var name, and existing directories validate as `passed`.
+
+This removes the previous `path: null` framework limitation. The remaining blocker is external environment setup plus deeper offline inventory validation and real execution authorization.

@@ -15,6 +15,8 @@ The real smoke was blocked before execution. This is the correct outcome under t
 
 Continuation update: a structured `run-landmark` validation gate now exists. It records a `needs_attention` run directory without loading models, running benchmarks, or starting GPU work.
 
+Path-template update: real model and benchmark configs now use `${REMOTE_MODEL_ROOT}` and `${REMOTE_BENCHMARK_ROOT}` templates. Validation reports a missing env var when those are unset, and validation passes when the env vars point to existing directories. This does not read `.env`, download models, or execute benchmarks.
+
 ## Evidence
 
 - `validate-config`: `passed`
@@ -23,6 +25,8 @@ Continuation update: a structured `run-landmark` validation gate now exists. It 
 - `validate-benchmark pope`: `needs_setup`
 - historical `run-landmark` attempt before the gate existed: argparse exit code `2`
 - current `run-landmark --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --run-id qwen3vl_pope_limit8_gate`: exit code `1`, JSON status `needs_attention`
+- `validate-model qwen3_vl_2b_instruct` with a temporary `REMOTE_MODEL_ROOT` pointing to an existing `Qwen3-VL-2B-Instruct` directory: `passed`
+- `validate-benchmark pope` with a temporary `REMOTE_BENCHMARK_ROOT` pointing to an existing `POPE` directory: `passed`
 
 Logs are stored in `runs/phase_5_gate_logs/`.
 
@@ -30,8 +34,7 @@ Current structured gate artifacts are stored in `runs/qwen3vl_pope_limit8_gate/`
 
 ## Root Cause Hypothesis
 
-- `project_config/models.yaml` has `qwen3_vl_2b_instruct` path set to `null`.
-- `project_config/benchmarks.yaml` has `pope` path set to `null`.
+- `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` are not configured in the server execution environment.
 - The current Qwen3-VL and POPE adapters are validate-only skeletons.
 - The structured `run-landmark` gate exists, but it correctly stops before real execution because model and benchmark validations are `needs_setup`.
 - Remote runner execution is disabled and returns `needs_attention`.
