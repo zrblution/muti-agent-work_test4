@@ -789,3 +789,17 @@ Local verification for this follow-up:
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.security.secret_scan --paths AGENTS.md README.md docs project_config stable_core adapters experiments research_tools tests runs/codex_tasks runs/needs_attention runs/subagent_reports --output /tmp/phase5_human_decision_workspace_secret_scan.json`: `passed`, no findings.
 - `find . -type f -size +5M -not -path './.git/*' -print`: no output.
 - `git diff --check`: passed.
+
+## Base Model Root Decision Follow-Up
+
+The prepared human decision workspace now contains one filled `provide_base_model_root` record. The record provides `/home/tos_lx/basemodel` as the server model root and `/home/vepfs/data/work1/auto-research-test1/benchmarks` as the benchmark root.
+
+New committed evidence under `runs/needs_attention/phase_5_base_model_root_decision_current/` records the read-only follow-up:
+
+- `decision_record_status/phase5_decision_record_status.json` and `.md`: `passed`, one filled candidate, two unfilled candidates, zero invalid candidates, `ready_for_decision_validation: true`, `ready_for_real_smoke: false`, and all execution safety flags false.
+- `phase5_model_path_decision_validation.json`: `needs_attention`, `approval_status: base_model_root_provided`, preserving the rule that base-root provision is not exact executable model-path approval.
+- `phase5_provided_base_model_root_probe.json`: server `phase5-probe-paths` result, `passed`, with discovered Qwen3-VL and POPE roots, runtime dependency checks passed, no-load model validation passed, benchmark validation passed, and all execution safety flags false.
+- `phase5_readiness/phase5_readiness.json` and `.md`: server readiness with one-off env values, `needs_attention`; all non-executing validation checks pass, but execution authorization remains closed.
+- `phase5_base_model_root_decision_handoff.md`: concise handoff for the current blocker and next required human decisions.
+
+This follow-up does not mutate config, export env vars, read `.env`, open gates, load weights, run generation, submit jobs, run benchmarks, or write raw outputs. The next required decisions are config/env representation for the validated roots and explicit authorization for remote execution, GPU budget, and process submission.

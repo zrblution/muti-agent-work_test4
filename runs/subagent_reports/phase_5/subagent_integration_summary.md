@@ -267,3 +267,13 @@ The contract declares required success outputs, required failure outputs, `never
 Landmark `needs_attention` manifests now carry the same artifact contract used by the RemoteRunner plan. `validate-run` reads the contract and checks required failure outputs for `failed` and `needs_attention` runs.
 
 This closes the gap where a reviewable plan declared preservation rules but recorded diagnostic bundles could only be validated through fixed generic checks.
+
+## Base Model Root Decision Integration
+
+The human decision workspace now has exactly one filled decision record at `runs/needs_attention/phase_5_human_decision_workspace_current/decision_records/provide_base_model_root.json`. The selected decision is `provide_base_model_root`, with `/home/tos_lx/basemodel` as the server model root and `/home/vepfs/data/work1/auto-research-test1/benchmarks` as the benchmark root.
+
+The decision-record status package under `runs/needs_attention/phase_5_base_model_root_decision_current/decision_record_status/` reports `passed`, one filled candidate, two unfilled candidates, zero invalid candidates, and `ready_for_decision_validation: true`. The model-path decision validator records `approval_status: base_model_root_provided` and keeps status `needs_attention`, which is expected because the record supplies a root to probe rather than approving the previously reviewed exact variant path as executable.
+
+Server read-only validation with the provided roots passed through `phase5-probe-paths`: model inventory, benchmark inventory, Qwen runtime dependency checks, no-load model validation, and benchmark validation all passed. A follow-up server `phase5-readiness` bundle still stops at `needs_attention` because execution authorization gates remain closed: `runner_mode: local_only`, `allow_real_gpu_jobs: false`, and `allow_process_submission: false`.
+
+No subagent report conflict changes from this update. The integration decision is to preserve Phase 5 in `needs_attention`, update the human handoff to say the model-root decision has been filled, and keep the next required human decisions scoped to config/env representation and explicit remote/GPU/process authorization. No `.env` was read, no config was edited, no environment variables were persisted, no process was submitted, no model or benchmark was executed, and no raw outputs were written.

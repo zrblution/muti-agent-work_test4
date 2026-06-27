@@ -278,3 +278,15 @@ The user instruction requires stopping at `needs_attention`. Continuing to Phase
 - No remote job or process was submitted by the readiness bundle.
 - No raw output was written by the readiness bundle.
 - No large artifact was committed.
+
+## Base Model Root Decision Update
+
+The prepared Phase 5 human decision workspace now contains exactly one filled record: `runs/needs_attention/phase_5_human_decision_workspace_current/decision_records/provide_base_model_root.json`. The record chooses `provide_base_model_root`, names `/home/tos_lx/basemodel` as the provided server model root, and names `/home/vepfs/data/work1/auto-research-test1/benchmarks` as the approved benchmark root.
+
+The local decision-record scan for the workspace now reports `passed`, one filled candidate, two unfilled candidates, zero invalid candidates, `ready_for_decision_validation: true`, and `ready_for_real_smoke: false`. `phase5-validate-model-path-decision` accepts the record as a valid base-root provision but keeps top-level status `needs_attention` because it is not an exact executable model-path approval and does not authorize config changes or execution.
+
+Server read-only probing with `phase5-probe-paths` passed for the provided roots. The probe discovered `/home/tos_lx/basemodel/Qwen3-VL-2B-Instruct`, discovered `/home/vepfs/data/work1/auto-research-test1/benchmarks/POPE`, passed model runtime dependency checks, passed no-load `validate-model`, and passed `validate-benchmark`. All execution safety flags remained false.
+
+Server `phase5-readiness` with one-off `REMOTE_MODEL_ROOT=/home/tos_lx/basemodel` and `REMOTE_BENCHMARK_ROOT=/home/vepfs/data/work1/auto-research-test1/benchmarks` keeps status `needs_attention`. Config, model inventory discovery, benchmark inventory discovery, runtime dependencies, model validation, and benchmark validation pass, but execution authorization is still closed by `runner_mode: local_only`, `allow_real_gpu_jobs: false`, and `allow_process_submission: false`. No real model, benchmark, remote job, process submission, raw output write, config write, or env export was performed.
+
+The current evidence package is stored under `runs/needs_attention/phase_5_base_model_root_decision_current/`. The remaining Phase 5 blocker is no longer missing model-root evidence. The next required human decisions are explicit config/env representation approval for the validated roots and separate authorization to open the remote execution, GPU budget, and process-submission gates.

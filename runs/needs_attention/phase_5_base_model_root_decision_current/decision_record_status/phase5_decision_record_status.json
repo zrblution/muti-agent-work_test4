@@ -1,0 +1,220 @@
+{
+  "phase": "Phase 5",
+  "mode": "model_path_decision_record_status",
+  "status": "passed",
+  "created_at": "2026-06-27T10:05:56Z",
+  "git_commit": "15a71bc6469c13866b53a822158fc3901ef05980",
+  "request_path": "runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json",
+  "records_dir": "runs/needs_attention/phase_5_human_decision_workspace_current/decision_records",
+  "allowed_decisions": [
+    "approve_variant_path",
+    "reject_variant_path",
+    "provide_base_model_root"
+  ],
+  "record_count": 3,
+  "filled_candidate_count": 1,
+  "template_unfilled_count": 2,
+  "invalid_candidate_count": 0,
+  "filled_candidate_decision_counts": {
+    "provide_base_model_root": 1
+  },
+  "ambiguous_decisions": [],
+  "gate_audit_path": "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.json",
+  "gate_audit_verification_status": "passed",
+  "gate_audit_next_missing_gate": "model_path_decision_validation",
+  "gate_audit_ready_for_decision_validation": true,
+  "gate_audit_verification": {
+    "phase": "Phase 5",
+    "mode": "gate_audit_verification",
+    "status": "passed",
+    "created_at": "2026-06-27T10:05:56Z",
+    "git_commit": "15a71bc6469c13866b53a822158fc3901ef05980",
+    "audit_path": "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.json",
+    "audit_status": "needs_attention",
+    "next_missing_gate": "model_path_decision_validation",
+    "ready_for_real_smoke": false,
+    "write_config": false,
+    "exports_applied": false,
+    "safety_flags": {
+      "executed_real_model": false,
+      "executed_real_benchmark": false,
+      "submitted_remote_job": false,
+      "raw_outputs_written": false,
+      "write_config": false
+    },
+    "source_artifact_count": 1,
+    "checks": {
+      "audit_identity": {
+        "status": "passed",
+        "summary": "Audit package identity is a Phase 5 gate audit."
+      },
+      "non_executing_safety": {
+        "status": "passed",
+        "summary": "Gate audit package preserves all non-executing safety flags."
+      },
+      "next_action_packet": {
+        "status": "passed",
+        "summary": "Gate audit package includes a structured next_action_packet."
+      },
+      "source_artifacts": {
+        "status": "passed",
+        "summary": "All recorded source artifacts match current files."
+      },
+      "markdown_sidecar": {
+        "status": "passed",
+        "summary": "Markdown sidecar matches recorded gate audit JSON.",
+        "path": "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.md",
+        "exists": true
+      }
+    },
+    "source_artifacts": {
+      "model_path_decision_request": {
+        "path": "runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json",
+        "expected_exists": true,
+        "actual_exists": true,
+        "expected_sha256": "f574e3f9235878c4a67ff4b2157c1a6a2806f0e14501ebd367a6ddc33928c085",
+        "actual_sha256": "f574e3f9235878c4a67ff4b2157c1a6a2806f0e14501ebd367a6ddc33928c085",
+        "status": "passed",
+        "summary": "Source artifact matches recorded provenance."
+      }
+    },
+    "markdown_sidecar": {
+      "status": "passed",
+      "summary": "Markdown sidecar matches recorded gate audit JSON.",
+      "path": "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.md",
+      "exists": true
+    },
+    "next_actions": [
+      "Use this gate audit handoff as current only for the recorded source artifact revisions."
+    ],
+    "do_not_continue_reason": "Gate audit package provenance and non-executing safety checks passed."
+  },
+  "ready_for_decision_validation": true,
+  "ready_for_real_smoke": false,
+  "write_config": false,
+  "exports_applied": false,
+  "selected_decision_record_path": "runs/needs_attention/phase_5_human_decision_workspace_current/decision_records/provide_base_model_root.json",
+  "records": [
+    {
+      "path": "runs/needs_attention/phase_5_human_decision_workspace_current/decision_records/approve_variant_path.json",
+      "status": "needs_attention",
+      "classification": "template_unfilled",
+      "decision": "approve_variant_path",
+      "decision_validation_status": "failed",
+      "approval_status": "invalid",
+      "checks": {
+        "request_mode": {
+          "status": "passed",
+          "summary": "Request is a Phase 5 model-path decision request."
+        },
+        "request_pending": {
+          "status": "passed",
+          "summary": "Request is still pending human decision."
+        },
+        "decision_allowed": {
+          "status": "passed",
+          "summary": "Decision is one of the options declared by the request."
+        },
+        "approver_present": {
+          "status": "failed",
+          "summary": "Decision record names a human approver."
+        },
+        "rationale_present": {
+          "status": "failed",
+          "summary": "Decision record includes a rationale."
+        },
+        "probe_passed": {
+          "status": "passed",
+          "summary": "Approval can only reference a passed explicit model-path probe."
+        },
+        "approved_model_path_matches": {
+          "status": "passed",
+          "summary": "Approved model path must match the pending request target exactly."
+        },
+        "approved_benchmark_root_matches": {
+          "status": "passed",
+          "summary": "Approved benchmark root must match the pending request target exactly."
+        }
+      },
+      "summary": "Decision record template is still unfilled."
+    },
+    {
+      "path": "runs/needs_attention/phase_5_human_decision_workspace_current/decision_records/provide_base_model_root.json",
+      "status": "needs_attention",
+      "classification": "filled_candidate",
+      "decision": "provide_base_model_root",
+      "decision_validation_status": "needs_attention",
+      "approval_status": "base_model_root_provided",
+      "checks": {
+        "request_mode": {
+          "status": "passed",
+          "summary": "Request is a Phase 5 model-path decision request."
+        },
+        "request_pending": {
+          "status": "passed",
+          "summary": "Request is still pending human decision."
+        },
+        "decision_allowed": {
+          "status": "passed",
+          "summary": "Decision is one of the options declared by the request."
+        },
+        "approver_present": {
+          "status": "passed",
+          "summary": "Decision record names a human approver."
+        },
+        "rationale_present": {
+          "status": "passed",
+          "summary": "Decision record includes a rationale."
+        },
+        "provided_model_root_present": {
+          "status": "passed",
+          "summary": "A provided base model root is required for this decision."
+        }
+      },
+      "summary": "Decision record is ready for phase5-validate-model-path-decision."
+    },
+    {
+      "path": "runs/needs_attention/phase_5_human_decision_workspace_current/decision_records/reject_variant_path.json",
+      "status": "needs_attention",
+      "classification": "template_unfilled",
+      "decision": "reject_variant_path",
+      "decision_validation_status": "failed",
+      "approval_status": "invalid",
+      "checks": {
+        "request_mode": {
+          "status": "passed",
+          "summary": "Request is a Phase 5 model-path decision request."
+        },
+        "request_pending": {
+          "status": "passed",
+          "summary": "Request is still pending human decision."
+        },
+        "decision_allowed": {
+          "status": "passed",
+          "summary": "Decision is one of the options declared by the request."
+        },
+        "approver_present": {
+          "status": "failed",
+          "summary": "Decision record names a human approver."
+        },
+        "rationale_present": {
+          "status": "failed",
+          "summary": "Decision record includes a rationale."
+        }
+      },
+      "summary": "Decision record template is still unfilled."
+    }
+  ],
+  "safety_flags": {
+    "executed_real_model": false,
+    "executed_real_benchmark": false,
+    "submitted_remote_job": false,
+    "raw_outputs_written": false,
+    "write_config": false
+  },
+  "next_actions": [
+    "Run python -m stable_core.cli phase5-validate-model-path-decision --request <phase5_model_path_decision_request.json> --decision-record runs/needs_attention/phase_5_human_decision_workspace_current/decision_records/provide_base_model_root.json --output <phase5_model_path_decision_validation.json>",
+    "Do not edit config, export env vars, or run the real smoke from this status report."
+  ],
+  "do_not_continue_reason": "Exactly one filled decision record is ready for non-executing validation."
+}

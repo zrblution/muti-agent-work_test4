@@ -1,0 +1,313 @@
+{
+  "phase": "Phase 5",
+  "status": "needs_attention",
+  "created_at": "2026-06-27T10:05:29Z",
+  "git_commit": "15a71bc6469c13866b53a822158fc3901ef05980",
+  "target": {
+    "model_id": "qwen3_vl_2b_instruct",
+    "benchmark_id": "pope",
+    "limit": 8,
+    "instrumentation_mode": "none"
+  },
+  "checks": {
+    "config": {
+      "status": "passed",
+      "files": {
+        "paths.yaml": true,
+        "models.yaml": true,
+        "benchmarks.yaml": true,
+        "agents.yaml": true,
+        "security.yaml": true,
+        "server.yaml": true,
+        "experiment_budget.yaml": true,
+        "instrumentation.yaml": true,
+        "git_policy.yaml": true
+      },
+      "providers": {
+        "status": "passed",
+        "providers": {
+          "deepseek_v4_pro": {
+            "provider_type": "openai_compatible",
+            "model": "deepseek-v4-pro",
+            "api_key_env": "DEEPSEEK_API_KEY",
+            "base_url_env": null,
+            "timeout_seconds": "120",
+            "max_retries": "3"
+          },
+          "opus4_8_proxy": {
+            "provider_type": "openai_compatible",
+            "model": "opus4-8",
+            "api_key_env": "OPUS_PROXY_API_KEY",
+            "base_url_env": "OPUS_PROXY_BASE_URL",
+            "timeout_seconds": "180",
+            "max_retries": "3"
+          }
+        },
+        "findings": []
+      },
+      "inventory": {
+        "status": "passed",
+        "findings": []
+      },
+      "models": [
+        "fake_model",
+        "internvl3_5_4b",
+        "qwen3_vl_2b_instruct"
+      ],
+      "benchmarks": [
+        "amber",
+        "chair",
+        "fake_benchmark",
+        "mme",
+        "pope"
+      ],
+      "agents": [
+        "deepseek_v4_pro",
+        "opus4_8_proxy"
+      ],
+      "findings": []
+    },
+    "model_inventory_discovery": {
+      "model_id": "qwen3_vl_2b_instruct",
+      "status": "passed",
+      "raw_path": "${REMOTE_MODEL_ROOT}/Qwen3-VL-2B-Instruct",
+      "path": "/home/tos_lx/basemodel/Qwen3-VL-2B-Instruct",
+      "accepted_suffixes": [
+        ".json",
+        ".md",
+        ".model",
+        ".txt"
+      ],
+      "discovered_files": [
+        "README.md",
+        "chat_template.json",
+        "config.json",
+        "generation_config.json",
+        "merges.txt",
+        "preprocessor_config.json",
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "video_preprocessor_config.json",
+        "vocab.json"
+      ],
+      "write_config": false,
+      "load_attempted": false,
+      "summary": "Review discovered_files before copying any entries into project_config/models.yaml required_files."
+    },
+    "benchmark_inventory_discovery": {
+      "benchmark_id": "pope",
+      "status": "passed",
+      "raw_path": "${REMOTE_BENCHMARK_ROOT}/POPE",
+      "path": "/home/vepfs/data/work1/auto-research-test1/benchmarks/POPE",
+      "accepted_suffixes": [
+        ".csv",
+        ".json",
+        ".jsonl",
+        ".tsv",
+        ".txt",
+        ".yaml",
+        ".yml"
+      ],
+      "discovered_files": [
+        "requirements.txt",
+        "answer/example.json",
+        "caption_data/Instruction1_instructblip.json",
+        "caption_data/Instruction1_llava.json",
+        "caption_data/Instruction1_minigpt-4.json",
+        "caption_data/Instruction1_mmgpt.json",
+        "caption_data/Instruction1_mplug.json",
+        "caption_data/Instruction2_instructblip.json",
+        "caption_data/Instruction2_llava.json",
+        "caption_data/Instruction2_minigpt-4.json",
+        "caption_data/Instruction2_mmgpt.json",
+        "caption_data/Instruction2_mplug.json",
+        "segmentation/coco_ground_truth_segmentation.json",
+        "POPEv2/dataset/annotations.json"
+      ],
+      "write_config": false,
+      "summary": "Review discovered_files before copying any entries into project_config/benchmarks.yaml required_files."
+    },
+    "model_runtime_dependencies": {
+      "model_id": "qwen3_vl_2b_instruct",
+      "status": "passed",
+      "checks": [
+        {
+          "name": "load_attempted",
+          "status": "not_attempted"
+        },
+        {
+          "name": "runtime_dependencies",
+          "status": "passed",
+          "processor_class": "AutoProcessor",
+          "model_class": "Qwen3VLForConditionalGeneration",
+          "precision": "bf16",
+          "load_attempted": false
+        }
+      ],
+      "summary": "Qwen3-VL-2B-Instruct runtime dependencies are ready; no model was loaded."
+    },
+    "model_validation": {
+      "model_id": "qwen3_vl_2b_instruct",
+      "status": "passed",
+      "checks": [
+        {
+          "name": "download_allowed",
+          "status": "not_attempted",
+          "value": false
+        },
+        {
+          "name": "load_attempted",
+          "status": "not_attempted"
+        },
+        {
+          "name": "model_path",
+          "status": "passed",
+          "raw_path": "${REMOTE_MODEL_ROOT}/Qwen3-VL-2B-Instruct",
+          "path": "/home/tos_lx/basemodel/Qwen3-VL-2B-Instruct"
+        },
+        {
+          "name": "model_inventory",
+          "status": "passed",
+          "path": "/home/tos_lx/basemodel/Qwen3-VL-2B-Instruct",
+          "required_files": [
+            "config.json"
+          ]
+        },
+        {
+          "name": "runtime_dependencies",
+          "status": "passed",
+          "processor_class": "AutoProcessor",
+          "model_class": "Qwen3VLForConditionalGeneration",
+          "precision": "bf16",
+          "load_attempted": false
+        }
+      ],
+      "summary": "Qwen3-VL-2B-Instruct path, inventory, and runtime dependencies are ready; no model was loaded."
+    },
+    "benchmark_validation": {
+      "benchmark_id": "pope",
+      "status": "passed",
+      "checks": [
+        {
+          "name": "adapter",
+          "status": "passed",
+          "value": "POPEAdapter"
+        },
+        {
+          "name": "benchmark_path",
+          "status": "passed",
+          "raw_path": "${REMOTE_BENCHMARK_ROOT}/POPE",
+          "path": "/home/vepfs/data/work1/auto-research-test1/benchmarks/POPE"
+        },
+        {
+          "name": "benchmark_inventory",
+          "status": "passed",
+          "path": "/home/vepfs/data/work1/auto-research-test1/benchmarks/POPE",
+          "discovered_files": [
+            "requirements.txt",
+            "answer/example.json",
+            "caption_data/Instruction1_instructblip.json",
+            "caption_data/Instruction1_llava.json",
+            "caption_data/Instruction1_minigpt-4.json",
+            "caption_data/Instruction1_mmgpt.json",
+            "caption_data/Instruction1_mplug.json",
+            "caption_data/Instruction2_instructblip.json",
+            "caption_data/Instruction2_llava.json",
+            "caption_data/Instruction2_minigpt-4.json",
+            "caption_data/Instruction2_mmgpt.json",
+            "caption_data/Instruction2_mplug.json",
+            "segmentation/coco_ground_truth_segmentation.json",
+            "POPEv2/dataset/annotations.json"
+          ]
+        }
+      ],
+      "summary": "POPE path exists; sample parsing is a later gate."
+    }
+  },
+  "execution_authorization": {
+    "status": "needs_attention",
+    "runner_mode": "local_only",
+    "allow_real_gpu_jobs": false,
+    "allow_process_submission": false,
+    "submitted_process": false,
+    "execution_plan": {
+      "experiment_id": "qwen3_vl_2b_instruct_pope_limit8",
+      "action": "run_model_smoke_test",
+      "allowed_script": "experiments/landmark_baselines/run_landmark.py",
+      "argv": [
+        "python",
+        "experiments/landmark_baselines/run_landmark.py",
+        "--model",
+        "qwen3_vl_2b_instruct",
+        "--benchmark",
+        "pope",
+        "--limit",
+        "8",
+        "--instrumentation",
+        "none",
+        "--run-id",
+        "qwen3_vl_2b_instruct_pope_limit8"
+      ],
+      "cwd": ".",
+      "submits_process": false,
+      "artifact_contract": {
+        "success_outputs": [
+          "run_manifest.json",
+          "raw_outputs.jsonl",
+          "normalized_outputs.jsonl",
+          "metrics.json",
+          "failure_cases.jsonl",
+          "artifact_manifest.json",
+          "experiment_summary.md",
+          "reproducibility_notes.md"
+        ],
+        "failure_outputs": [
+          "run_manifest.json",
+          "stdout.log",
+          "stderr.log",
+          "exit_code.txt",
+          "env_snapshot.json",
+          "failure.json",
+          "failure_report.md",
+          "artifact_manifest.json"
+        ],
+        "never_overwrite": [
+          "raw_outputs.jsonl"
+        ],
+        "large_artifact_policy": "manifest_only"
+      }
+    },
+    "gate_failures": [
+      {
+        "name": "runner_mode",
+        "status": "needs_attention",
+        "expected": "remote_enabled",
+        "actual": "local_only"
+      },
+      {
+        "name": "real_gpu_budget",
+        "status": "needs_attention",
+        "expected": true,
+        "actual": false
+      },
+      {
+        "name": "process_submission",
+        "status": "needs_attention",
+        "expected": true,
+        "actual": false
+      }
+    ],
+    "message": "Remote execution gate is closed by configuration."
+  },
+  "safety_flags": {
+    "executed_real_model": false,
+    "executed_real_benchmark": false,
+    "submitted_remote_job": false,
+    "raw_outputs_written": false,
+    "write_config": false
+  },
+  "next_actions": [
+    "Open reviewed remote execution, GPU budget, and process-submission gates only after validation passes."
+  ],
+  "do_not_continue_reason": "Remote execution authorization is not open."
+}

@@ -46,6 +46,16 @@ Phase 5: minimal real smoke for `qwen3_vl_2b_instruct` + `pope` with `limit=8` a
 
 ## Human Decisions Required
 
+- The prepared workspace now has exactly one filled human decision record: `runs/needs_attention/phase_5_human_decision_workspace_current/decision_records/provide_base_model_root.json`.
+- The filled decision chooses `provide_base_model_root` with `provided_model_root: /home/tos_lx/basemodel` and `approved_benchmark_root: /home/vepfs/data/work1/auto-research-test1/benchmarks`.
+- `phase5-decision-record-status` for the prepared workspace now reports `passed`, one filled candidate, two unfilled candidates, zero invalid candidates, and `ready_for_decision_validation: true`.
+- `phase5-validate-model-path-decision` accepted the filled record as a valid base-root provision, but the validation output remains `needs_attention` because it is not an exact executable model-path approval.
+- Server `phase5-probe-paths` for `/home/tos_lx/basemodel` plus `/home/vepfs/data/work1/auto-research-test1/benchmarks` passed in read-only mode, discovering `/home/tos_lx/basemodel/Qwen3-VL-2B-Instruct` and `/home/vepfs/data/work1/auto-research-test1/benchmarks/POPE`.
+- Server `phase5-readiness` with one-off `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` values still reports `needs_attention` because `runner_mode: local_only`, `allow_real_gpu_jobs: false`, and `allow_process_submission: false` keep execution authorization closed.
+- The next human decisions are no longer to fill the model-path decision workspace. They are to explicitly approve how these validated roots should be represented in config or environment, and separately approve opening the remote execution, GPU budget, and process-submission gates.
+- Do not fill a second model-path decision record unless replacing the current `provide_base_model_root` choice and rerunning the decision-record status check.
+- Current base-root decision evidence is stored under `runs/needs_attention/phase_5_base_model_root_decision_current/`.
+
 - Provide approved server environment values for `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` without committing secrets or large artifacts.
 - Review `phase5-discover-model-candidates` output before approving any `REMOTE_MODEL_ROOT` value.
 - Decide whether any `model_like_variant` path is an acceptable substitute for the configured base `Qwen3-VL-2B-Instruct`; do not treat variants as the Phase 5 target without explicit approval.
