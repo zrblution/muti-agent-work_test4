@@ -547,11 +547,13 @@ def verify_phase5_gate_audit_package(
     loaded = json.loads(path.read_text(encoding="utf-8"))
     audit = loaded if isinstance(loaded, dict) else {}
     source_artifact_checks = _verify_gate_audit_source_artifacts(audit.get("source_artifacts", {}))
+    markdown_sidecar_check = _verify_gate_audit_markdown_sidecar(path, audit)
     checks = {
         "audit_identity": _verify_gate_audit_identity(audit),
         "non_executing_safety": _verify_gate_audit_non_executing_safety(audit),
         "next_action_packet": _verify_gate_audit_next_action_packet(audit.get("next_action_packet")),
         "source_artifacts": _verify_gate_audit_source_artifact_status(source_artifact_checks),
+        "markdown_sidecar": markdown_sidecar_check,
     }
     status = _checks_status(checks)
     report = {
@@ -570,6 +572,7 @@ def verify_phase5_gate_audit_package(
         "source_artifact_count": len(source_artifact_checks),
         "checks": checks,
         "source_artifacts": source_artifact_checks,
+        "markdown_sidecar": markdown_sidecar_check,
         "next_actions": _verify_gate_audit_next_actions(status),
         "do_not_continue_reason": _verify_gate_audit_stop_reason(status, checks),
     }
@@ -1357,6 +1360,91 @@ def _verify_gate_audit_source_artifact_status(source_checks: dict[str, dict[str,
         "status": "passed",
         "summary": "All recorded source artifacts match current files.",
     }
+
+
+def _verify_gate_audit_markdown_sidecar(audit_path: Path, audit: dict[str, Any]) -> dict[str, Any]:
+    markdown_path = audit_path.with_suffix(".md")
+    if not markdown_path.exists():
+        return {
+            "status": "failed",
+            "path": str(markdown_path),
+            "exists": False,
+            "summary": "Markdown sidecar is missing.",
+            "failed_conditions": ["Markdown sidecar is missing."],
+        }
+    text = markdown_path.read_text(encoding="utf-8")
+    packet = audit.get("next_action_packet", {})
+    source_artifacts = audit.get("source_artifacts", {})
+    conditions = [
+        ("# Phase 5 Gate Audit" in text, "Markdown sidecar title is present."),
+        (_markdown_field_matches(text, "Status", audit.get("status")), "Markdown sidecar status matches JSON."),
+        (
+            _markdown_field_matches(text, "ready_for_real_smoke", audit.get("ready_for_real_smoke")),
+            "Markdown sidecar ready_for_real_smoke matches JSON.",
+        ),
+        (
+            _markdown_field_matches(text, "write_config", audit.get("write_config")),
+            "Markdown sidecar write_config matches JSON.",
+        ),
+        (
+            _markdown_field_matches(text, "exports_applied", audit.get("exports_applied")),
+            "Markdown sidecar exports_applied matches JSON.",
+        ),
+        (
+            _markdown_field_matches(text, "next_missing_gate", audit.get("next_missing_gate")),
+            "Markdown sidecar next_missing_gate matches JSON.",
+        ),
+        (
+            _markdown_field_matches(text, "phase5_terminal_outcome", audit.get("phase5_terminal_outcome")),
+            "Markdown sidecar phase5_terminal_outcome matches JSON.",
+        ),
+    ]
+    if isinstance(packet, dict) and _has_text(packet.get("gate")):
+        conditions.append(
+            (
+                f"- gate: `{packet['gate']}`" in text,
+                "Markdown sidecar next_action_packet gate matches JSON.",
+            )
+        )
+    if isinstance(source_artifacts, dict):
+        for name, artifact in source_artifacts.items():
+            if not isinstance(artifact, dict):
+                continue
+            artifact_path = artifact.get("path")
+            sha256 = artifact.get("sha256")
+            if _has_text(artifact_path):
+                conditions.append(
+                    (
+                        f"- {name}: `{artifact_path}`" in text,
+                        f"Markdown sidecar source artifact `{name}` path matches JSON.",
+                    )
+                )
+            if _has_text(sha256):
+                conditions.append(
+                    (
+                        f"sha256 `{sha256}`" in text,
+                        f"Markdown sidecar source artifact `{name}` sha256 matches JSON.",
+                    )
+                )
+    result = _audit_required_conditions(
+        conditions,
+        "Markdown sidecar matches recorded gate audit JSON.",
+    )
+    return {
+        **result,
+        "path": str(markdown_path),
+        "exists": True,
+    }
+
+
+def _markdown_field_matches(text: str, label: str, value: Any) -> bool:
+    if isinstance(value, bool):
+        expected_value = str(value).lower()
+    elif _has_text(value):
+        expected_value = str(value)
+    else:
+        return False
+    return f"{label}: `{expected_value}`" in text
 
 
 def _verify_gate_audit_next_actions(status: str) -> list[str]:

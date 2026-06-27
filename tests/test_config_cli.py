@@ -1646,6 +1646,9 @@ def test_phase5_verify_gate_audit_accepts_current_handoff(tmp_path: Path) -> Non
     assert report["checks"]["non_executing_safety"]["status"] == "passed"
     assert report["checks"]["next_action_packet"]["status"] == "passed"
     assert report["checks"]["source_artifacts"]["status"] == "passed"
+    assert report["checks"]["markdown_sidecar"]["status"] == "passed"
+    assert report["markdown_sidecar"]["status"] == "passed"
+    assert report["markdown_sidecar"]["path"] == str(audit_path.with_suffix(".md"))
     source_check = report["source_artifacts"]["model_path_decision_request"]
     decision_request_path = (
         REPO_ROOT
@@ -1657,6 +1660,45 @@ def test_phase5_verify_gate_audit_accepts_current_handoff(tmp_path: Path) -> Non
     )
     assert source_check["expected_sha256"] == sha256_file(decision_request_path)
     assert source_check["actual_sha256"] == sha256_file(decision_request_path)
+
+
+def test_phase5_verify_gate_audit_rejects_stale_markdown_sidecar(tmp_path: Path) -> None:
+    audit_path = REPO_ROOT / "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.json"
+    markdown_path = audit_path.with_suffix(".md")
+    copied_audit_path = tmp_path / "phase5_gate_audit.json"
+    copied_markdown_path = tmp_path / "phase5_gate_audit.md"
+    output_path = tmp_path / "phase5_gate_audit_verify.json"
+    _write_json(copied_audit_path, json.loads(audit_path.read_text(encoding="utf-8")))
+    copied_markdown_path.write_text(
+        markdown_path.read_text(encoding="utf-8").replace(
+            "next_missing_gate: `model_path_decision_validation`",
+            "next_missing_gate: `phase5_readiness`",
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_cli(
+        "phase5-verify-gate-audit",
+        "--audit",
+        str(copied_audit_path),
+        "--output",
+        str(output_path),
+    )
+
+    assert result.returncode == 1, result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["command"] == "phase5-verify-gate-audit"
+    assert payload["status"] == "failed"
+    verification = json.loads(output_path.read_text(encoding="utf-8"))
+    assert verification["status"] == "failed"
+    assert verification["checks"]["markdown_sidecar"]["status"] == "failed"
+    assert verification["markdown_sidecar"]["status"] == "failed"
+    assert verification["markdown_sidecar"]["path"] == str(copied_markdown_path)
+    assert "next_missing_gate" in verification["markdown_sidecar"]["summary"]
+    assert verification["checks"]["source_artifacts"]["status"] == "passed"
+    assert verification["ready_for_real_smoke"] is False
+    assert verification["write_config"] is False
+    assert verification["exports_applied"] is False
 
 
 def test_phase5_verify_gate_audit_rejects_stale_source_hash(tmp_path: Path) -> None:
