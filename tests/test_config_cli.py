@@ -798,11 +798,29 @@ def test_phase5_model_path_decision_request_cli_writes_pending_review_packet(tmp
         "reject_variant_path",
         "provide_base_model_root",
     ]
+    templates = {
+        template["decision"]: template
+        for template in report["requested_decision"]["decision_record_templates"]
+    }
+    assert set(templates) == {
+        "approve_variant_path",
+        "reject_variant_path",
+        "provide_base_model_root",
+    }
+    assert templates["approve_variant_path"]["approved_model_path"] == str(model_path)
+    assert templates["approve_variant_path"]["approved_benchmark_root"] == str(benchmark_root)
+    assert templates["reject_variant_path"]["rejected_model_path"] == str(model_path)
+    assert templates["reject_variant_path"]["approved_model_path"] is None
+    assert templates["provide_base_model_root"]["provided_model_root"] is None
+    assert templates["provide_base_model_root"]["approved_benchmark_root"] == str(benchmark_root)
     assert report["probe"]["status"] == "passed"
     assert report["probe"]["requires_human_approval"] is True
     assert report["safety_flags"]["write_config"] is False
     assert report["safety_flags"]["executed_real_model"] is False
     assert "approval_status: `pending`" in markdown
+    assert "- approve_variant_path: model_path `" in markdown
+    assert "- reject_variant_path: rejected_model_path `" in markdown
+    assert "- provide_base_model_root: provided_model_root `None`" in markdown
     assert "raw_outputs.jsonl" not in {path.name for path in output_dir.iterdir()}
 
 

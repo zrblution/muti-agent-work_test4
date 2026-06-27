@@ -43,6 +43,7 @@ This phase now contains two related records:
 - a follow-up model-like variant classifier so qwen-like directories with `config.json` are surfaced for review without becoming usable configured roots.
 - a follow-up explicit model-path probe for review-only variant validation without requiring `REMOTE_MODEL_ROOT`.
 - a follow-up model-path decision request packet that records a pending human decision for an exact variant path without approving, mutating config, or executing anything.
+- a follow-up model-path decision-template writer that emits approve/reject/provide-base-root records matching the next validation command without approving, mutating config, or executing anything.
 - a follow-up model-path decision validator that checks a human-supplied decision record against a pending request without mutating config or opening execution.
 - a follow-up approved-decision readiness bundle that records approved exact paths and remaining gates without treating approval as execution permission.
 - a follow-up config representation proposal that reviews env/config options for approved paths without editing config or exporting env vars.
@@ -117,6 +118,8 @@ This phase now contains two related records:
 - `stable_core.validation.phase5_readiness.build_phase5_explicit_model_path_probe`
 - `stable_core.cli phase5-probe-explicit-model-path`
 - `stable_core.validation.phase5_readiness.build_phase5_model_path_decision_request`
+- `stable_core.validation.phase5_readiness._model_path_decision_record_templates`
+- `stable_core.validation.phase5_readiness._model_path_template_markdown_line`
 - `stable_core.cli phase5-model-path-decision-request`
 - `stable_core.validation.phase5_readiness.validate_phase5_model_path_decision`
 - `stable_core.cli phase5-validate-model-path-decision`
@@ -275,11 +278,14 @@ This phase now contains two related records:
 - `phase5-model-path-decision-request` with a temporary qwen-like variant path and POPE benchmark root
   - status: initially failed because the CLI and builder did not exist, then passed after adding the pending decision-request packet
   - purpose: generate JSON and Markdown review artifacts with `approval_status: pending`, allowed decisions, probe evidence, environment restoration, and all execution safety flags false
+- `phase5-model-path-decision-request` with a temporary qwen-like variant path, POPE benchmark root, and required decision-record templates
+  - status: initially failed because the request did not include `decision_record_templates`, then passed after adding approve/reject/provide-base-root templates and Markdown lines
+  - purpose: give the human reviewer exact JSON fields for `phase5-validate-model-path-decision` while preserving `write_config: false`, all execution safety flags false, and no raw outputs
 - server `phase5-model-path-decision-request` for `/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours` plus `/home/vepfs/data/work1/auto-research-test1/benchmarks`
   - status: `needs_attention`
   - approval status: `pending`
   - output: `/tmp/phase5_model_path_decision_request_server/phase5_model_path_decision_request.json` and `.md`
-  - finding: probe status `passed`, `requires_human_approval: true`, allowed decisions recorded, and all execution safety flags false
+  - finding: probe status `passed`, `requires_human_approval: true`, allowed decisions and decision-record templates recorded, and all execution safety flags false
 - `phase5-validate-model-path-decision` with a temporary matching human approval record
   - status: initially failed because the CLI and validator did not exist, then passed after adding the decision validator
   - purpose: validate exact model-path and benchmark-root matching while keeping config mutation, execution, and raw outputs disabled
@@ -561,6 +567,7 @@ This phase now contains two related records:
 - No remote job or process was submitted by `phase5-readiness`.
 - No raw output was written by `phase5-readiness`.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_validate_config_representation_decision_cli_accepts_explicit_override tests/test_config_cli.py::test_phase5_validate_config_representation_decision_rejects_mismatched_model_path -q`: initially `2 failed`, then `2 passed` after adding the config representation decision validator and CLI.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_model_path_decision_request_cli_writes_pending_review_packet -q`: initially `1 failed`, then `1 passed` after adding per-decision model-path decision templates to the request packet.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_config_representation_proposal_cli_writes_reviewable_options -q`: initially `1 failed`, then `1 passed` after adding per-option decision-record templates to the config representation proposal.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_gate_audit_cli_reports_missing_review_chain tests/test_config_cli.py::test_phase5_gate_audit_accepts_review_chain_but_stops_at_readiness -q`: initially `2 failed`, then `2 passed` after adding the read-only Phase 5 gate audit CLI.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_gate_audit_cli_writes_reviewable_markdown_package -q`: initially `1 failed`, then `1 passed` after adding `--output-dir` support and Markdown rendering.

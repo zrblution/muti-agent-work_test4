@@ -220,6 +220,10 @@ def build_phase5_model_path_decision_request(
                 "approved_benchmark_root": str(Path(benchmark_root)),
                 "rationale": None,
             },
+            "decision_record_templates": _model_path_decision_record_templates(
+                model_path=Path(model_path),
+                benchmark_root=Path(benchmark_root),
+            ),
         },
         "safety_flags": dict(SAFETY_FLAGS),
         "do_not_continue_reason": (
@@ -592,6 +596,35 @@ def _decision_validation_checks(
             "A provided base model root is required for this decision.",
         )
     return checks
+
+
+def _model_path_decision_record_templates(*, model_path: Path, benchmark_root: Path) -> list[dict[str, Any]]:
+    model_path_value = str(model_path)
+    benchmark_root_value = str(benchmark_root)
+    return [
+        {
+            "decision": "approve_variant_path",
+            "approver": None,
+            "approved_model_path": model_path_value,
+            "approved_benchmark_root": benchmark_root_value,
+            "rationale": None,
+        },
+        {
+            "decision": "reject_variant_path",
+            "approver": None,
+            "rejected_model_path": model_path_value,
+            "approved_model_path": None,
+            "approved_benchmark_root": None,
+            "rationale": None,
+        },
+        {
+            "decision": "provide_base_model_root",
+            "approver": None,
+            "provided_model_root": None,
+            "approved_benchmark_root": benchmark_root_value,
+            "rationale": None,
+        },
+    ]
 
 
 def _check(passed: bool, summary: str) -> dict[str, str]:
@@ -1428,6 +1461,10 @@ def _model_path_decision_request_markdown(bundle: dict[str, Any]) -> str:
         for name, value in bundle["safety_flags"].items()
     ]
     decision_lines = [f"- `{decision}`" for decision in bundle["requested_decision"]["allowed_decisions"]]
+    template_lines = [
+        _model_path_template_markdown_line(template)
+        for template in bundle["requested_decision"].get("decision_record_templates", [])
+    ]
     check_lines = [
         f"- {name}: `{payload.get('status')}`"
         for name, payload in probe["checks"].items()
@@ -1452,12 +1489,26 @@ def _model_path_decision_request_markdown(bundle: dict[str, Any]) -> str:
         "## Requested Decision\n\n"
         + "\n".join(decision_lines)
         + "\n\n"
+        "## Decision Record Templates\n\n"
+        + "\n".join(template_lines)
+        + "\n\n"
         "## Safety Flags\n\n"
         + "\n".join(safety_lines)
         + "\n\n"
         "## Stop Reason\n\n"
         f"{bundle['do_not_continue_reason']}\n"
     )
+
+
+def _model_path_template_markdown_line(template: dict[str, Any]) -> str:
+    decision = template.get("decision")
+    if decision == "approve_variant_path":
+        return f"- approve_variant_path: model_path `{template.get('approved_model_path')}`"
+    if decision == "reject_variant_path":
+        return f"- reject_variant_path: rejected_model_path `{template.get('rejected_model_path')}`"
+    if decision == "provide_base_model_root":
+        return f"- provide_base_model_root: provided_model_root `{template.get('provided_model_root')}`"
+    return f"- {decision}: template available"
 
 
 def _approved_decision_readiness_markdown(bundle: dict[str, Any]) -> str:
