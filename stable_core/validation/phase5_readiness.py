@@ -510,6 +510,12 @@ def build_phase5_gate_audit(
         "next_missing_gate": next_missing_gate,
         "safety_flags": dict(SAFETY_FLAGS),
         "next_actions": _gate_audit_next_actions(next_missing_gate, status, terminal_outcome),
+        "next_action_packet": _gate_audit_next_action_packet(
+            next_missing_gate=next_missing_gate,
+            status=status,
+            terminal_outcome=terminal_outcome,
+            target=target,
+        ),
         "do_not_continue_reason": _gate_audit_stop_reason(next_missing_gate, status, terminal_outcome),
     }
     if output is not None:
@@ -1220,6 +1226,72 @@ def _gate_audit_next_actions(next_missing_gate: str, status: str, terminal_outco
     return [f"Provide or fix the `{next_missing_gate}` artifact before continuing toward the Phase 5 real smoke."]
 
 
+def _gate_audit_next_action_packet(
+    *,
+    next_missing_gate: str,
+    status: str,
+    terminal_outcome: str,
+    target: dict[str, Any],
+) -> dict[str, Any]:
+    forbidden_actions = [
+        "Do not run the real model or benchmark from this gate audit.",
+        "Do not edit project_config or export environment variables from this gate audit.",
+        "Do not submit remote jobs or write raw_outputs.jsonl from this gate audit.",
+    ]
+    if status == "failed":
+        return {
+            "gate": next_missing_gate,
+            "status": status,
+            "required_inputs": ["fixed_phase5_gate_artifact"],
+            "safe_command_templates": [],
+            "expected_artifacts": [],
+            "forbidden_actions": forbidden_actions,
+        }
+    if terminal_outcome == "validated_real_smoke_success":
+        return {
+            "gate": "none",
+            "status": status,
+            "required_inputs": [],
+            "safe_command_templates": [],
+            "expected_artifacts": [],
+            "forbidden_actions": forbidden_actions,
+        }
+    if next_missing_gate == "model_path_decision_request":
+        model_id = target["model_id"]
+        benchmark_id = target["benchmark_id"]
+        return {
+            "gate": "model_path_decision_request",
+            "status": "needs_attention",
+            "required_inputs": [
+                "reviewed_variant_or_exact_model_path",
+                "candidate_REMOTE_BENCHMARK_ROOT",
+                "decision_request_output_dir",
+            ],
+            "safe_command_templates": [
+                (
+                    "python -m stable_core.cli phase5-model-path-decision-request "
+                    f"--model {model_id} --benchmark {benchmark_id} "
+                    "--model-path <reviewed_variant_or_exact_model_path> "
+                    "--benchmark-root <candidate_REMOTE_BENCHMARK_ROOT> "
+                    "--output-dir <decision_request_output_dir>"
+                )
+            ],
+            "expected_artifacts": [
+                "phase5_model_path_decision_request.json",
+                "phase5_model_path_decision_request.md",
+            ],
+            "forbidden_actions": forbidden_actions,
+        }
+    return {
+        "gate": next_missing_gate,
+        "status": "needs_attention",
+        "required_inputs": [f"{next_missing_gate}_artifact"],
+        "safe_command_templates": [],
+        "expected_artifacts": [],
+        "forbidden_actions": forbidden_actions,
+    }
+
+
 def _gate_audit_stop_reason(next_missing_gate: str, status: str, terminal_outcome: str) -> str:
     if status == "failed":
         return "At least one Phase 5 gate artifact is invalid."
@@ -1236,6 +1308,7 @@ def _gate_audit_stop_reason(next_missing_gate: str, status: str, terminal_outcom
 
 def _gate_audit_markdown(report: dict[str, Any]) -> str:
     target = report["target"]
+    next_action_packet = report.get("next_action_packet", {})
     gate_lines = [
         f"- {name}: `{payload.get('status')}`"
         for name, payload in report["gate_checks"].items()
@@ -1245,6 +1318,22 @@ def _gate_audit_markdown(report: dict[str, Any]) -> str:
         for name, value in report["safety_flags"].items()
     ]
     next_action_lines = [f"- {action}" for action in report["next_actions"]]
+    required_input_lines = [
+        f"- `{value}`"
+        for value in next_action_packet.get("required_inputs", [])
+    ]
+    command_lines = [
+        f"- `{value}`"
+        for value in next_action_packet.get("safe_command_templates", [])
+    ]
+    expected_artifact_lines = [
+        f"- `{value}`"
+        for value in next_action_packet.get("expected_artifacts", [])
+    ]
+    forbidden_action_lines = [
+        f"- {value}"
+        for value in next_action_packet.get("forbidden_actions", [])
+    ]
     return (
         "# Phase 5 Gate Audit\n\n"
         f"Status: `{report['status']}`\n\n"
@@ -1266,6 +1355,20 @@ def _gate_audit_markdown(report: dict[str, Any]) -> str:
         + "\n\n"
         "## Next Actions\n\n"
         + "\n".join(next_action_lines)
+        + "\n\n"
+        "## Next Action Packet\n\n"
+        f"- gate: `{next_action_packet.get('gate')}`\n\n"
+        "### Required Inputs\n\n"
+        + "\n".join(required_input_lines)
+        + "\n\n"
+        "### Safe Command Templates\n\n"
+        + "\n".join(command_lines)
+        + "\n\n"
+        "### Expected Artifacts\n\n"
+        + "\n".join(expected_artifact_lines)
+        + "\n\n"
+        "### Forbidden Actions\n\n"
+        + "\n".join(forbidden_action_lines)
         + "\n\n"
         "## Stop Reason\n\n"
         f"{report['do_not_continue_reason']}\n"

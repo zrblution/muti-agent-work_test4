@@ -1470,10 +1470,30 @@ def test_phase5_gate_audit_cli_writes_reviewable_markdown_package(tmp_path: Path
     assert report["ready_for_real_smoke"] is False
     assert report["write_config"] is False
     assert report["exports_applied"] is False
+    packet = report["next_action_packet"]
+    assert packet["gate"] == "model_path_decision_request"
+    assert packet["required_inputs"] == [
+        "reviewed_variant_or_exact_model_path",
+        "candidate_REMOTE_BENCHMARK_ROOT",
+        "decision_request_output_dir",
+    ]
+    assert packet["expected_artifacts"] == [
+        "phase5_model_path_decision_request.json",
+        "phase5_model_path_decision_request.md",
+    ]
+    assert any(
+        "phase5-model-path-decision-request --model qwen3_vl_2b_instruct --benchmark pope"
+        in command
+        for command in packet["safe_command_templates"]
+    )
+    assert "Do not run the real model or benchmark from this gate audit." in packet["forbidden_actions"]
     assert "# Phase 5 Gate Audit" in markdown
     assert "next_missing_gate: `model_path_decision_request`" in markdown
     assert "ready_for_real_smoke: `false`" in markdown
     assert "- model_path_decision_request: `missing`" in markdown
+    assert "## Next Action Packet" in markdown
+    assert "- gate: `model_path_decision_request`" in markdown
+    assert "phase5-model-path-decision-request --model qwen3_vl_2b_instruct --benchmark pope" in markdown
     assert "raw_outputs.jsonl" not in {path.name for path in output_dir.iterdir()}
 
 
