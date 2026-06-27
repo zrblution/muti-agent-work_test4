@@ -300,6 +300,7 @@ def inspect_phase5_model_path_decision_records(
     records_dir: str | Path,
     audit_path: str | Path | None = None,
     output: str | Path | None = None,
+    output_dir: str | Path | None = None,
 ) -> dict[str, Any]:
     request_file = Path(request_path)
     records_path = Path(records_dir)
@@ -366,6 +367,8 @@ def inspect_phase5_model_path_decision_records(
     }
     if output is not None:
         write_json(Path(output), report)
+    if output_dir is not None:
+        _write_decision_record_status_package(Path(output_dir), report)
     return report
 
 
@@ -2111,6 +2114,70 @@ def _gate_audit_markdown(report: dict[str, Any]) -> str:
         + "\n\n"
         "### Forbidden Actions\n\n"
         + "\n".join(forbidden_action_lines)
+        + "\n\n"
+        "## Stop Reason\n\n"
+        f"{report['do_not_continue_reason']}\n"
+    )
+
+
+def _write_decision_record_status_package(output_dir: Path, report: dict[str, Any]) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    write_json(output_dir / "phase5_decision_record_status.json", report)
+    write_text(output_dir / "phase5_decision_record_status.md", _decision_record_status_markdown(report))
+
+
+def _decision_record_status_markdown(report: dict[str, Any]) -> str:
+    safety_lines = [
+        f"- {name}: `{str(value).lower()}`"
+        for name, value in report["safety_flags"].items()
+    ]
+    allowed_decision_lines = [
+        f"- `{decision}`"
+        for decision in report.get("allowed_decisions", [])
+    ]
+    record_lines = [
+        (
+            f"- {Path(record['path']).name}: `{record.get('classification')}` / `{record.get('status')}`"
+            f" decision `{record.get('decision')}`"
+        )
+        for record in report.get("records", [])
+    ]
+    next_action_lines = [
+        f"- {action}"
+        for action in report.get("next_actions", [])
+    ]
+    selected_path = report.get("selected_decision_record_path")
+    selected_display = selected_path if selected_path is not None else "none"
+    return (
+        "# Phase 5 Decision Record Status\n\n"
+        f"Status: `{report['status']}`\n\n"
+        f"request_path: `{report['request_path']}`\n\n"
+        f"records_dir: `{report['records_dir']}`\n\n"
+        f"gate_audit_path: `{report['gate_audit_path']}`\n\n"
+        f"ready_for_decision_validation: `{str(report['ready_for_decision_validation']).lower()}`\n\n"
+        f"ready_for_real_smoke: `{str(report['ready_for_real_smoke']).lower()}`\n\n"
+        f"write_config: `{str(report['write_config']).lower()}`\n\n"
+        f"exports_applied: `{str(report['exports_applied']).lower()}`\n\n"
+        f"filled_candidate_count: `{report['filled_candidate_count']}`\n\n"
+        f"template_unfilled_count: `{report['template_unfilled_count']}`\n\n"
+        f"invalid_candidate_count: `{report['invalid_candidate_count']}`\n\n"
+        f"filled_candidate_decision_counts: `{json.dumps(report['filled_candidate_decision_counts'], sort_keys=True)}`\n\n"
+        f"ambiguous_decisions: `{json.dumps(report['ambiguous_decisions'])}`\n\n"
+        f"selected_decision_record_path: `{selected_display}`\n\n"
+        f"gate_audit_verification_status: `{report.get('gate_audit_verification_status')}`\n\n"
+        f"gate_audit_next_missing_gate: `{report.get('gate_audit_next_missing_gate')}`\n\n"
+        f"gate_audit_ready_for_decision_validation: `{str(report['gate_audit_ready_for_decision_validation']).lower()}`\n\n"
+        "## Allowed Decisions\n\n"
+        + ("\n".join(allowed_decision_lines) if allowed_decision_lines else "- none")
+        + "\n\n"
+        "## Records\n\n"
+        + ("\n".join(record_lines) if record_lines else "- none")
+        + "\n\n"
+        "## Safety Flags\n\n"
+        + "\n".join(safety_lines)
+        + "\n\n"
+        "## Next Actions\n\n"
+        + ("\n".join(next_action_lines) if next_action_lines else "- none")
         + "\n\n"
         "## Stop Reason\n\n"
         f"{report['do_not_continue_reason']}\n"

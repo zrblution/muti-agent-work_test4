@@ -180,6 +180,7 @@ def build_parser() -> argparse.ArgumentParser:
     phase5_decision_record_status_parser.add_argument("--records-dir", required=True)
     phase5_decision_record_status_parser.add_argument("--audit", default=None)
     phase5_decision_record_status_parser.add_argument("--output", default=None)
+    phase5_decision_record_status_parser.add_argument("--output-dir", default=None)
 
     phase5_approved_decision_readiness_parser = subparsers.add_parser(
         "phase5-approved-decision-readiness",
@@ -511,6 +512,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 records_dir=args.records_dir,
                 audit_path=args.audit,
                 output=args.output,
+                output_dir=args.output_dir,
             )
         except Exception as exc:
             print(json.dumps({"command": "phase5-decision-record-status", "status": "failed", "error": str(exc)}, ensure_ascii=False))

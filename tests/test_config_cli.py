@@ -1971,6 +1971,55 @@ def test_phase5_decision_record_status_verifies_current_gate_audit(tmp_path: Pat
     assert report["gate_audit_verification"]["checks"]["source_artifacts"]["status"] == "passed"
 
 
+def test_phase5_decision_record_status_cli_writes_reviewable_markdown_package(tmp_path: Path) -> None:
+    artifact_dir = REPO_ROOT / "runs/needs_attention/phase_5_model_path_decision_request"
+    request_path = artifact_dir / "phase5_model_path_decision_request.json"
+    records_dir = artifact_dir / "decision_record_templates"
+    audit_path = REPO_ROOT / "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.json"
+    output_dir = tmp_path / "decision_record_status"
+
+    result = run_cli(
+        "phase5-decision-record-status",
+        "--request",
+        str(request_path),
+        "--records-dir",
+        str(records_dir),
+        "--audit",
+        str(audit_path),
+        "--output-dir",
+        str(output_dir),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    report_path = output_dir / "phase5_decision_record_status.json"
+    markdown_path = output_dir / "phase5_decision_record_status.md"
+    assert report_path.exists()
+    assert markdown_path.exists()
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    markdown = markdown_path.read_text(encoding="utf-8")
+    assert payload["command"] == "phase5-decision-record-status"
+    assert payload["status"] == "needs_attention"
+    assert report["mode"] == "model_path_decision_record_status"
+    assert report["filled_candidate_count"] == 0
+    assert report["template_unfilled_count"] == 3
+    assert report["gate_audit_verification_status"] == "passed"
+    assert report["ready_for_decision_validation"] is False
+    assert report["ready_for_real_smoke"] is False
+    assert report["write_config"] is False
+    assert report["exports_applied"] is False
+    assert "# Phase 5 Decision Record Status" in markdown
+    assert "Status: `needs_attention`" in markdown
+    assert "ready_for_decision_validation: `false`" in markdown
+    assert "ready_for_real_smoke: `false`" in markdown
+    assert "filled_candidate_count: `0`" in markdown
+    assert "template_unfilled_count: `3`" in markdown
+    assert "gate_audit_verification_status: `passed`" in markdown
+    assert "gate_audit_next_missing_gate: `model_path_decision_validation`" in markdown
+    assert "- approve_variant_path.template.json: `template_unfilled` / `needs_attention`" in markdown
+    assert "Fill exactly one copied decision record template" in markdown
+
+
 def test_phase5_decision_record_status_rejects_stale_gate_audit_for_filled_candidate(tmp_path: Path) -> None:
     artifact_dir = REPO_ROOT / "runs/needs_attention/phase_5_model_path_decision_request"
     request_path = artifact_dir / "phase5_model_path_decision_request.json"
@@ -2070,6 +2119,29 @@ def test_phase5_committed_decision_record_status_current_is_needs_attention() ->
     assert report["gate_audit_verification"]["checks"]["source_artifacts"]["status"] == "passed"
     assert report["gate_audit_verification"]["checks"]["markdown_sidecar"]["status"] == "passed"
     assert "Fill exactly one" in " ".join(report["next_actions"])
+
+
+def test_phase5_committed_decision_record_status_current_has_markdown_sidecar() -> None:
+    status_dir = REPO_ROOT / "runs/needs_attention/phase_5_decision_record_status_current"
+    report = json.loads((status_dir / "phase5_decision_record_status.json").read_text(encoding="utf-8"))
+    markdown_path = status_dir / "phase5_decision_record_status.md"
+
+    assert markdown_path.exists()
+    markdown = markdown_path.read_text(encoding="utf-8")
+    assert "# Phase 5 Decision Record Status" in markdown
+    assert f"Status: `{report['status']}`" in markdown
+    assert f"request_path: `{report['request_path']}`" in markdown
+    assert f"records_dir: `{report['records_dir']}`" in markdown
+    assert f"gate_audit_path: `{report['gate_audit_path']}`" in markdown
+    assert f"filled_candidate_count: `{report['filled_candidate_count']}`" in markdown
+    assert f"template_unfilled_count: `{report['template_unfilled_count']}`" in markdown
+    assert "ready_for_decision_validation: `false`" in markdown
+    assert "ready_for_real_smoke: `false`" in markdown
+    assert "write_config: `false`" in markdown
+    assert "exports_applied: `false`" in markdown
+    assert "gate_audit_verification_status: `passed`" in markdown
+    assert "gate_audit_next_missing_gate: `model_path_decision_validation`" in markdown
+    assert "Fill exactly one copied decision record template" in markdown
 
 
 def test_phase5_committed_decision_record_templates_are_unfilled_handoff_files() -> None:
