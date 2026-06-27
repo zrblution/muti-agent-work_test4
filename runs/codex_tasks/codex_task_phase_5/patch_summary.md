@@ -671,3 +671,22 @@ This phase now contains two related records:
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli validate-config`: `passed`.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.security.secret_scan --paths AGENTS.md README.md docs project_config stable_core adapters experiments research_tools tests runs/codex_tasks runs/needs_attention runs/subagent_reports`: `passed`, no findings.
 - `find . -type f -size +5M -not -path './.git/*' -print`: no output.
+
+## Committed Decision-Record Status Current Follow-Up
+
+`runs/needs_attention/phase_5_decision_record_status_current/phase5_decision_record_status.json` now stores the current read-only decision-record status scan for the committed pending model-path decision request, the committed unfilled decision-record templates, and the current gate-audit package. It records `needs_attention`, zero filled candidates, three unfilled templates, passed gate-audit verification, `ready_for_decision_validation: false`, `ready_for_real_smoke: false`, and all execution safety flags false.
+
+The human handoff and acceptance-report notes now point reviewers to this current status artifact before a copied decision template is filled. This remains a handoff artifact only; it does not approve a path, mutate config, export env vars, read `.env`, open execution gates, load weights, run generation, submit jobs, run benchmarks, or write raw outputs.
+
+Local verification for this follow-up:
+
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_committed_decision_record_status_current_is_needs_attention -q`: initially `1 failed` because the committed current status artifact did not exist, then `1 passed` after generating the read-only status JSON.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_decision_record_status_reports_unfilled_committed_templates tests/test_config_cli.py::test_phase5_decision_record_status_accepts_one_filled_candidate tests/test_config_cli.py::test_phase5_decision_record_status_rejects_multiple_filled_candidates tests/test_config_cli.py::test_phase5_decision_record_status_verifies_current_gate_audit tests/test_config_cli.py::test_phase5_decision_record_status_rejects_stale_gate_audit_for_filled_candidate tests/test_config_cli.py::test_phase5_committed_decision_record_status_current_is_needs_attention -q`: `6 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py -q`: `55 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py tests/test_qwen3_vl_adapter.py tests/test_fake_adapters.py tests/test_landmark_gate.py tests/test_runner.py -q`: `103 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest -q`: `136 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli phase5-decision-record-status --request runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json --records-dir runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates --audit runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.json --output /tmp/phase5_decision_record_status_current_smoke.json`: `needs_attention`, zero filled candidates, three unfilled templates, gate-audit verification `passed`, `ready_for_decision_validation: false`, `ready_for_real_smoke: false`, and all execution safety flags false.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli validate-config`: `passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.security.secret_scan --paths AGENTS.md README.md docs project_config stable_core adapters experiments research_tools tests runs/codex_tasks runs/needs_attention runs/subagent_reports --output /tmp/phase5_decision_record_status_current_secret_scan.json`: `passed`, no findings.
+- `find . -type f -size +5M -not -path './.git/*' -print`: no output.
+- `git diff --check`: passed.

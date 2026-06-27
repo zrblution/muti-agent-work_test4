@@ -2032,6 +2032,46 @@ def test_phase5_decision_record_status_rejects_stale_gate_audit_for_filled_candi
     assert "Regenerate or repair" in " ".join(report["next_actions"])
 
 
+def test_phase5_committed_decision_record_status_current_is_needs_attention() -> None:
+    status_path = (
+        REPO_ROOT
+        / "runs/needs_attention/phase_5_decision_record_status_current/phase5_decision_record_status.json"
+    )
+
+    assert status_path.exists()
+    report = json.loads(status_path.read_text(encoding="utf-8"))
+    assert report["phase"] == "Phase 5"
+    assert report["mode"] == "model_path_decision_record_status"
+    assert report["status"] == "needs_attention"
+    assert (
+        report["request_path"]
+        == "runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json"
+    )
+    assert (
+        report["records_dir"]
+        == "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates"
+    )
+    assert report["gate_audit_path"] == "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.json"
+    assert report["filled_candidate_count"] == 0
+    assert report["template_unfilled_count"] == 3
+    assert report["invalid_candidate_count"] == 0
+    assert report["filled_candidate_decision_counts"] == {}
+    assert report["ambiguous_decisions"] == []
+    assert report["gate_audit_verification_status"] == "passed"
+    assert report["gate_audit_next_missing_gate"] == "model_path_decision_validation"
+    assert report["gate_audit_ready_for_decision_validation"] is True
+    assert report["ready_for_decision_validation"] is False
+    assert report["ready_for_real_smoke"] is False
+    assert report["write_config"] is False
+    assert report["exports_applied"] is False
+    assert report["safety_flags"] == _phase5_safety_flags()
+    assert {record["classification"] for record in report["records"]} == {"template_unfilled"}
+    assert all(record["status"] == "needs_attention" for record in report["records"])
+    assert report["gate_audit_verification"]["checks"]["source_artifacts"]["status"] == "passed"
+    assert report["gate_audit_verification"]["checks"]["markdown_sidecar"]["status"] == "passed"
+    assert "Fill exactly one" in " ".join(report["next_actions"])
+
+
 def test_phase5_committed_decision_record_templates_are_unfilled_handoff_files() -> None:
     artifact_dir = REPO_ROOT / "runs/needs_attention/phase_5_model_path_decision_request"
     decision_request_path = artifact_dir / "phase5_model_path_decision_request.json"

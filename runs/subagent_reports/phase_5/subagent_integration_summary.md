@@ -200,6 +200,8 @@ The current committed handoff package is stored under `runs/needs_attention/phas
 
 `phase5-decision-record-status` now inspects model-path decision-record candidates before the non-executing validator is run. With `--audit`, it also verifies the current gate-audit handoff and blocks readiness when source-artifact or Markdown sidecar evidence is stale. It keeps committed unfilled templates and zero-candidate directories in `needs_attention`, reports invalid or multiple filled candidates as failed handoffs with decision-type counts, and treats exactly one filled candidate plus a current audit as ready only for `phase5-validate-model-path-decision`, not as approval or run authorization.
 
+The current committed scanner output is stored under `runs/needs_attention/phase_5_decision_record_status_current/`. It records the pending decision request, the unfilled template directory, and the current gate audit in one read-only JSON handoff; the status remains `needs_attention` because there are zero filled candidates even though the gate-audit verification passes.
+
 It also supports `--smoke-run-id` with `--runs-root` to validate final recorded run evidence. A succeeded run bundle is classified as `validated_real_smoke_success`; a validated `landmark_worker_execution_failed` bundle is classified as `reviewed_real_execution_failure`; setup, validation, and runtime gate failures remain incomplete and report `next_missing_gate: real_smoke_result`.
 
 This is an audit surface only. It keeps `ready_for_real_smoke: false`, `write_config: false`, and `exports_applied: false`, and it does not edit config, export env vars, read `.env`, open gates, load weights, run generation, submit jobs, run benchmarks, or write raw outputs.
