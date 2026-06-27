@@ -54,6 +54,7 @@ This phase now contains two related records:
 - a follow-up Phase 5 gate audit command that consolidates review/readiness artifact status and reports the next missing gate without editing config, exporting env vars, or executing anything.
 - a follow-up Phase 5 gate audit package writer that emits JSON and Markdown for human review without writing raw outputs or opening execution gates.
 - a follow-up Phase 5 gate audit next-action packet that gives the human reviewer required inputs, safe command templates, expected artifacts, and forbidden actions for the next missing gate.
+- a follow-up Phase 5 gate audit next-action packet for model-path decision validation after a pending decision request exists, including the filled human decision-record input and non-executing validation command.
 - a follow-up Phase 5 final run-bundle audit that validates a recorded smoke run or reviewed worker execution failure without running or mutating anything.
 
 - model: `qwen3_vl_2b_instruct`
@@ -136,6 +137,7 @@ This phase now contains two related records:
 - `stable_core.validation.phase5_readiness.build_phase5_gate_audit`
 - `stable_core.cli phase5-gate-audit`
 - `stable_core.validation.phase5_readiness._gate_audit_next_action_packet`
+- `stable_core.validation.phase5_readiness._gate_audit_next_action_packet` now returns a model-path decision-validation handoff packet after the committed pending request gate passes
 - `stable_core.validation.phase5_readiness._gate_audit_markdown`
 - `stable_core.validation.phase5_readiness._audit_real_smoke_result`
 
@@ -584,7 +586,7 @@ This phase now contains two related records:
 - No raw output was written by `phase5-readiness`.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_validate_config_representation_decision_cli_accepts_explicit_override tests/test_config_cli.py::test_phase5_validate_config_representation_decision_rejects_mismatched_model_path -q`: initially `2 failed`, then `2 passed` after adding the config representation decision validator and CLI.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_model_path_decision_request_cli_writes_pending_review_packet -q`: initially `1 failed`, then `1 passed` after adding per-decision model-path decision templates to the request packet.
-- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_committed_model_path_decision_request_advances_gate_audit -q`: initially `1 failed`, then `1 passed` after adding the committed pending decision-request artifact; gate audit accepts the first gate and stops at `model_path_decision_validation`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_committed_model_path_decision_request_advances_gate_audit -q`: initially `1 failed`, then `1 passed` after adding the committed pending decision-request artifact; later initially `1 failed`, then `1 passed` after extending `next_action_packet` for `model_path_decision_validation`.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_committed_decision_record_templates_are_unfilled_handoff_files tests/test_config_cli.py::test_phase5_unfilled_approval_template_does_not_validate tests/test_config_cli.py::test_phase5_unfilled_base_root_template_does_not_validate -q`: initially `1 failed`, then `3 passed` after adding separate unfilled decision-record template files and fixing `None` text validation.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_config_representation_proposal_cli_writes_reviewable_options -q`: initially `1 failed`, then `1 passed` after adding per-option decision-record templates to the config representation proposal.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_gate_audit_cli_reports_missing_review_chain tests/test_config_cli.py::test_phase5_gate_audit_accepts_review_chain_but_stops_at_readiness -q`: initially `2 failed`, then `2 passed` after adding the read-only Phase 5 gate audit CLI.
@@ -601,6 +603,7 @@ This phase now contains two related records:
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli phase5-gate-audit --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_gate_audit_packet_smoke`: `needs_attention`, `next_action_packet.gate: model_path_decision_request`, command template present, Markdown packet section present, and all execution safety flags false.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli phase5-gate-audit --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --decision-request runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json --output-dir /tmp/phase5_gate_audit_with_committed_decision_request`: `needs_attention`, first gate `model_path_decision_request` accepted, next missing gate `model_path_decision_validation`, and all execution safety flags false.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli phase5-gate-audit --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --decision-request runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json --output-dir /tmp/phase5_gate_audit_with_unfilled_decision_templates`: `needs_attention`, next missing gate `model_path_decision_validation`, and all execution safety flags false.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli phase5-gate-audit --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --decision-request runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json --output-dir /tmp/phase5_gate_audit_decision_validation_packet_smoke`: `needs_attention`, next missing gate `model_path_decision_validation`, validation command template present, decision template directory handoff present, unfilled-template approval forbidden, and all execution safety flags false.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli validate-config`: `passed`.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.security.secret_scan --paths AGENTS.md README.md docs project_config stable_core adapters experiments research_tools tests runs/codex_tasks runs/needs_attention runs/subagent_reports`: `passed`, no findings.
 - `find . -type f -size +5M -not -path './.git/*' -print`: no output.

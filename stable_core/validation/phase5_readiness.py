@@ -1241,6 +1241,7 @@ def _gate_audit_next_action_packet(
         "Do not run the real model or benchmark from this gate audit.",
         "Do not edit project_config or export environment variables from this gate audit.",
         "Do not submit remote jobs or write raw_outputs.jsonl from this gate audit.",
+        "Do not treat unfilled template files as human approval.",
     ]
     if status == "failed":
         return {
@@ -1283,6 +1284,33 @@ def _gate_audit_next_action_packet(
             "expected_artifacts": [
                 "phase5_model_path_decision_request.json",
                 "phase5_model_path_decision_request.md",
+            ],
+            "forbidden_actions": forbidden_actions,
+        }
+    if next_missing_gate == "model_path_decision_validation":
+        return {
+            "gate": "model_path_decision_validation",
+            "status": "needs_attention",
+            "required_inputs": [
+                "phase5_model_path_decision_request.json",
+                "filled_human_decision_record.json",
+                "phase5_model_path_decision_validation_output",
+            ],
+            "safe_command_templates": [
+                (
+                    "python -m stable_core.cli phase5-validate-model-path-decision "
+                    "--request <phase5_model_path_decision_request.json> "
+                    "--decision-record <filled_human_decision_record.json> "
+                    "--output <phase5_model_path_decision_validation_output>"
+                ),
+                (
+                    "Fill exactly one JSON file copied from "
+                    "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/ "
+                    "before validation."
+                ),
+            ],
+            "expected_artifacts": [
+                "phase5_model_path_decision_validation.json",
             ],
             "forbidden_actions": forbidden_actions,
         }

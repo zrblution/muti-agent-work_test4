@@ -1534,6 +1534,23 @@ def test_phase5_committed_model_path_decision_request_advances_gate_audit(tmp_pa
     assert request["requested_decision"]["decision_record_templates"]
     assert report["gate_checks"]["model_path_decision_request"]["status"] == "passed"
     assert report["gate_checks"]["model_path_decision_validation"]["status"] == "missing"
+    packet = report["next_action_packet"]
+    assert packet["gate"] == "model_path_decision_validation"
+    assert packet["required_inputs"] == [
+        "phase5_model_path_decision_request.json",
+        "filled_human_decision_record.json",
+        "phase5_model_path_decision_validation_output",
+    ]
+    assert packet["expected_artifacts"] == [
+        "phase5_model_path_decision_validation.json",
+    ]
+    assert any(
+        "phase5-validate-model-path-decision --request <phase5_model_path_decision_request.json>"
+        in command
+        for command in packet["safe_command_templates"]
+    )
+    assert any("decision_record_templates" in command for command in packet["safe_command_templates"])
+    assert "Do not treat unfilled template files as human approval." in packet["forbidden_actions"]
     assert report["ready_for_real_smoke"] is False
     assert report["safety_flags"]["submitted_remote_job"] is False
     assert "approval_status: `pending`" in decision_request_markdown.read_text(encoding="utf-8")

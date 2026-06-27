@@ -192,7 +192,7 @@ This still does not resolve the Phase 5 blocker. The validation output keeps `re
 
 `phase5-gate-audit` now reads the Phase 5 review/readiness artifact chain and reports the first missing or incomplete gate. It covers the model-path decision request, model-path decision validation, approved-decision readiness, config representation proposal, config representation decision validation, and Phase 5 readiness bundle.
 
-The command now supports `--output-dir`, writing `phase5_gate_audit.json` plus `phase5_gate_audit.md` for human review. The package includes a structured `next_action_packet` for the next missing gate, with required inputs, safe command templates, expected artifacts, and forbidden actions.
+The command now supports `--output-dir`, writing `phase5_gate_audit.json` plus `phase5_gate_audit.md` for human review. The package includes a structured `next_action_packet` for the next missing gate, with required inputs, safe command templates, expected artifacts, and forbidden actions. The packet now covers both the initial model-path decision-request creation and the following model-path decision validation handoff after a pending request exists, including the filled human decision-record input and the safe validation command template.
 
 It also supports `--smoke-run-id` with `--runs-root` to validate final recorded run evidence. A succeeded run bundle is classified as `validated_real_smoke_success`; a validated `landmark_worker_execution_failed` bundle is classified as `reviewed_real_execution_failure`; setup, validation, and runtime gate failures remain incomplete and report `next_missing_gate: real_smoke_result`.
 
