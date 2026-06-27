@@ -2144,6 +2144,94 @@ def test_phase5_committed_decision_record_status_current_has_markdown_sidecar() 
     assert "Fill exactly one copied decision record template" in markdown
 
 
+def test_phase5_verify_decision_record_status_accepts_current_package(tmp_path: Path) -> None:
+    status_path = (
+        REPO_ROOT
+        / "runs/needs_attention/phase_5_decision_record_status_current/phase5_decision_record_status.json"
+    )
+    output_path = tmp_path / "phase5_decision_record_status_verify.json"
+
+    result = run_cli(
+        "phase5-verify-decision-record-status",
+        "--status",
+        str(status_path),
+        "--output",
+        str(output_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["command"] == "phase5-verify-decision-record-status"
+    assert payload["status"] == "passed"
+    assert payload["record_count"] == 3
+    assert payload["ready_for_decision_validation"] is False
+    assert payload["ready_for_real_smoke"] is False
+    assert payload["write_config"] is False
+    assert payload["exports_applied"] is False
+    assert payload["executed_real_model"] is False
+    assert payload["executed_real_benchmark"] is False
+    assert payload["submitted_remote_job"] is False
+    assert payload["raw_outputs_written"] is False
+
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    assert report["status"] == "passed"
+    assert report["status_report_path"] == str(status_path)
+    assert report["status_report_status"] == "needs_attention"
+    assert report["checks"]["status_identity"]["status"] == "passed"
+    assert report["checks"]["non_executing_safety"]["status"] == "passed"
+    assert report["checks"]["source_paths"]["status"] == "passed"
+    assert report["checks"]["gate_audit_verification"]["status"] == "passed"
+    assert report["checks"]["markdown_sidecar"]["status"] == "passed"
+    assert report["markdown_sidecar"]["path"] == str(status_path.with_suffix(".md"))
+    assert report["gate_audit_verification"]["status"] == "passed"
+    assert report["source_paths"]["request_path"]["status"] == "passed"
+    assert report["source_paths"]["records_dir"]["status"] == "passed"
+    assert report["source_paths"]["record_files"]["status"] == "passed"
+
+
+def test_phase5_verify_decision_record_status_rejects_stale_markdown_sidecar(tmp_path: Path) -> None:
+    status_path = (
+        REPO_ROOT
+        / "runs/needs_attention/phase_5_decision_record_status_current/phase5_decision_record_status.json"
+    )
+    copied_status_path = tmp_path / "phase5_decision_record_status.json"
+    copied_markdown_path = tmp_path / "phase5_decision_record_status.md"
+    output_path = tmp_path / "phase5_decision_record_status_verify.json"
+    _write_json(copied_status_path, json.loads(status_path.read_text(encoding="utf-8")))
+    copied_markdown_path.write_text(
+        status_path.with_suffix(".md").read_text(encoding="utf-8").replace(
+            "filled_candidate_count: `0`",
+            "filled_candidate_count: `1`",
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_cli(
+        "phase5-verify-decision-record-status",
+        "--status",
+        str(copied_status_path),
+        "--output",
+        str(output_path),
+    )
+
+    assert result.returncode == 1, result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["command"] == "phase5-verify-decision-record-status"
+    assert payload["status"] == "failed"
+    assert payload["ready_for_real_smoke"] is False
+    assert payload["write_config"] is False
+    assert payload["exports_applied"] is False
+
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    assert report["status"] == "failed"
+    assert report["checks"]["markdown_sidecar"]["status"] == "failed"
+    assert report["markdown_sidecar"]["status"] == "failed"
+    assert report["markdown_sidecar"]["path"] == str(copied_markdown_path)
+    assert "filled_candidate_count" in report["markdown_sidecar"]["summary"]
+    assert report["checks"]["source_paths"]["status"] == "passed"
+    assert report["checks"]["non_executing_safety"]["status"] == "passed"
+
+
 def test_phase5_committed_decision_record_templates_are_unfilled_handoff_files() -> None:
     artifact_dir = REPO_ROOT / "runs/needs_attention/phase_5_model_path_decision_request"
     decision_request_path = artifact_dir / "phase5_model_path_decision_request.json"

@@ -27,6 +27,7 @@ from stable_core.validation.phase5_readiness import (
     inspect_phase5_model_path_decision_records,
     validate_phase5_config_representation_decision,
     validate_phase5_model_path_decision,
+    verify_phase5_decision_record_status_package,
     verify_phase5_gate_audit_package,
 )
 from stable_core.validation.preflight import run_preflight
@@ -181,6 +182,13 @@ def build_parser() -> argparse.ArgumentParser:
     phase5_decision_record_status_parser.add_argument("--audit", default=None)
     phase5_decision_record_status_parser.add_argument("--output", default=None)
     phase5_decision_record_status_parser.add_argument("--output-dir", default=None)
+
+    phase5_verify_decision_record_status_parser = subparsers.add_parser(
+        "phase5-verify-decision-record-status",
+        help="Verify a recorded Phase 5 decision-record status package without approving or executing it.",
+    )
+    phase5_verify_decision_record_status_parser.add_argument("--status", required=True)
+    phase5_verify_decision_record_status_parser.add_argument("--output", default=None)
 
     phase5_approved_decision_readiness_parser = subparsers.add_parser(
         "phase5-approved-decision-readiness",
@@ -531,6 +539,34 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "gate_audit_verification_status": report["gate_audit_verification_status"],
                     "gate_audit_next_missing_gate": report["gate_audit_next_missing_gate"],
                     "gate_audit_ready_for_decision_validation": report["gate_audit_ready_for_decision_validation"],
+                    "ready_for_decision_validation": report["ready_for_decision_validation"],
+                    "ready_for_real_smoke": report["ready_for_real_smoke"],
+                    "write_config": report["write_config"],
+                    "exports_applied": report["exports_applied"],
+                    **safety_flags,
+                },
+                ensure_ascii=False,
+            )
+        )
+        return _exit_code(str(report["status"]))
+    if args.command == "phase5-verify-decision-record-status":
+        try:
+            report = verify_phase5_decision_record_status_package(
+                status_path=args.status,
+                output=args.output,
+            )
+        except Exception as exc:
+            print(json.dumps({"command": "phase5-verify-decision-record-status", "status": "failed", "error": str(exc)}, ensure_ascii=False))
+            return 1
+        safety_flags = report["safety_flags"]
+        print(
+            json.dumps(
+                {
+                    "command": "phase5-verify-decision-record-status",
+                    "status": report["status"],
+                    "status_report_path": report["status_report_path"],
+                    "status_report_status": report["status_report_status"],
+                    "record_count": report["record_count"],
                     "ready_for_decision_validation": report["ready_for_decision_validation"],
                     "ready_for_real_smoke": report["ready_for_real_smoke"],
                     "write_config": report["write_config"],

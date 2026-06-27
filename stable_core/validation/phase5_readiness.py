@@ -659,6 +659,51 @@ def verify_phase5_gate_audit_package(
     return report
 
 
+def verify_phase5_decision_record_status_package(
+    *,
+    status_path: str | Path,
+    output: str | Path | None = None,
+) -> dict[str, Any]:
+    path = Path(status_path)
+    loaded = json.loads(path.read_text(encoding="utf-8"))
+    status_report = loaded if isinstance(loaded, dict) else {}
+    source_path_checks = _verify_decision_record_status_source_paths(status_report)
+    gate_audit_verification = _verify_decision_record_status_gate_audit(status_report)
+    markdown_sidecar_check = _verify_decision_record_status_markdown_sidecar(path, status_report)
+    checks = {
+        "status_identity": _verify_decision_record_status_identity(status_report),
+        "non_executing_safety": _verify_decision_record_status_non_executing_safety(status_report),
+        "source_paths": _verify_decision_record_status_source_path_status(source_path_checks),
+        "gate_audit_verification": _verify_decision_record_status_gate_audit_status(gate_audit_verification),
+        "markdown_sidecar": markdown_sidecar_check,
+    }
+    status = _checks_status(checks)
+    report = {
+        "phase": "Phase 5",
+        "mode": "decision_record_status_verification",
+        "status": status,
+        "created_at": utc_now(),
+        "git_commit": current_git_commit(Path.cwd()),
+        "status_report_path": str(path),
+        "status_report_status": status_report.get("status"),
+        "ready_for_decision_validation": status_report.get("ready_for_decision_validation"),
+        "ready_for_real_smoke": status_report.get("ready_for_real_smoke"),
+        "write_config": status_report.get("write_config"),
+        "exports_applied": status_report.get("exports_applied"),
+        "safety_flags": status_report.get("safety_flags") if isinstance(status_report.get("safety_flags"), dict) else {},
+        "record_count": len(status_report.get("records", [])) if isinstance(status_report.get("records"), list) else 0,
+        "checks": checks,
+        "source_paths": source_path_checks,
+        "gate_audit_verification": gate_audit_verification,
+        "markdown_sidecar": markdown_sidecar_check,
+        "next_actions": _verify_decision_record_status_next_actions(status),
+        "do_not_continue_reason": _verify_decision_record_status_stop_reason(status, checks),
+    }
+    if output is not None:
+        write_json(Path(output), report)
+    return report
+
+
 def _readiness_status(checks: dict[str, dict[str, Any]], execution_authorization: dict[str, Any]) -> str:
     statuses = [str(check.get("status")) for check in checks.values()]
     execution_status = str(execution_authorization.get("status"))
@@ -1589,6 +1634,302 @@ def _verify_gate_audit_source_artifact_status(source_checks: dict[str, dict[str,
         "status": "passed",
         "summary": "All recorded source artifacts match current files.",
     }
+
+
+def _verify_decision_record_status_identity(status_report: dict[str, Any]) -> dict[str, Any]:
+    return _audit_required_conditions(
+        [
+            (status_report.get("phase") == "Phase 5", "Status report phase is Phase 5."),
+            (
+                status_report.get("mode") == "model_path_decision_record_status",
+                "Status report mode is model_path_decision_record_status.",
+            ),
+            (
+                status_report.get("status") in {"needs_attention", "passed", "failed"},
+                "Status report records a recognized status.",
+            ),
+        ],
+        "Decision-record status package identity is valid.",
+    )
+
+
+def _verify_decision_record_status_non_executing_safety(status_report: dict[str, Any]) -> dict[str, Any]:
+    safety_flags = status_report.get("safety_flags")
+    conditions = [
+        (status_report.get("ready_for_real_smoke") is False, "ready_for_real_smoke remains false."),
+        (status_report.get("write_config") is False, "write_config remains false."),
+        (status_report.get("exports_applied") is False, "exports_applied remains false."),
+        (isinstance(safety_flags, dict), "safety_flags is recorded as an object."),
+    ]
+    if isinstance(safety_flags, dict):
+        conditions.extend(
+            (safety_flags.get(name) is False, f"{name} remains false.")
+            for name in SAFETY_FLAGS
+        )
+    return _audit_required_conditions(
+        conditions,
+        "Decision-record status package preserves all non-executing safety flags.",
+    )
+
+
+def _verify_decision_record_status_source_paths(status_report: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    records = status_report.get("records")
+    records = records if isinstance(records, list) else []
+    checks = {
+        "request_path": _verify_existing_file_path(status_report.get("request_path"), "Request path"),
+        "records_dir": _verify_existing_dir_path(status_report.get("records_dir"), "Records directory"),
+        "record_files": _verify_decision_record_status_record_files(status_report.get("records_dir"), records),
+    }
+    gate_audit_path = status_report.get("gate_audit_path")
+    if _has_text(gate_audit_path):
+        checks["gate_audit_path"] = _verify_existing_file_path(gate_audit_path, "Gate audit path")
+    return checks
+
+
+def _verify_existing_file_path(raw_path: Any, label: str) -> dict[str, Any]:
+    if not _has_text(raw_path):
+        return {
+            "status": "failed",
+            "path": raw_path,
+            "summary": f"{label} is missing.",
+        }
+    path = Path(str(raw_path))
+    return {
+        "status": "passed" if path.is_file() else "failed",
+        "path": str(raw_path),
+        "exists": path.exists(),
+        "summary": f"{label} exists." if path.is_file() else f"{label} does not exist as a file.",
+    }
+
+
+def _verify_existing_dir_path(raw_path: Any, label: str) -> dict[str, Any]:
+    if not _has_text(raw_path):
+        return {
+            "status": "failed",
+            "path": raw_path,
+            "summary": f"{label} is missing.",
+        }
+    path = Path(str(raw_path))
+    return {
+        "status": "passed" if path.is_dir() else "failed",
+        "path": str(raw_path),
+        "exists": path.exists(),
+        "summary": f"{label} exists." if path.is_dir() else f"{label} does not exist as a directory.",
+    }
+
+
+def _verify_decision_record_status_record_files(records_dir: Any, records: list[Any]) -> dict[str, Any]:
+    recorded_paths = [
+        str(record.get("path"))
+        for record in records
+        if isinstance(record, dict) and _has_text(record.get("path"))
+    ]
+    recorded_path_set = set(recorded_paths)
+    missing_record_paths = sorted(path for path in recorded_path_set if not Path(path).is_file())
+    current_path_set: set[str] = set()
+    if _has_text(records_dir):
+        directory = Path(str(records_dir))
+        if directory.is_dir():
+            current_path_set = {str(path) for path in sorted(directory.glob("*.json")) if path.is_file()}
+    extra_current_paths = sorted(current_path_set - recorded_path_set)
+    omitted_current_paths = sorted(recorded_path_set - current_path_set)
+    failed_conditions: list[str] = []
+    if missing_record_paths:
+        failed_conditions.append(f"Recorded decision files are missing: {missing_record_paths}")
+    if extra_current_paths:
+        failed_conditions.append(f"Records directory contains unreported JSON files: {extra_current_paths}")
+    if omitted_current_paths:
+        failed_conditions.append(f"Recorded decision files are not present in records_dir: {omitted_current_paths}")
+    if failed_conditions:
+        return {
+            "status": "failed",
+            "recorded_paths": recorded_paths,
+            "current_paths": sorted(current_path_set),
+            "missing_record_paths": missing_record_paths,
+            "extra_current_paths": extra_current_paths,
+            "omitted_current_paths": omitted_current_paths,
+            "summary": failed_conditions[0],
+            "failed_conditions": failed_conditions,
+        }
+    return {
+        "status": "passed",
+        "recorded_paths": recorded_paths,
+        "current_paths": sorted(current_path_set),
+        "summary": "Recorded decision files match the current records directory.",
+    }
+
+
+def _verify_decision_record_status_source_path_status(source_checks: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    failed = [
+        f"{name}: {check.get('summary')}"
+        for name, check in source_checks.items()
+        if check.get("status") != "passed"
+    ]
+    if failed:
+        return {
+            "status": "failed",
+            "summary": failed[0],
+            "failed_conditions": failed,
+        }
+    return {
+        "status": "passed",
+        "summary": "Decision-record status source paths match current files.",
+    }
+
+
+def _verify_decision_record_status_gate_audit(status_report: dict[str, Any]) -> dict[str, Any]:
+    gate_audit_path = status_report.get("gate_audit_path")
+    if not _has_text(gate_audit_path):
+        return {
+            "status": "passed",
+            "verification_status": "not_provided",
+            "next_missing_gate": None,
+            "ready_for_decision_validation": status_report.get("gate_audit_ready_for_decision_validation"),
+            "summary": "No gate audit path was recorded.",
+        }
+    verification = verify_phase5_gate_audit_package(audit_path=str(gate_audit_path))
+    conditions = [
+        (
+            verification.get("status") == status_report.get("gate_audit_verification_status"),
+            "Gate audit verification status matches the recorded status report.",
+        ),
+        (
+            verification.get("next_missing_gate") == status_report.get("gate_audit_next_missing_gate"),
+            "Gate audit next missing gate matches the recorded status report.",
+        ),
+        (
+            verification.get("status") == "passed"
+            if status_report.get("gate_audit_ready_for_decision_validation") is True
+            else True,
+            "Gate audit readiness flag is consistent with a passed gate audit.",
+        ),
+    ]
+    consistency = _audit_required_conditions(
+        conditions,
+        "Gate audit verification matches the recorded decision-record status report.",
+    )
+    return {
+        **verification,
+        "status": consistency["status"],
+        "summary": consistency["summary"],
+        "failed_conditions": consistency.get("failed_conditions", []),
+        "recorded_verification_status": status_report.get("gate_audit_verification_status"),
+        "recorded_next_missing_gate": status_report.get("gate_audit_next_missing_gate"),
+        "recorded_ready_for_decision_validation": status_report.get("gate_audit_ready_for_decision_validation"),
+        "current_verification_status": verification.get("status"),
+        "current_next_missing_gate": verification.get("next_missing_gate"),
+    }
+
+
+def _verify_decision_record_status_gate_audit_status(verification: dict[str, Any]) -> dict[str, Any]:
+    if verification.get("status") != "passed":
+        return {
+            "status": "failed",
+            "summary": verification.get("summary", "Gate audit verification did not match the status package."),
+            "failed_conditions": verification.get("failed_conditions", []),
+        }
+    return {
+        "status": "passed",
+        "summary": "Gate audit verification matches the status package.",
+    }
+
+
+def _verify_decision_record_status_markdown_sidecar(status_path: Path, status_report: dict[str, Any]) -> dict[str, Any]:
+    markdown_path = status_path.with_suffix(".md")
+    if not markdown_path.exists():
+        return {
+            "status": "failed",
+            "path": str(markdown_path),
+            "exists": False,
+            "summary": "Markdown sidecar is missing.",
+            "failed_conditions": ["Markdown sidecar is missing."],
+        }
+    text = markdown_path.read_text(encoding="utf-8")
+    conditions = [
+        ("# Phase 5 Decision Record Status" in text, "Markdown sidecar title is present."),
+        (_markdown_field_matches(text, "Status", status_report.get("status")), "Markdown sidecar status matches JSON."),
+        (_markdown_field_matches(text, "request_path", status_report.get("request_path")), "Markdown sidecar request_path matches JSON."),
+        (_markdown_field_matches(text, "records_dir", status_report.get("records_dir")), "Markdown sidecar records_dir matches JSON."),
+        (_markdown_field_matches(text, "gate_audit_path", status_report.get("gate_audit_path")), "Markdown sidecar gate_audit_path matches JSON."),
+        (
+            _markdown_field_matches(text, "ready_for_decision_validation", status_report.get("ready_for_decision_validation")),
+            "Markdown sidecar ready_for_decision_validation matches JSON.",
+        ),
+        (
+            _markdown_field_matches(text, "ready_for_real_smoke", status_report.get("ready_for_real_smoke")),
+            "Markdown sidecar ready_for_real_smoke matches JSON.",
+        ),
+        (_markdown_field_matches(text, "write_config", status_report.get("write_config")), "Markdown sidecar write_config matches JSON."),
+        (
+            _markdown_field_matches(text, "exports_applied", status_report.get("exports_applied")),
+            "Markdown sidecar exports_applied matches JSON.",
+        ),
+        (
+            f"filled_candidate_count: `{status_report.get('filled_candidate_count')}`" in text,
+            "Markdown sidecar filled_candidate_count matches JSON.",
+        ),
+        (
+            f"template_unfilled_count: `{status_report.get('template_unfilled_count')}`" in text,
+            "Markdown sidecar template_unfilled_count matches JSON.",
+        ),
+        (
+            f"invalid_candidate_count: `{status_report.get('invalid_candidate_count')}`" in text,
+            "Markdown sidecar invalid_candidate_count matches JSON.",
+        ),
+        (
+            _markdown_field_matches(text, "gate_audit_verification_status", status_report.get("gate_audit_verification_status")),
+            "Markdown sidecar gate_audit_verification_status matches JSON.",
+        ),
+        (
+            _markdown_field_matches(text, "gate_audit_next_missing_gate", status_report.get("gate_audit_next_missing_gate")),
+            "Markdown sidecar gate_audit_next_missing_gate matches JSON.",
+        ),
+    ]
+    records = status_report.get("records", [])
+    if isinstance(records, list):
+        for record in records:
+            if not isinstance(record, dict) or not _has_text(record.get("path")):
+                continue
+            expected_line = f"- {Path(str(record['path'])).name}: `{record.get('classification')}` / `{record.get('status')}`"
+            conditions.append(
+                (
+                    expected_line in text,
+                    f"Markdown sidecar record line for `{Path(str(record['path'])).name}` matches JSON.",
+                )
+            )
+    next_actions = status_report.get("next_actions", [])
+    if isinstance(next_actions, list):
+        for action in next_actions:
+            if _has_text(action):
+                conditions.append((f"- {action}" in text, "Markdown sidecar next action matches JSON."))
+    result = _audit_required_conditions(
+        conditions,
+        "Markdown sidecar matches recorded decision-record status JSON.",
+    )
+    return {
+        **result,
+        "path": str(markdown_path),
+        "exists": True,
+    }
+
+
+def _verify_decision_record_status_next_actions(status: str) -> list[str]:
+    if status == "passed":
+        return ["Use this decision-record status package only for the recorded source artifact revisions."]
+    return ["Regenerate the decision-record status package before using it for human decision validation."]
+
+
+def _verify_decision_record_status_stop_reason(status: str, checks: dict[str, dict[str, Any]]) -> str:
+    if status == "passed":
+        return "Decision-record status package provenance and Markdown checks passed."
+    failed = [
+        f"{name}: {check.get('summary')}"
+        for name, check in checks.items()
+        if check.get("status") == "failed"
+    ]
+    if failed:
+        return failed[0]
+    return "Decision-record status package verification needs attention."
 
 
 def _verify_gate_audit_markdown_sidecar(audit_path: Path, audit: dict[str, Any]) -> dict[str, Any]:
