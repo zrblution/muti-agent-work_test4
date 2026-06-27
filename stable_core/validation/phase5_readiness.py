@@ -176,6 +176,67 @@ def build_phase5_explicit_model_path_probe(
     return report
 
 
+def build_phase5_model_path_decision_request(
+    *,
+    model_id: str,
+    benchmark_id: str,
+    model_path: str | Path,
+    benchmark_root: str | Path,
+    output_dir: str | Path,
+) -> dict[str, Any]:
+    probe = build_phase5_explicit_model_path_probe(
+        model_id=model_id,
+        benchmark_id=benchmark_id,
+        model_path=model_path,
+        benchmark_root=benchmark_root,
+    )
+    bundle = {
+        "phase": "Phase 5",
+        "mode": "model_path_decision_request",
+        "status": "needs_attention",
+        "approval_status": "pending",
+        "created_at": utc_now(),
+        "git_commit": current_git_commit(Path.cwd()),
+        "target": {
+            "model_id": model_id,
+            "benchmark_id": benchmark_id,
+            "model_path": str(Path(model_path)),
+            "benchmark_root": str(Path(benchmark_root)),
+        },
+        "probe": probe,
+        "requested_decision": {
+            "question": "Approve this exact model path as the Phase 5 Qwen3-VL path, reject it, or provide the base model root.",
+            "allowed_decisions": [
+                "approve_variant_path",
+                "reject_variant_path",
+                "provide_base_model_root",
+            ],
+            "approval_record_template": {
+                "decision": None,
+                "approver": None,
+                "approved_model_path": str(Path(model_path)),
+                "approved_benchmark_root": str(Path(benchmark_root)),
+                "rationale": None,
+            },
+        },
+        "safety_flags": dict(SAFETY_FLAGS),
+        "do_not_continue_reason": (
+            "Human approval is pending for a non-contract model path."
+            if probe.get("requires_human_approval")
+            else "Human review is pending before this model path is used for execution."
+        ),
+        "next_actions": [
+            "Review the exact model-path probe and decide whether this path is an approved Phase 5 target.",
+            "Do not open process submission or run the real smoke until the decision is recorded and config representation is reviewed.",
+        ],
+    }
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    write_json(output_path / "phase5_model_path_decision_request.json", bundle)
+    write_text(output_path / "phase5_model_path_decision_request.md", _model_path_decision_request_markdown(bundle))
+    return bundle
+
+
 def _readiness_status(checks: dict[str, dict[str, Any]], execution_authorization: dict[str, Any]) -> str:
     statuses = [str(check.get("status")) for check in checks.values()]
     execution_status = str(execution_authorization.get("status"))
@@ -372,4 +433,45 @@ def _markdown_summary(bundle: dict[str, Any]) -> str:
         + "\n\n"
         "## Stop Reason\n\n"
         f"{bundle.get('do_not_continue_reason') or 'None'}\n"
+    )
+
+
+def _model_path_decision_request_markdown(bundle: dict[str, Any]) -> str:
+    target = bundle["target"]
+    probe = bundle["probe"]
+    contract = probe["configured_root_contract"]
+    safety_lines = [
+        f"- {name}: `{str(value).lower()}`"
+        for name, value in bundle["safety_flags"].items()
+    ]
+    decision_lines = [f"- `{decision}`" for decision in bundle["requested_decision"]["allowed_decisions"]]
+    check_lines = [
+        f"- {name}: `{payload.get('status')}`"
+        for name, payload in probe["checks"].items()
+    ]
+    return (
+        "# Phase 5 Model Path Decision Request\n\n"
+        f"Status: `{bundle['status']}`\n\n"
+        f"approval_status: `{bundle['approval_status']}`\n\n"
+        "## Target\n\n"
+        f"- model: `{target['model_id']}`\n"
+        f"- benchmark: `{target['benchmark_id']}`\n"
+        f"- model_path: `{target['model_path']}`\n"
+        f"- benchmark_root: `{target['benchmark_root']}`\n\n"
+        "## Probe\n\n"
+        f"- status: `{probe['status']}`\n"
+        f"- requires_human_approval: `{str(probe['requires_human_approval']).lower()}`\n"
+        f"- configured_model_dir: `{contract.get('model_dir')}`\n"
+        f"- contract_satisfied: `{str(contract.get('satisfied')).lower()}`\n\n"
+        "## Checks\n\n"
+        + "\n".join(check_lines)
+        + "\n\n"
+        "## Requested Decision\n\n"
+        + "\n".join(decision_lines)
+        + "\n\n"
+        "## Safety Flags\n\n"
+        + "\n".join(safety_lines)
+        + "\n\n"
+        "## Stop Reason\n\n"
+        f"{bundle['do_not_continue_reason']}\n"
     )

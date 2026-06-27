@@ -154,6 +154,12 @@ The command marks non-contract paths with `requires_human_approval: true`, resto
 
 Server verification passed for `/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours` with the POPE benchmark root `/home/vepfs/data/work1/auto-research-test1/benchmarks`. That proves this particular variant path and benchmark root can pass no-load validation together. It remains blocked from real execution until a human explicitly approves using this variant and the config representation is reviewed.
 
+## Model Path Decision Request Follow-Up
+
+`phase5-model-path-decision-request` now wraps an explicit model-path probe into a pending review packet. The output JSON and Markdown record `approval_status: pending`, the allowed human decisions, an approval-record template, the probe evidence, and false execution safety flags.
+
+This does not resolve the Phase 5 blocker. The command does not approve the variant, mutate config, read `.env`, load weights, run generation, submit jobs, run benchmarks, or write raw outputs. It only creates the artifact needed for a human to approve a variant path, reject it, or provide a base model root that satisfies the existing configured-root contract.
+
 ## Worker Execution Loop Follow-Up
 
 The whitelisted worker now calls the model and benchmark runtime methods after validation and adapter runtime gates pass. The success path writes raw outputs, normalized outputs, metrics, failure cases, experiment summary, reproducibility notes, run manifest, and artifact manifest. It refuses to overwrite existing `raw_outputs.jsonl`.

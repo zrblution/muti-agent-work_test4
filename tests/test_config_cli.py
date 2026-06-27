@@ -566,6 +566,82 @@ def test_phase5_probe_explicit_model_path_restores_existing_environment(monkeypa
     assert report["safety_flags"]["write_config"] is False
 
 
+def test_phase5_model_path_decision_request_cli_writes_pending_review_packet(tmp_path: Path) -> None:
+    model_path = tmp_path / "variant_models" / "Qwen3-VL-2B-3epoch" / "Ours"
+    model_path.mkdir(parents=True)
+    (model_path / "config.json").write_text("{}\n", encoding="utf-8")
+    (model_path / "model.safetensors").write_text("weight placeholder\n", encoding="utf-8")
+    benchmark_root = tmp_path / "benchmarks"
+    benchmark_path = benchmark_root / "POPE"
+    benchmark_path.mkdir(parents=True)
+    (benchmark_path / "samples.jsonl").write_text("{}\n", encoding="utf-8")
+    fake_runtime_path = _write_fake_qwen_runtime_modules(tmp_path / "fake_qwen_runtime")
+    output_dir = tmp_path / "decision_request"
+    env = os.environ.copy()
+    env.pop("REMOTE_MODEL_ROOT", None)
+    env.pop("REMOTE_BENCHMARK_ROOT", None)
+    env["PYTHONPATH"] = os.pathsep.join(
+        item for item in [fake_runtime_path, os.environ.get("PYTHONPATH", "")] if item
+    )
+
+    result = run_cli(
+        "phase5-model-path-decision-request",
+        "--model",
+        "qwen3_vl_2b_instruct",
+        "--benchmark",
+        "pope",
+        "--model-path",
+        str(model_path),
+        "--benchmark-root",
+        str(benchmark_root),
+        "--output-dir",
+        str(output_dir),
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    report = json.loads((output_dir / "phase5_model_path_decision_request.json").read_text(encoding="utf-8"))
+    markdown = (output_dir / "phase5_model_path_decision_request.md").read_text(encoding="utf-8")
+    assert payload["command"] == "phase5-model-path-decision-request"
+    assert payload["status"] == "needs_attention"
+    assert payload["approval_status"] == "pending"
+    assert report["status"] == "needs_attention"
+    assert report["approval_status"] == "pending"
+    assert report["requested_decision"]["allowed_decisions"] == [
+        "approve_variant_path",
+        "reject_variant_path",
+        "provide_base_model_root",
+    ]
+    assert report["probe"]["status"] == "passed"
+    assert report["probe"]["requires_human_approval"] is True
+    assert report["safety_flags"]["write_config"] is False
+    assert report["safety_flags"]["executed_real_model"] is False
+    assert "approval_status: `pending`" in markdown
+    assert "raw_outputs.jsonl" not in {path.name for path in output_dir.iterdir()}
+
+
+def test_phase5_model_path_decision_request_restores_existing_environment(monkeypatch, tmp_path: Path) -> None:
+    model_path = tmp_path / "variant"
+    benchmark_root = tmp_path / "benchmarks"
+    output_dir = tmp_path / "decision_request"
+    monkeypatch.setenv("REMOTE_MODEL_ROOT", "original-model-root")
+    monkeypatch.setenv("REMOTE_BENCHMARK_ROOT", "original-benchmark-root")
+
+    report = phase5_module.build_phase5_model_path_decision_request(
+        model_id="qwen3_vl_2b_instruct",
+        benchmark_id="pope",
+        model_path=model_path,
+        benchmark_root=benchmark_root,
+        output_dir=output_dir,
+    )
+
+    assert report["approval_status"] == "pending"
+    assert os.environ["REMOTE_MODEL_ROOT"] == "original-model-root"
+    assert os.environ["REMOTE_BENCHMARK_ROOT"] == "original-benchmark-root"
+    assert report["safety_flags"]["write_config"] is False
+
+
 def test_phase5_discover_model_candidates_finds_configured_root_candidate(tmp_path: Path) -> None:
     model_root = tmp_path / "candidate_models"
     model_path = model_root / "Qwen3-VL-2B-Instruct"

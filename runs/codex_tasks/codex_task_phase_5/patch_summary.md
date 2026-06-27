@@ -42,6 +42,7 @@ This phase now contains two related records:
 - a follow-up discovery pruning fix so output-like result directories, configured model directories, and HuggingFace cache bases do not consume traversal budget after classification.
 - a follow-up model-like variant classifier so qwen-like directories with `config.json` are surfaced for review without becoming usable configured roots.
 - a follow-up explicit model-path probe for review-only variant validation without requiring `REMOTE_MODEL_ROOT`.
+- a follow-up model-path decision request packet that records a pending human decision for an exact variant path without approving, mutating config, or executing anything.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -107,6 +108,8 @@ This phase now contains two related records:
 - `stable_core.cli phase5-discover-model-candidates`
 - `stable_core.validation.phase5_readiness.build_phase5_explicit_model_path_probe`
 - `stable_core.cli phase5-probe-explicit-model-path`
+- `stable_core.validation.phase5_readiness.build_phase5_model_path_decision_request`
+- `stable_core.cli phase5-model-path-decision-request`
 
 ## Gate Commands
 
@@ -248,6 +251,9 @@ This phase now contains two related records:
 - `phase5-probe-explicit-model-path` with a temporary qwen-like variant path and POPE benchmark root
   - status: initially failed because the CLI and builder did not exist, then passed after adding the review-only exact-path probe
   - purpose: validate exact variant paths without `REMOTE_MODEL_ROOT`, while preserving `requires_human_approval: true`, environment restoration, and no execution
+- `phase5-model-path-decision-request` with a temporary qwen-like variant path and POPE benchmark root
+  - status: initially failed because the CLI and builder did not exist, then passed after adding the pending decision-request packet
+  - purpose: generate JSON and Markdown review artifacts with `approval_status: pending`, allowed decisions, probe evidence, environment restoration, and all execution safety flags false
 - server `phase5-probe-explicit-model-path` for `/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours` plus `/home/vepfs/data/work1/auto-research-test1/benchmarks`
   - status: `passed`
   - output: `/tmp/phase5_explicit_model_path_probe_server.json`
