@@ -10,7 +10,7 @@ from experiments.fake.evaluator import MODEL_ADAPTERS, validate_benchmark, valid
 from stable_core.config import validate_config
 from stable_core.runner.remote import RemoteRunner
 from stable_core.storage.run_validator import validate_run_artifacts
-from stable_core.storage.run_directory import current_git_commit, utc_now, write_json, write_text
+from stable_core.storage.run_directory import current_git_commit, sha256_file, utc_now, write_json, write_text
 from stable_core.validation.inventory_discovery import discover_benchmark_inventory, discover_model_inventory
 from stable_core.validation.preflight import REPO_ROOT, parse_simple_yaml
 
@@ -506,6 +506,16 @@ def build_phase5_gate_audit(
         "created_at": utc_now(),
         "git_commit": current_git_commit(Path.cwd()),
         "target": target,
+        "source_artifacts": _gate_audit_source_artifacts(
+            {
+                "model_path_decision_request": decision_request_path,
+                "model_path_decision_validation": decision_validation_path,
+                "approved_decision_readiness": approved_readiness_path,
+                "config_representation_proposal": config_proposal_path,
+                "config_representation_decision": config_decision_validation_path,
+                "phase5_readiness": readiness_path,
+            }
+        ),
         "gate_checks": gate_checks,
         "next_missing_gate": next_missing_gate,
         "safety_flags": dict(SAFETY_FLAGS),
@@ -1160,6 +1170,22 @@ def _audit_run_manifest_target(manifest: dict[str, Any], target: dict[str, Any])
     )
 
 
+def _gate_audit_source_artifacts(paths: dict[str, str | Path | None]) -> dict[str, dict[str, Any]]:
+    artifacts: dict[str, dict[str, Any]] = {}
+    for name, value in paths.items():
+        if value is None:
+            continue
+        path = Path(value)
+        artifact: dict[str, Any] = {
+            "path": str(path),
+            "exists": path.exists(),
+        }
+        if path.is_file():
+            artifact["sha256"] = sha256_file(path)
+        artifacts[name] = artifact
+    return artifacts
+
+
 def _audit_required_conditions(conditions: list[tuple[bool, str]], success_summary: str) -> dict[str, Any]:
     failed = [summary for passed, summary in conditions if not passed]
     if failed:
@@ -1474,6 +1500,7 @@ def _gate_audit_stop_reason(next_missing_gate: str, status: str, terminal_outcom
 def _gate_audit_markdown(report: dict[str, Any]) -> str:
     target = report["target"]
     next_action_packet = report.get("next_action_packet", {})
+    source_artifacts = report.get("source_artifacts", {})
     gate_lines = [
         f"- {name}: `{payload.get('status')}`"
         for name, payload in report["gate_checks"].items()
@@ -1499,6 +1526,21 @@ def _gate_audit_markdown(report: dict[str, Any]) -> str:
         f"- {value}"
         for value in next_action_packet.get("forbidden_actions", [])
     ]
+    source_lines: list[str] = []
+    if isinstance(source_artifacts, dict):
+        for name, artifact in source_artifacts.items():
+            if not isinstance(artifact, dict):
+                continue
+            path = artifact.get("path")
+            exists = str(artifact.get("exists")).lower()
+            sha256 = artifact.get("sha256")
+            if sha256:
+                source_lines.append(f"- {name}: `{path}` sha256 `{sha256}`")
+            else:
+                source_lines.append(f"- {name}: `{path}` exists `{exists}`")
+    source_section = ""
+    if source_lines:
+        source_section = "## Source Artifacts\n\n" + "\n".join(source_lines) + "\n\n"
     return (
         "# Phase 5 Gate Audit\n\n"
         f"Status: `{report['status']}`\n\n"
@@ -1518,7 +1560,8 @@ def _gate_audit_markdown(report: dict[str, Any]) -> str:
         "## Safety Flags\n\n"
         + "\n".join(safety_lines)
         + "\n\n"
-        "## Next Actions\n\n"
+        + source_section
+        + "## Next Actions\n\n"
         + "\n".join(next_action_lines)
         + "\n\n"
         "## Next Action Packet\n\n"

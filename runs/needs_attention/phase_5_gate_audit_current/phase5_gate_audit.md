@@ -37,6 +37,10 @@ phase5_terminal_outcome: `none`
 - raw_outputs_written: `false`
 - write_config: `false`
 
+## Source Artifacts
+
+- model_path_decision_request: `runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json` sha256 `f574e3f9235878c4a67ff4b2157c1a6a2806f0e14501ebd367a6ddc33928c085`
+
 ## Next Actions
 
 - Provide or fix the `model_path_decision_validation` artifact before continuing toward the Phase 5 real smoke.

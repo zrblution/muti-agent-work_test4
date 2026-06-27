@@ -6,7 +6,7 @@ from pathlib import Path
 
 from stable_core import config as config_module
 from stable_core.runner.remote import LANDMARK_SMOKE_ARTIFACT_CONTRACT
-from stable_core.storage.run_directory import artifact_manifest_for
+from stable_core.storage.run_directory import artifact_manifest_for, sha256_file
 from stable_core.validation import phase5_readiness as phase5_module
 
 
@@ -1561,6 +1561,10 @@ def test_phase5_committed_current_gate_audit_points_to_decision_validation() -> 
     audit_dir = REPO_ROOT / "runs/needs_attention/phase_5_gate_audit_current"
     audit_path = audit_dir / "phase5_gate_audit.json"
     audit_markdown_path = audit_dir / "phase5_gate_audit.md"
+    decision_request_path = (
+        REPO_ROOT
+        / "runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json"
+    )
 
     assert audit_path.exists()
     assert audit_markdown_path.exists()
@@ -1578,6 +1582,11 @@ def test_phase5_committed_current_gate_audit_points_to_decision_validation() -> 
     assert report["safety_flags"]["executed_real_benchmark"] is False
     assert report["safety_flags"]["submitted_remote_job"] is False
     assert report["safety_flags"]["raw_outputs_written"] is False
+    source_artifact = report["source_artifacts"]["model_path_decision_request"]
+    assert source_artifact["path"] == str(
+        Path("runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json")
+    )
+    assert source_artifact["sha256"] == sha256_file(decision_request_path)
 
     packet = report["next_action_packet"]
     assert packet["gate"] == "model_path_decision_validation"
@@ -1596,6 +1605,9 @@ def test_phase5_committed_current_gate_audit_points_to_decision_validation() -> 
     )
     assert "Do not treat unfilled template files as human approval." in packet["forbidden_actions"]
     assert "next_missing_gate: `model_path_decision_validation`" in markdown
+    assert "## Source Artifacts" in markdown
+    assert "- model_path_decision_request:" in markdown
+    assert source_artifact["sha256"] in markdown
     assert "- gate: `model_path_decision_validation`" in markdown
     assert "phase5-validate-model-path-decision --request <phase5_model_path_decision_request.json>" in markdown
     assert "raw_outputs.jsonl" not in {path.name for path in audit_dir.iterdir()}
