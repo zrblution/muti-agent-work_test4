@@ -524,6 +524,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "filled_candidate_count": report["filled_candidate_count"],
                     "template_unfilled_count": report["template_unfilled_count"],
                     "invalid_candidate_count": report["invalid_candidate_count"],
+                    "filled_candidate_decision_counts": report["filled_candidate_decision_counts"],
+                    "ambiguous_decisions": report["ambiguous_decisions"],
                     "gate_audit_verification_status": report["gate_audit_verification_status"],
                     "gate_audit_next_missing_gate": report["gate_audit_next_missing_gate"],
                     "gate_audit_ready_for_decision_validation": report["gate_audit_ready_for_decision_validation"],

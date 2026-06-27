@@ -316,6 +316,10 @@ def inspect_phase5_model_path_decision_records(
     filled_candidates = [record for record in records if record.get("classification") == "filled_candidate"]
     template_unfilled = [record for record in records if record.get("classification") == "template_unfilled"]
     invalid_candidates = [record for record in records if record.get("classification") == "invalid_candidate"]
+    filled_candidate_decision_counts = _decision_record_counts(filled_candidates)
+    ambiguous_decisions = sorted(
+        decision for decision, count in filled_candidate_decision_counts.items() if count > 1
+    )
     gate_audit_verification = verify_phase5_gate_audit_package(audit_path=audit_path) if audit_path is not None else None
     gate_audit_check = _decision_record_gate_audit_check(gate_audit_verification, request_file)
     ready_for_decision_validation = (
@@ -343,6 +347,8 @@ def inspect_phase5_model_path_decision_records(
         "filled_candidate_count": len(filled_candidates),
         "template_unfilled_count": len(template_unfilled),
         "invalid_candidate_count": len(invalid_candidates),
+        "filled_candidate_decision_counts": filled_candidate_decision_counts,
+        "ambiguous_decisions": ambiguous_decisions,
         "gate_audit_path": str(Path(audit_path)) if audit_path is not None else None,
         "gate_audit_verification_status": gate_audit_check["verification_status"],
         "gate_audit_next_missing_gate": gate_audit_check["next_missing_gate"],
@@ -877,6 +883,16 @@ def _decision_record_gate_audit_check(
         "ready_for_decision_validation": ready,
         "summary": "Gate audit is current for model-path decision validation." if ready else "; ".join(failed_reasons),
     }
+
+
+def _decision_record_counts(records: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for record in records:
+        decision = str(record.get("decision", "")).strip()
+        if not decision:
+            continue
+        counts[decision] = counts.get(decision, 0) + 1
+    return dict(sorted(counts.items()))
 
 
 def _decision_record_status_next_actions(

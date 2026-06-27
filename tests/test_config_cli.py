@@ -1911,6 +1911,8 @@ def test_phase5_decision_record_status_rejects_multiple_filled_candidates(tmp_pa
     assert payload["status"] == "failed"
     assert payload["filled_candidate_count"] == 2
     assert payload["invalid_candidate_count"] == 0
+    assert payload["filled_candidate_decision_counts"] == {"approve_variant_path": 2}
+    assert payload["ambiguous_decisions"] == ["approve_variant_path"]
     assert payload["ready_for_decision_validation"] is False
     assert payload["ready_for_real_smoke"] is False
     assert payload["write_config"] is False
@@ -1923,6 +1925,8 @@ def test_phase5_decision_record_status_rejects_multiple_filled_candidates(tmp_pa
     report = json.loads(output_path.read_text(encoding="utf-8"))
     assert report["status"] == "failed"
     assert report["selected_decision_record_path"] is None
+    assert report["filled_candidate_decision_counts"] == {"approve_variant_path": 2}
+    assert report["ambiguous_decisions"] == ["approve_variant_path"]
     assert {record["classification"] for record in report["records"]} == {"filled_candidate"}
     assert "Keep exactly one" in " ".join(report["next_actions"])
 
