@@ -323,7 +323,7 @@ def inspect_phase5_model_path_decision_records(
         and not invalid_candidates
         and gate_audit_check["ready_for_decision_validation"]
     )
-    if gate_audit_check["status"] == "failed" or invalid_candidates:
+    if gate_audit_check["status"] == "failed" or invalid_candidates or len(filled_candidates) > 1:
         status = "failed"
     elif ready_for_decision_validation:
         status = "passed"
