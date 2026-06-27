@@ -174,6 +174,12 @@ This still does not resolve the Phase 5 blocker without an actual human decision
 
 The bundle deliberately keeps `ready_for_real_smoke: false`. A human approval record alone is not enough to run; config representation, safe path probes, `phase5-readiness`, and remote/GPU/process-submission gates still need separate review.
 
+## Config Representation Proposal Follow-Up
+
+`phase5-config-representation-proposal` now produces a read-only proposal for representing approved paths. It reports whether the approved model path satisfies the current `${REMOTE_MODEL_ROOT}/Qwen3-VL-2B-Instruct` contract, proposes the benchmark root env value, and lists reviewable model representation options.
+
+The proposal does not edit `project_config`, export env vars, read `.env`, open gates, load weights, run generation, submit jobs, run benchmarks, or write raw outputs. It exists to prevent a validated approval from turning into an implicit config mutation.
+
 ## Worker Execution Loop Follow-Up
 
 The whitelisted worker now calls the model and benchmark runtime methods after validation and adapter runtime gates pass. The success path writes raw outputs, normalized outputs, metrics, failure cases, experiment summary, reproducibility notes, run manifest, and artifact manifest. It refuses to overwrite existing `raw_outputs.jsonl`.

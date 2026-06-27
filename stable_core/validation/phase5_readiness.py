@@ -330,6 +330,54 @@ def build_phase5_approved_decision_readiness(
     return bundle
 
 
+def build_phase5_config_representation_proposal(
+    *,
+    approved_readiness_path: str | Path,
+    output_dir: str | Path,
+) -> dict[str, Any]:
+    readiness_file = Path(approved_readiness_path)
+    readiness = json.loads(readiness_file.read_text(encoding="utf-8"))
+    target = readiness.get("target", {})
+    approved_paths = readiness.get("approved_paths", {})
+    model_id = str(target.get("model_id", ""))
+    benchmark_id = str(target.get("benchmark_id", ""))
+    model_path = str(approved_paths.get("model_path", ""))
+    benchmark_root = str(approved_paths.get("benchmark_root", ""))
+    checks = _config_representation_checks(readiness, model_id, benchmark_id, model_path, benchmark_root)
+    status = "failed" if any(check.get("status") == "failed" for check in checks.values()) else "needs_attention"
+    bundle = {
+        "phase": "Phase 5",
+        "mode": "config_representation_proposal",
+        "status": status,
+        "approval_status": readiness.get("approval_status", "unknown"),
+        "ready_for_real_smoke": False,
+        "write_config": False,
+        "exports_applied": False,
+        "created_at": utc_now(),
+        "git_commit": current_git_commit(Path.cwd()),
+        "approved_readiness_path": str(readiness_file),
+        "target": {
+            "model_id": model_id,
+            "benchmark_id": benchmark_id,
+        },
+        "approved_paths": {
+            "model_path": model_path,
+            "benchmark_root": benchmark_root,
+        },
+        "proposed_env": _config_representation_env(model_id, benchmark_id, model_path, benchmark_root),
+        "representation_options": _config_representation_options(model_id, model_path),
+        "checks": checks,
+        "safety_flags": dict(SAFETY_FLAGS),
+        "next_actions": _config_representation_next_actions(status),
+        "do_not_continue_reason": _config_representation_stop_reason(status),
+    }
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    write_json(output_path / "phase5_config_representation_proposal.json", bundle)
+    write_text(output_path / "phase5_config_representation_proposal.md", _config_representation_markdown(bundle))
+    return bundle
+
+
 def _readiness_status(checks: dict[str, dict[str, Any]], execution_authorization: dict[str, Any]) -> str:
     statuses = [str(check.get("status")) for check in checks.values()]
     execution_status = str(execution_authorization.get("status"))
@@ -494,6 +542,115 @@ def _approved_decision_readiness_stop_reason(status: str) -> str:
     if status == "failed":
         return "The approved-decision readiness bundle could not validate the human decision report."
     return "The approved path still needs config representation review and gated readiness before any real smoke."
+
+
+def _config_representation_checks(
+    readiness: dict[str, Any],
+    model_id: str,
+    benchmark_id: str,
+    model_path: str,
+    benchmark_root: str,
+) -> dict[str, dict[str, str]]:
+    model_configured_dir = _configured_model_dir(model_id)
+    model_contract_satisfied = bool(model_path) and model_configured_dir is not None and Path(model_path).name == model_configured_dir
+    return {
+        "approved_readiness": _check(
+            readiness.get("mode") == "approved_model_path_readiness"
+            and readiness.get("approval_status") == "approved"
+            and readiness.get("status") == "needs_attention",
+            "Approved readiness bundle must be valid and still non-executing.",
+        ),
+        "approved_model_path_present": _check(
+            bool(model_path),
+            "Approved model path must be present before proposing config representation.",
+        ),
+        "approved_benchmark_root_present": _check(
+            bool(benchmark_root),
+            "Approved benchmark root must be present before proposing config representation.",
+        ),
+        "model_configured_root_contract": {
+            "status": "passed" if model_contract_satisfied else "needs_review",
+            "summary": (
+                "Approved model path already satisfies the configured root/subdirectory contract."
+                if model_contract_satisfied
+                else "Approved model path does not satisfy the current configured root/subdirectory contract."
+            ),
+        },
+        "benchmark_configured_root_contract": _check(
+            bool(benchmark_id) and bool(benchmark_root),
+            "Benchmark root can be represented through the configured benchmark root environment variable.",
+        ),
+    }
+
+
+def _config_representation_env(
+    model_id: str,
+    benchmark_id: str,
+    model_path: str,
+    benchmark_root: str,
+) -> dict[str, dict[str, str]]:
+    proposed: dict[str, dict[str, str]] = {"model": {}, "benchmark": {}}
+    model_configured_dir = _configured_model_dir(model_id)
+    if model_path and model_configured_dir and Path(model_path).name == model_configured_dir:
+        proposed["model"][_configured_root_env("models.yaml", "models", model_id, "model_root_env", ("local_path", "path"))] = str(Path(model_path).parent)
+    if benchmark_root:
+        proposed["benchmark"][_configured_root_env("benchmarks.yaml", "benchmarks", benchmark_id, "benchmark_root_env", ("path",))] = benchmark_root
+    return proposed
+
+
+def _config_representation_options(model_id: str, model_path: str) -> list[dict[str, Any]]:
+    configured_dir = _configured_model_dir(model_id)
+    options: list[dict[str, Any]] = []
+    if model_path and configured_dir and Path(model_path).name == configured_dir:
+        options.append(
+            {
+                "name": "configured_root_env",
+                "requires_config_review": False,
+                "summary": "Use the existing configured root environment variable contract.",
+                "proposed_models_yaml": {
+                    "local_path": f"${{{_configured_root_env('models.yaml', 'models', model_id, 'model_root_env', ('local_path', 'path'))}}}/{configured_dir}",
+                },
+            }
+        )
+    if model_path:
+        options.append(
+            {
+                "name": "explicit_local_path_override",
+                "requires_config_review": True,
+                "summary": "Represent the approved exact model path directly in model config after review.",
+                "proposed_models_yaml": {
+                    "local_path": model_path,
+                },
+            }
+        )
+    if configured_dir:
+        options.append(
+            {
+                "name": "materialize_under_configured_root",
+                "requires_config_review": True,
+                "summary": "Place or link the approved model under a reviewed root using the configured model directory name.",
+                "proposed_models_yaml": {
+                    "local_path": f"${{{_configured_root_env('models.yaml', 'models', model_id, 'model_root_env', ('local_path', 'path'))}}}/{configured_dir}",
+                },
+            }
+        )
+    return options
+
+
+def _config_representation_next_actions(status: str) -> list[str]:
+    if status == "failed":
+        return ["Fix approved readiness inputs before reviewing config representation."]
+    return [
+        "Choose one representation option and review it before editing project_config.",
+        "After config representation review, rerun phase5-probe-paths or phase5-probe-explicit-model-path as appropriate.",
+        "Rerun phase5-readiness and keep process submission closed until all gates pass.",
+    ]
+
+
+def _config_representation_stop_reason(status: str) -> str:
+    if status == "failed":
+        return "Config representation proposal could not validate the approved readiness bundle."
+    return "Config representation is proposed for review only; no config or execution gate has changed."
 
 
 def _next_actions(checks: dict[str, dict[str, Any]], execution_authorization: dict[str, Any]) -> list[str]:
@@ -744,6 +901,43 @@ def _approved_decision_readiness_markdown(bundle: dict[str, Any]) -> str:
         + "\n\n"
         "## Next Actions\n\n"
         + "\n".join(next_action_lines)
+        + "\n\n"
+        "## Stop Reason\n\n"
+        f"{bundle['do_not_continue_reason']}\n"
+    )
+
+
+def _config_representation_markdown(bundle: dict[str, Any]) -> str:
+    approved_paths = bundle["approved_paths"]
+    check_lines = [
+        f"- {name}: `{payload.get('status')}`"
+        for name, payload in bundle["checks"].items()
+    ]
+    option_lines = [
+        f"- {option['name']}: requires_config_review `{str(option.get('requires_config_review')).lower()}`"
+        for option in bundle["representation_options"]
+    ]
+    safety_lines = [
+        f"- {name}: `{str(value).lower()}`"
+        for name, value in bundle["safety_flags"].items()
+    ]
+    return (
+        "# Phase 5 Config Representation Proposal\n\n"
+        f"Status: `{bundle['status']}`\n\n"
+        f"ready_for_real_smoke: `{str(bundle['ready_for_real_smoke']).lower()}`\n\n"
+        f"write_config: `{str(bundle['write_config']).lower()}`\n\n"
+        f"exports_applied: `{str(bundle['exports_applied']).lower()}`\n\n"
+        "## Approved Paths\n\n"
+        f"- model_path: `{approved_paths.get('model_path')}`\n"
+        f"- benchmark_root: `{approved_paths.get('benchmark_root')}`\n\n"
+        "## Checks\n\n"
+        + "\n".join(check_lines)
+        + "\n\n"
+        "## Representation Options\n\n"
+        + "\n".join(option_lines)
+        + "\n\n"
+        "## Safety Flags\n\n"
+        + "\n".join(safety_lines)
         + "\n\n"
         "## Stop Reason\n\n"
         f"{bundle['do_not_continue_reason']}\n"

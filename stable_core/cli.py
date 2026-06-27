@@ -18,6 +18,7 @@ from stable_core.validation.inventory_discovery import discover_benchmark_invent
 from stable_core.validation.model_candidates import discover_phase5_model_candidates
 from stable_core.validation.phase5_readiness import (
     build_phase5_approved_decision_readiness,
+    build_phase5_config_representation_proposal,
     build_phase5_explicit_model_path_probe,
     build_phase5_model_path_decision_request,
     build_phase5_path_probe,
@@ -173,6 +174,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     phase5_approved_decision_readiness_parser.add_argument("--decision-validation", required=True)
     phase5_approved_decision_readiness_parser.add_argument("--output-dir", required=True)
+
+    phase5_config_representation_parser = subparsers.add_parser(
+        "phase5-config-representation-proposal",
+        help="Write a read-only config representation proposal from approved Phase 5 paths.",
+    )
+    phase5_config_representation_parser.add_argument("--approved-readiness", required=True)
+    phase5_config_representation_parser.add_argument("--output-dir", required=True)
 
     phase5_discover_model_parser = subparsers.add_parser("phase5-discover-model-candidates", help="Discover reviewable Phase 5 model path candidates under explicit search roots.")
     phase5_discover_model_parser.add_argument("model_id")
@@ -466,6 +474,30 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "status": report["status"],
                     "approval_status": report["approval_status"],
                     "ready_for_real_smoke": report["ready_for_real_smoke"],
+                    **safety_flags,
+                },
+                ensure_ascii=False,
+            )
+        )
+        return _exit_code(str(report["status"]))
+    if args.command == "phase5-config-representation-proposal":
+        try:
+            report = build_phase5_config_representation_proposal(
+                approved_readiness_path=args.approved_readiness,
+                output_dir=args.output_dir,
+            )
+        except Exception as exc:
+            print(json.dumps({"command": "phase5-config-representation-proposal", "status": "failed", "error": str(exc)}, ensure_ascii=False))
+            return 1
+        safety_flags = report["safety_flags"]
+        print(
+            json.dumps(
+                {
+                    "command": "phase5-config-representation-proposal",
+                    "status": report["status"],
+                    "ready_for_real_smoke": report["ready_for_real_smoke"],
+                    "write_config": report["write_config"],
+                    "exports_applied": report["exports_applied"],
                     **safety_flags,
                 },
                 ensure_ascii=False,

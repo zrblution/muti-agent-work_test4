@@ -904,6 +904,116 @@ def test_phase5_approved_decision_readiness_rejects_invalid_validation_report(tm
     assert json.loads((output_dir / "phase5_approved_decision_readiness.json").read_text(encoding="utf-8"))["status"] == "failed"
 
 
+def test_phase5_config_representation_proposal_cli_writes_reviewable_options(tmp_path: Path) -> None:
+    approved_readiness_path = tmp_path / "phase5_approved_decision_readiness.json"
+    output_dir = tmp_path / "config_proposal"
+    approved_readiness_path.write_text(
+        json.dumps(
+            {
+                "phase": "Phase 5",
+                "mode": "approved_model_path_readiness",
+                "status": "needs_attention",
+                "approval_status": "approved",
+                "ready_for_real_smoke": False,
+                "target": {
+                    "model_id": "qwen3_vl_2b_instruct",
+                    "benchmark_id": "pope",
+                },
+                "approved_paths": {
+                    "model_path": "/models/variant/Ours",
+                    "benchmark_root": "/benchmarks",
+                },
+                "checks": {
+                    "decision_validation": {"status": "passed"},
+                },
+                "safety_flags": {
+                    "executed_real_model": False,
+                    "executed_real_benchmark": False,
+                    "submitted_remote_job": False,
+                    "raw_outputs_written": False,
+                    "write_config": False,
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = run_cli(
+        "phase5-config-representation-proposal",
+        "--approved-readiness",
+        str(approved_readiness_path),
+        "--output-dir",
+        str(output_dir),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    report = json.loads((output_dir / "phase5_config_representation_proposal.json").read_text(encoding="utf-8"))
+    markdown = (output_dir / "phase5_config_representation_proposal.md").read_text(encoding="utf-8")
+    assert payload["command"] == "phase5-config-representation-proposal"
+    assert payload["status"] == "needs_attention"
+    assert payload["ready_for_real_smoke"] is False
+    assert payload["write_config"] is False
+    assert report["approved_paths"]["model_path"] == "/models/variant/Ours"
+    assert report["checks"]["approved_readiness"]["status"] == "passed"
+    assert report["checks"]["model_configured_root_contract"]["status"] == "needs_review"
+    assert report["proposed_env"]["benchmark"]["REMOTE_BENCHMARK_ROOT"] == "/benchmarks"
+    explicit_option = next(
+        option for option in report["representation_options"] if option["name"] == "explicit_local_path_override"
+    )
+    assert explicit_option["requires_config_review"] is True
+    assert explicit_option["proposed_models_yaml"]["local_path"] == "/models/variant/Ours"
+    assert report["safety_flags"]["write_config"] is False
+    assert report["exports_applied"] is False
+    assert "write_config: `false`" in markdown
+    assert "raw_outputs.jsonl" not in {path.name for path in output_dir.iterdir()}
+
+
+def test_phase5_config_representation_proposal_rejects_unapproved_readiness(tmp_path: Path) -> None:
+    approved_readiness_path = tmp_path / "phase5_approved_decision_readiness.json"
+    output_dir = tmp_path / "config_proposal"
+    approved_readiness_path.write_text(
+        json.dumps(
+            {
+                "phase": "Phase 5",
+                "mode": "approved_model_path_readiness",
+                "status": "failed",
+                "approval_status": "invalid",
+                "ready_for_real_smoke": False,
+                "target": {
+                    "model_id": "qwen3_vl_2b_instruct",
+                    "benchmark_id": "pope",
+                },
+                "approved_paths": {
+                    "model_path": "/models/variant/Ours",
+                    "benchmark_root": "/benchmarks",
+                },
+                "safety_flags": {
+                    "executed_real_model": False,
+                    "executed_real_benchmark": False,
+                    "submitted_remote_job": False,
+                    "raw_outputs_written": False,
+                    "write_config": False,
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    report = phase5_module.build_phase5_config_representation_proposal(
+        approved_readiness_path=approved_readiness_path,
+        output_dir=output_dir,
+    )
+
+    assert report["status"] == "failed"
+    assert report["checks"]["approved_readiness"]["status"] == "failed"
+    assert report["ready_for_real_smoke"] is False
+    assert report["safety_flags"]["write_config"] is False
+    assert json.loads((output_dir / "phase5_config_representation_proposal.json").read_text(encoding="utf-8"))["status"] == "failed"
+
+
 def test_phase5_discover_model_candidates_finds_configured_root_candidate(tmp_path: Path) -> None:
     model_root = tmp_path / "candidate_models"
     model_path = model_root / "Qwen3-VL-2B-Instruct"
