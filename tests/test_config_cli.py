@@ -1147,10 +1147,21 @@ def test_phase5_config_representation_proposal_cli_writes_reviewable_options(tmp
     explicit_option = next(
         option for option in report["representation_options"] if option["name"] == "explicit_local_path_override"
     )
+    explicit_template = next(
+        template for template in report["decision_record_templates"] if template["selected_option"] == "explicit_local_path_override"
+    )
     assert explicit_option["requires_config_review"] is True
     assert explicit_option["proposed_models_yaml"]["local_path"] == "/models/variant/Ours"
+    assert explicit_template["reviewer"] is None
+    assert explicit_template["rationale"] is None
+    assert explicit_template["approved_model_path"] == "/models/variant/Ours"
+    assert explicit_template["approved_benchmark_root"] == "/benchmarks"
+    assert explicit_template["approved_models_yaml"]["local_path"] == "/models/variant/Ours"
+    assert explicit_template["approved_env"]["REMOTE_BENCHMARK_ROOT"] == "/benchmarks"
     assert report["safety_flags"]["write_config"] is False
     assert report["exports_applied"] is False
+    assert "## Decision Record Templates" in markdown
+    assert "- explicit_local_path_override: approved_model_path `/models/variant/Ours`" in markdown
     assert "write_config: `false`" in markdown
     assert "raw_outputs.jsonl" not in {path.name for path in output_dir.iterdir()}
 

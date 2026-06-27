@@ -346,6 +346,7 @@ def build_phase5_config_representation_proposal(
     benchmark_root = str(approved_paths.get("benchmark_root", ""))
     checks = _config_representation_checks(readiness, model_id, benchmark_id, model_path, benchmark_root)
     status = "failed" if any(check.get("status") == "failed" for check in checks.values()) else "needs_attention"
+    representation_options = _config_representation_options(model_id, model_path)
     bundle = {
         "phase": "Phase 5",
         "mode": "config_representation_proposal",
@@ -366,7 +367,11 @@ def build_phase5_config_representation_proposal(
             "benchmark_root": benchmark_root,
         },
         "proposed_env": _config_representation_env(model_id, benchmark_id, model_path, benchmark_root),
-        "representation_options": _config_representation_options(model_id, model_path),
+        "representation_options": representation_options,
+        "decision_record_templates": _config_representation_decision_templates(
+            representation_options=representation_options,
+            benchmark_root=benchmark_root,
+        ),
         "checks": checks,
         "safety_flags": dict(SAFETY_FLAGS),
         "next_actions": _config_representation_next_actions(status),
@@ -770,6 +775,31 @@ def _config_representation_options(model_id: str, model_path: str) -> list[dict[
             }
         )
     return options
+
+
+def _config_representation_decision_templates(
+    *,
+    representation_options: list[dict[str, Any]],
+    benchmark_root: str,
+) -> list[dict[str, Any]]:
+    templates: list[dict[str, Any]] = []
+    for option in representation_options:
+        proposed_models_yaml = option.get("proposed_models_yaml", {})
+        local_path = ""
+        if isinstance(proposed_models_yaml, dict):
+            local_path = str(proposed_models_yaml.get("local_path", ""))
+        templates.append(
+            {
+                "selected_option": option.get("name"),
+                "reviewer": None,
+                "approved_model_path": local_path or None,
+                "approved_benchmark_root": benchmark_root or None,
+                "approved_models_yaml": dict(proposed_models_yaml) if isinstance(proposed_models_yaml, dict) else {},
+                "approved_env": {"REMOTE_BENCHMARK_ROOT": benchmark_root} if benchmark_root else {},
+                "rationale": None,
+            }
+        )
+    return templates
 
 
 def _config_representation_next_actions(status: str) -> list[str]:
@@ -1473,6 +1503,10 @@ def _config_representation_markdown(bundle: dict[str, Any]) -> str:
         f"- {option['name']}: requires_config_review `{str(option.get('requires_config_review')).lower()}`"
         for option in bundle["representation_options"]
     ]
+    template_lines = [
+        f"- {template['selected_option']}: approved_model_path `{template.get('approved_model_path')}`"
+        for template in bundle.get("decision_record_templates", [])
+    ]
     safety_lines = [
         f"- {name}: `{str(value).lower()}`"
         for name, value in bundle["safety_flags"].items()
@@ -1491,6 +1525,9 @@ def _config_representation_markdown(bundle: dict[str, Any]) -> str:
         + "\n\n"
         "## Representation Options\n\n"
         + "\n".join(option_lines)
+        + "\n\n"
+        "## Decision Record Templates\n\n"
+        + "\n".join(template_lines)
         + "\n\n"
         "## Safety Flags\n\n"
         + "\n".join(safety_lines)

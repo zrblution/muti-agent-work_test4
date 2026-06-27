@@ -178,6 +178,8 @@ The bundle deliberately keeps `ready_for_real_smoke: false`. A human approval re
 
 `phase5-config-representation-proposal` now produces a read-only proposal for representing approved paths. It reports whether the approved model path satisfies the current `${REMOTE_MODEL_ROOT}/Qwen3-VL-2B-Instruct` contract, proposes the benchmark root env value, and lists reviewable model representation options.
 
+The proposal now also emits per-option `decision_record_templates` that match the fields consumed by `phase5-validate-config-representation-decision`, reducing ambiguity in the human handoff without editing config or exporting env vars.
+
 The proposal does not edit `project_config`, export env vars, read `.env`, open gates, load weights, run generation, submit jobs, run benchmarks, or write raw outputs. It exists to prevent a validated approval from turning into an implicit config mutation.
 
 ## Config Representation Decision Validation Follow-Up

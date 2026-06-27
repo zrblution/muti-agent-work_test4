@@ -46,6 +46,7 @@ This phase now contains two related records:
 - a follow-up model-path decision validator that checks a human-supplied decision record against a pending request without mutating config or opening execution.
 - a follow-up approved-decision readiness bundle that records approved exact paths and remaining gates without treating approval as execution permission.
 - a follow-up config representation proposal that reviews env/config options for approved paths without editing config or exporting env vars.
+- a follow-up config representation decision-template writer that emits per-option records matching the next validation command without editing config or exporting env vars.
 - a follow-up config representation decision validator that checks an external human-selected representation option without editing config, exporting env vars, or opening execution gates.
 - a follow-up Phase 5 gate audit command that consolidates review/readiness artifact status and reports the next missing gate without editing config, exporting env vars, or executing anything.
 - a follow-up Phase 5 gate audit package writer that emits JSON and Markdown for human review without writing raw outputs or opening execution gates.
@@ -122,6 +123,7 @@ This phase now contains two related records:
 - `stable_core.validation.phase5_readiness.build_phase5_approved_decision_readiness`
 - `stable_core.cli phase5-approved-decision-readiness`
 - `stable_core.validation.phase5_readiness.build_phase5_config_representation_proposal`
+- `stable_core.validation.phase5_readiness._config_representation_decision_templates`
 - `stable_core.cli phase5-config-representation-proposal`
 - `stable_core.validation.phase5_readiness.validate_phase5_config_representation_decision`
 - `stable_core.cli phase5-validate-config-representation-decision`
@@ -293,6 +295,9 @@ This phase now contains two related records:
 - `phase5-config-representation-proposal` with a temporary approved readiness report
   - status: initially failed because the CLI and builder did not exist, then passed after adding the proposal builder
   - purpose: propose benchmark env representation and model config options while keeping `write_config: false`, `exports_applied: false`, and `ready_for_real_smoke: false`
+- `phase5-config-representation-proposal` with a temporary approved readiness report and required decision-record templates
+  - status: initially failed because the proposal did not include `decision_record_templates`, then passed after deriving templates from each representation option
+  - purpose: give the human reviewer exact JSON fields for `phase5-validate-config-representation-decision` while preserving `write_config: false`, `exports_applied: false`, and `ready_for_real_smoke: false`
 - `build_phase5_config_representation_proposal(...)` with an invalid approved-readiness report
   - status: initially failed because the builder did not exist, then passed after adding approved-readiness validation
   - purpose: reject invalid readiness inputs before config-review planning
@@ -556,6 +561,7 @@ This phase now contains two related records:
 - No remote job or process was submitted by `phase5-readiness`.
 - No raw output was written by `phase5-readiness`.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_validate_config_representation_decision_cli_accepts_explicit_override tests/test_config_cli.py::test_phase5_validate_config_representation_decision_rejects_mismatched_model_path -q`: initially `2 failed`, then `2 passed` after adding the config representation decision validator and CLI.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_config_representation_proposal_cli_writes_reviewable_options -q`: initially `1 failed`, then `1 passed` after adding per-option decision-record templates to the config representation proposal.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_gate_audit_cli_reports_missing_review_chain tests/test_config_cli.py::test_phase5_gate_audit_accepts_review_chain_but_stops_at_readiness -q`: initially `2 failed`, then `2 passed` after adding the read-only Phase 5 gate audit CLI.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_gate_audit_cli_writes_reviewable_markdown_package -q`: initially `1 failed`, then `1 passed` after adding `--output-dir` support and Markdown rendering.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_gate_audit_accepts_reviewed_real_execution_failure_bundle tests/test_config_cli.py::test_phase5_gate_audit_does_not_accept_validation_gate_failure_as_real_execution -q`: initially `2 failed`, then `2 passed` after adding final run-bundle audit classification.
