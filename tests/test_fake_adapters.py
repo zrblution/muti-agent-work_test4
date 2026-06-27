@@ -164,6 +164,44 @@ def test_pope_adapter_builds_canonical_requests_from_jsonl(tmp_path: Path) -> No
     assert requests[1].image_path == str(benchmark_path / "images/0002.jpg")
 
 
+def test_pope_adapter_builds_requests_from_json_suffix_line_delimited_objects(tmp_path: Path) -> None:
+    benchmark_path = tmp_path / "pope"
+    benchmark_path.mkdir()
+    (benchmark_path / "samples.json").write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "question_id": "pope_random_0001",
+                        "image_id": "images/0001.jpg",
+                        "question": "Is there a dog in the image?",
+                        "answer": "yes",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "question_id": "pope_random_0002",
+                        "image_id": "images/0002.jpg",
+                        "question": "Is there a train in the image?",
+                        "answer": "no",
+                    }
+                ),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    requests = POPEAdapter({"path": str(benchmark_path), "required_files": ["samples.json"]}).build_requests(
+        split="validation",
+        limit=2,
+    )
+
+    assert [request.sample_id for request in requests] == ["pope_random_0001", "pope_random_0002"]
+    assert requests[0].metadata["reference_answer"] == "yes"
+    assert requests[1].metadata["reference_answer"] == "no"
+
+
 def test_pope_adapter_normalizes_metrics_and_failure_cases(tmp_path: Path) -> None:
     adapter = POPEAdapter()
     rows = [

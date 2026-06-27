@@ -124,13 +124,28 @@ class POPEAdapter(ValidateOnlyBenchmarkAdapter):
 
 
 def _read_samples(path: Path) -> list[dict[str, Any]]:
-    if path.suffix.lower() == ".jsonl":
-        return [
-            item
-            for item in (json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip())
-            if isinstance(item, dict)
-        ]
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    payloads = _read_json_values(path.read_text(encoding="utf-8"))
+    rows: list[dict[str, Any]] = []
+    for payload in payloads:
+        rows.extend(_sample_rows_from_payload(payload))
+    return rows
+
+
+def _read_json_values(text: str) -> list[Any]:
+    decoder = json.JSONDecoder()
+    values: list[Any] = []
+    index = 0
+    while index < len(text):
+        while index < len(text) and text[index].isspace():
+            index += 1
+        if index >= len(text):
+            break
+        value, index = decoder.raw_decode(text, index)
+        values.append(value)
+    return values
+
+
+def _sample_rows_from_payload(payload: Any) -> list[dict[str, Any]]:
     if isinstance(payload, list):
         return [item for item in payload if isinstance(item, dict)]
     if isinstance(payload, dict):
