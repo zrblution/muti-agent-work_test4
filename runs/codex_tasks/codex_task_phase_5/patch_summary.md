@@ -728,3 +728,22 @@ Local verification for this follow-up:
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.security.secret_scan --paths AGENTS.md README.md docs project_config stable_core adapters experiments research_tools tests runs/codex_tasks runs/needs_attention runs/subagent_reports --output /tmp/phase5_decision_record_status_verify_secret_scan.json`: `passed`, no findings.
 - `find . -type f -size +5M -not -path './.git/*' -print`: no output.
 - `git diff --check`: passed.
+
+## Committed Decision-Record Status Verification Current Follow-Up
+
+`runs/needs_attention/phase_5_decision_record_status_verification_current/phase5_decision_record_status_verification.json` now stores the committed current read-only verification result for `runs/needs_attention/phase_5_decision_record_status_current/phase5_decision_record_status.json`. The verification report is `passed`; the status package itself remains `needs_attention` with `ready_for_decision_validation: false`, `ready_for_real_smoke: false`, and all execution safety flags false.
+
+This artifact is review evidence only. It does not approve a model path, mutate config, export env vars, read `.env`, open execution gates, load weights, run generation, submit jobs, run benchmarks, or write raw outputs.
+
+Local verification for this follow-up:
+
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_committed_decision_record_status_verification_current_is_passed -q`: initially `1 failed` because the committed current verification artifact did not exist, then `1 passed` after generating it with `phase5-verify-decision-record-status`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_verify_decision_record_status_accepts_current_package tests/test_config_cli.py::test_phase5_verify_decision_record_status_rejects_stale_markdown_sidecar tests/test_config_cli.py::test_phase5_committed_decision_record_status_verification_current_is_passed tests/test_config_cli.py::test_phase5_committed_decision_record_status_current_is_needs_attention tests/test_config_cli.py::test_phase5_committed_decision_record_status_current_has_markdown_sidecar -q`: `5 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py -q`: `60 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py tests/test_qwen3_vl_adapter.py tests/test_fake_adapters.py tests/test_landmark_gate.py tests/test_runner.py -q`: `108 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest -q`: `141 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli phase5-verify-decision-record-status --status runs/needs_attention/phase_5_decision_record_status_current/phase5_decision_record_status.json --output /tmp/phase5_decision_record_status_verification_current_smoke.json`: `passed`, status report remains `needs_attention`, record count `3`, `ready_for_decision_validation: false`, `ready_for_real_smoke: false`, and all execution safety flags false.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli validate-config`: `passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.security.secret_scan --paths AGENTS.md README.md docs project_config stable_core adapters experiments research_tools tests runs/codex_tasks runs/needs_attention runs/subagent_reports --output /tmp/phase5_decision_record_status_verification_current_secret_scan.json`: `passed`, no findings.
+- `find . -type f -size +5M -not -path './.git/*' -print`: no output.
+- `git diff --check`: passed.

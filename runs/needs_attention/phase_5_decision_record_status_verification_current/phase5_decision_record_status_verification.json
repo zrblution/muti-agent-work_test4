@@ -1,0 +1,162 @@
+{
+  "phase": "Phase 5",
+  "mode": "decision_record_status_verification",
+  "status": "passed",
+  "created_at": "2026-06-27T08:40:03Z",
+  "git_commit": "f910645e7c29d09826651298ff7ab849777bf67b",
+  "status_report_path": "runs/needs_attention/phase_5_decision_record_status_current/phase5_decision_record_status.json",
+  "status_report_status": "needs_attention",
+  "ready_for_decision_validation": false,
+  "ready_for_real_smoke": false,
+  "write_config": false,
+  "exports_applied": false,
+  "safety_flags": {
+    "executed_real_model": false,
+    "executed_real_benchmark": false,
+    "submitted_remote_job": false,
+    "raw_outputs_written": false,
+    "write_config": false
+  },
+  "record_count": 3,
+  "checks": {
+    "status_identity": {
+      "status": "passed",
+      "summary": "Decision-record status package identity is valid."
+    },
+    "non_executing_safety": {
+      "status": "passed",
+      "summary": "Decision-record status package preserves all non-executing safety flags."
+    },
+    "source_paths": {
+      "status": "passed",
+      "summary": "Decision-record status source paths match current files."
+    },
+    "gate_audit_verification": {
+      "status": "passed",
+      "summary": "Gate audit verification matches the status package."
+    },
+    "markdown_sidecar": {
+      "status": "passed",
+      "summary": "Markdown sidecar matches recorded decision-record status JSON.",
+      "path": "runs/needs_attention/phase_5_decision_record_status_current/phase5_decision_record_status.md",
+      "exists": true
+    }
+  },
+  "source_paths": {
+    "request_path": {
+      "status": "passed",
+      "path": "runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json",
+      "exists": true,
+      "summary": "Request path exists."
+    },
+    "records_dir": {
+      "status": "passed",
+      "path": "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates",
+      "exists": true,
+      "summary": "Records directory exists."
+    },
+    "record_files": {
+      "status": "passed",
+      "recorded_paths": [
+        "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/approve_variant_path.template.json",
+        "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/provide_base_model_root.template.json",
+        "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/reject_variant_path.template.json"
+      ],
+      "current_paths": [
+        "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/approve_variant_path.template.json",
+        "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/provide_base_model_root.template.json",
+        "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/reject_variant_path.template.json"
+      ],
+      "summary": "Recorded decision files match the current records directory."
+    },
+    "gate_audit_path": {
+      "status": "passed",
+      "path": "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.json",
+      "exists": true,
+      "summary": "Gate audit path exists."
+    }
+  },
+  "gate_audit_verification": {
+    "phase": "Phase 5",
+    "mode": "gate_audit_verification",
+    "status": "passed",
+    "created_at": "2026-06-27T08:40:03Z",
+    "git_commit": "f910645e7c29d09826651298ff7ab849777bf67b",
+    "audit_path": "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.json",
+    "audit_status": "needs_attention",
+    "next_missing_gate": "model_path_decision_validation",
+    "ready_for_real_smoke": false,
+    "write_config": false,
+    "exports_applied": false,
+    "safety_flags": {
+      "executed_real_model": false,
+      "executed_real_benchmark": false,
+      "submitted_remote_job": false,
+      "raw_outputs_written": false,
+      "write_config": false
+    },
+    "source_artifact_count": 1,
+    "checks": {
+      "audit_identity": {
+        "status": "passed",
+        "summary": "Audit package identity is a Phase 5 gate audit."
+      },
+      "non_executing_safety": {
+        "status": "passed",
+        "summary": "Gate audit package preserves all non-executing safety flags."
+      },
+      "next_action_packet": {
+        "status": "passed",
+        "summary": "Gate audit package includes a structured next_action_packet."
+      },
+      "source_artifacts": {
+        "status": "passed",
+        "summary": "All recorded source artifacts match current files."
+      },
+      "markdown_sidecar": {
+        "status": "passed",
+        "summary": "Markdown sidecar matches recorded gate audit JSON.",
+        "path": "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.md",
+        "exists": true
+      }
+    },
+    "source_artifacts": {
+      "model_path_decision_request": {
+        "path": "runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json",
+        "expected_exists": true,
+        "actual_exists": true,
+        "expected_sha256": "f574e3f9235878c4a67ff4b2157c1a6a2806f0e14501ebd367a6ddc33928c085",
+        "actual_sha256": "f574e3f9235878c4a67ff4b2157c1a6a2806f0e14501ebd367a6ddc33928c085",
+        "status": "passed",
+        "summary": "Source artifact matches recorded provenance."
+      }
+    },
+    "markdown_sidecar": {
+      "status": "passed",
+      "summary": "Markdown sidecar matches recorded gate audit JSON.",
+      "path": "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.md",
+      "exists": true
+    },
+    "next_actions": [
+      "Use this gate audit handoff as current only for the recorded source artifact revisions."
+    ],
+    "do_not_continue_reason": "Gate audit package provenance and non-executing safety checks passed.",
+    "summary": "Gate audit verification matches the recorded decision-record status report.",
+    "failed_conditions": [],
+    "recorded_verification_status": "passed",
+    "recorded_next_missing_gate": "model_path_decision_validation",
+    "recorded_ready_for_decision_validation": true,
+    "current_verification_status": "passed",
+    "current_next_missing_gate": "model_path_decision_validation"
+  },
+  "markdown_sidecar": {
+    "status": "passed",
+    "summary": "Markdown sidecar matches recorded decision-record status JSON.",
+    "path": "runs/needs_attention/phase_5_decision_record_status_current/phase5_decision_record_status.md",
+    "exists": true
+  },
+  "next_actions": [
+    "Use this decision-record status package only for the recorded source artifact revisions."
+  ],
+  "do_not_continue_reason": "Decision-record status package provenance and Markdown checks passed."
+}

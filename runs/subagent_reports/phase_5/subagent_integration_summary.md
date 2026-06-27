@@ -204,6 +204,8 @@ The current committed scanner output is stored under `runs/needs_attention/phase
 
 `phase5-verify-decision-record-status` now verifies the recorded decision-record status package before human action. It checks package identity, non-executing safety flags, current request/records/audit paths, current gate-audit verification, and Markdown sidecar consistency. This lets the reviewer reject stale status packages before relying on the handoff.
 
+The current committed verifier output is stored under `runs/needs_attention/phase_5_decision_record_status_verification_current/`. It records the current status package verification as `passed` while keeping `ready_for_real_smoke: false`; it is review evidence only and does not open the model-path decision gate.
+
 It also supports `--smoke-run-id` with `--runs-root` to validate final recorded run evidence. A succeeded run bundle is classified as `validated_real_smoke_success`; a validated `landmark_worker_execution_failed` bundle is classified as `reviewed_real_execution_failure`; setup, validation, and runtime gate failures remain incomplete and report `next_missing_gate: real_smoke_result`.
 
 This is an audit surface only. It keeps `ready_for_real_smoke: false`, `write_config: false`, and `exports_applied: false`, and it does not edit config, export env vars, read `.env`, open gates, load weights, run generation, submit jobs, run benchmarks, or write raw outputs.
