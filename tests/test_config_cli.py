@@ -1540,6 +1540,78 @@ def test_phase5_committed_model_path_decision_request_advances_gate_audit(tmp_pa
     assert "raw_outputs.jsonl" not in {path.name for path in artifact_dir.iterdir()}
 
 
+def test_phase5_committed_decision_record_templates_are_unfilled_handoff_files() -> None:
+    artifact_dir = REPO_ROOT / "runs/needs_attention/phase_5_model_path_decision_request"
+    decision_request_path = artifact_dir / "phase5_model_path_decision_request.json"
+    template_dir = artifact_dir / "decision_record_templates"
+    request = json.loads(decision_request_path.read_text(encoding="utf-8"))
+    request_templates = {
+        template["decision"]: template
+        for template in request["requested_decision"]["decision_record_templates"]
+    }
+
+    expected_paths = {
+        "approve_variant_path": template_dir / "approve_variant_path.template.json",
+        "reject_variant_path": template_dir / "reject_variant_path.template.json",
+        "provide_base_model_root": template_dir / "provide_base_model_root.template.json",
+    }
+    assert set(request_templates) == set(expected_paths)
+    for decision, path in expected_paths.items():
+        assert path.exists()
+        template = json.loads(path.read_text(encoding="utf-8"))
+        assert template == request_templates[decision]
+        assert template["approver"] is None
+        assert template["rationale"] is None
+
+    approve_template = json.loads(expected_paths["approve_variant_path"].read_text(encoding="utf-8"))
+    assert approve_template["approved_model_path"] == request["target"]["model_path"]
+    assert approve_template["approved_benchmark_root"] == request["target"]["benchmark_root"]
+
+
+def test_phase5_unfilled_approval_template_does_not_validate(tmp_path: Path) -> None:
+    artifact_dir = REPO_ROOT / "runs/needs_attention/phase_5_model_path_decision_request"
+    decision_request_path = artifact_dir / "phase5_model_path_decision_request.json"
+    approve_template_path = artifact_dir / "decision_record_templates/approve_variant_path.template.json"
+    output_path = tmp_path / "phase5_model_path_decision_validation.json"
+
+    report = phase5_module.validate_phase5_model_path_decision(
+        request_path=decision_request_path,
+        decision_record_path=approve_template_path,
+        output=output_path,
+    )
+
+    assert report["status"] == "failed"
+    assert report["approval_status"] == "invalid"
+    assert report["checks"]["approver_present"]["status"] == "failed"
+    assert report["checks"]["rationale_present"]["status"] == "failed"
+    assert report["checks"]["approved_model_path_matches"]["status"] == "passed"
+    assert report["checks"]["approved_benchmark_root_matches"]["status"] == "passed"
+    assert report["safety_flags"]["write_config"] is False
+    assert report["safety_flags"]["executed_real_model"] is False
+    assert json.loads(output_path.read_text(encoding="utf-8"))["approval_status"] == "invalid"
+
+
+def test_phase5_unfilled_base_root_template_does_not_validate(tmp_path: Path) -> None:
+    artifact_dir = REPO_ROOT / "runs/needs_attention/phase_5_model_path_decision_request"
+    decision_request_path = artifact_dir / "phase5_model_path_decision_request.json"
+    base_root_template_path = artifact_dir / "decision_record_templates/provide_base_model_root.template.json"
+    output_path = tmp_path / "phase5_model_path_decision_validation.json"
+
+    report = phase5_module.validate_phase5_model_path_decision(
+        request_path=decision_request_path,
+        decision_record_path=base_root_template_path,
+        output=output_path,
+    )
+
+    assert report["status"] == "failed"
+    assert report["approval_status"] == "invalid"
+    assert report["checks"]["approver_present"]["status"] == "failed"
+    assert report["checks"]["rationale_present"]["status"] == "failed"
+    assert report["checks"]["provided_model_root_present"]["status"] == "failed"
+    assert report["safety_flags"]["write_config"] is False
+    assert report["safety_flags"]["submitted_remote_job"] is False
+
+
 def test_phase5_gate_audit_accepts_review_chain_but_stops_at_readiness(tmp_path: Path) -> None:
     request_path = tmp_path / "phase5_model_path_decision_request.json"
     decision_validation_path = tmp_path / "phase5_model_path_decision_validation.json"

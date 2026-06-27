@@ -571,11 +571,11 @@ def _decision_validation_checks(
             "Decision is one of the options declared by the request.",
         ),
         "approver_present": _check(
-            bool(str(decision_record.get("approver", "")).strip()),
+            _has_text(decision_record.get("approver")),
             "Decision record names a human approver.",
         ),
         "rationale_present": _check(
-            bool(str(decision_record.get("rationale", "")).strip()),
+            _has_text(decision_record.get("rationale")),
             "Decision record includes a rationale.",
         ),
     }
@@ -598,7 +598,7 @@ def _decision_validation_checks(
         )
     elif decision == "provide_base_model_root":
         checks["provided_model_root_present"] = _check(
-            bool(str(decision_record.get("provided_model_root", "")).strip()),
+            _has_text(decision_record.get("provided_model_root")),
             "A provided base model root is required for this decision.",
         )
     return checks
@@ -635,6 +635,10 @@ def _model_path_decision_record_templates(*, model_path: Path, benchmark_root: P
 
 def _check(passed: bool, summary: str) -> dict[str, str]:
     return {"status": "passed" if passed else "failed", "summary": summary}
+
+
+def _has_text(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
 
 
 def _decision_validation_status(checks: dict[str, dict[str, Any]], decision: str) -> str:
@@ -697,11 +701,11 @@ def _approved_decision_readiness_checks(validation_report: dict[str, Any]) -> di
             "Readiness can only be prepared for an approved exact variant path.",
         ),
         "approved_model_path_present": _check(
-            bool(str(decision.get("approved_model_path", "")).strip()),
+            _has_text(decision.get("approved_model_path")),
             "Approved model path must be present.",
         ),
         "approved_benchmark_root_present": _check(
-            bool(str(decision.get("approved_benchmark_root", "")).strip()),
+            _has_text(decision.get("approved_benchmark_root")),
             "Approved benchmark root must be present.",
         ),
     }
@@ -901,7 +905,7 @@ def _config_representation_decision_checks(
             "Decision record names a human reviewer.",
         ),
         "rationale_present": _check(
-            bool(str(decision_record.get("rationale", "")).strip()),
+            _has_text(decision_record.get("rationale")),
             "Decision record includes a rationale.",
         ),
     }

@@ -160,7 +160,7 @@ Server verification passed for `/home/vepfs/data/LLM_HM_3_models/output-model/Qw
 
 This does not resolve the Phase 5 blocker. The command does not approve the variant, mutate config, read `.env`, load weights, run generation, submit jobs, run benchmarks, or write raw outputs. It only creates the artifact needed for a human to approve a variant path, reject it, or provide a base model root that satisfies the existing configured-root contract.
 
-Server verification generated `/tmp/phase5_model_path_decision_request_server/phase5_model_path_decision_request.json` and `.md` for `/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours` plus `/home/vepfs/data/work1/auto-research-test1/benchmarks`. A committed review copy now lives under `runs/needs_attention/phase_5_model_path_decision_request/`. The packet remains `approval_status: pending`, with `probe.status: passed`, `requires_human_approval: true`, and all execution safety flags false.
+Server verification generated `/tmp/phase5_model_path_decision_request_server/phase5_model_path_decision_request.json` and `.md` for `/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours` plus `/home/vepfs/data/work1/auto-research-test1/benchmarks`. A committed review copy now lives under `runs/needs_attention/phase_5_model_path_decision_request/`, with unfilled JSON handoff files under `decision_record_templates/`. The packet remains `approval_status: pending`, with `probe.status: passed`, `requires_human_approval: true`, and all execution safety flags false.
 
 ## Model Path Decision Validation Follow-Up
 
