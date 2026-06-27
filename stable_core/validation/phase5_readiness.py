@@ -9,6 +9,7 @@ from typing import Any
 from experiments.fake.evaluator import MODEL_ADAPTERS, validate_benchmark, validate_model, validate_model_runtime
 from stable_core.config import validate_config
 from stable_core.runner.remote import RemoteRunner
+from stable_core.storage.run_validator import validate_run_artifacts
 from stable_core.storage.run_directory import current_git_commit, utc_now, write_json, write_text
 from stable_core.validation.inventory_discovery import discover_benchmark_inventory, discover_model_inventory
 from stable_core.validation.preflight import REPO_ROOT, parse_simple_yaml
@@ -434,6 +435,8 @@ def build_phase5_gate_audit(
     config_proposal_path: str | Path | None = None,
     config_decision_validation_path: str | Path | None = None,
     readiness_path: str | Path | None = None,
+    smoke_run_id: str | None = None,
+    runs_root: str | Path = Path("runs"),
     output: str | Path | None = None,
     output_dir: str | Path | None = None,
 ) -> dict[str, Any]:
@@ -474,13 +477,20 @@ def build_phase5_gate_audit(
             lambda report: _audit_phase5_readiness(report, target),
             "Phase 5 readiness bundle was not provided.",
         ),
+        "real_smoke_result": _audit_real_smoke_result(
+            smoke_run_id=smoke_run_id,
+            runs_root=runs_root,
+            target=target,
+        ),
     }
     next_missing_gate = _next_incomplete_gate(gate_checks)
-    status = "failed" if any(check.get("status") == "failed" for check in gate_checks.values()) else "needs_attention"
+    terminal_outcome = _gate_audit_terminal_outcome(gate_checks)
+    status = _gate_audit_status(gate_checks, terminal_outcome)
     report = {
         "phase": "Phase 5",
         "mode": "gate_audit",
         "status": status,
+        "phase5_terminal_outcome": terminal_outcome,
         "ready_for_real_smoke": False,
         "write_config": False,
         "exports_applied": False,
@@ -490,8 +500,8 @@ def build_phase5_gate_audit(
         "gate_checks": gate_checks,
         "next_missing_gate": next_missing_gate,
         "safety_flags": dict(SAFETY_FLAGS),
-        "next_actions": _gate_audit_next_actions(next_missing_gate, status),
-        "do_not_continue_reason": _gate_audit_stop_reason(next_missing_gate, status),
+        "next_actions": _gate_audit_next_actions(next_missing_gate, status, terminal_outcome),
+        "do_not_continue_reason": _gate_audit_stop_reason(next_missing_gate, status, terminal_outcome),
     }
     if output is not None:
         write_json(Path(output), report)
@@ -992,6 +1002,91 @@ def _audit_phase5_readiness(report: dict[str, Any], target: dict[str, Any]) -> d
     return {"status": "needs_attention", "summary": "Phase 5 readiness has not passed."}
 
 
+def _audit_real_smoke_result(
+    *,
+    smoke_run_id: str | None,
+    runs_root: str | Path,
+    target: dict[str, Any],
+) -> dict[str, Any]:
+    if smoke_run_id is None:
+        return {
+            "status": "missing",
+            "run_id": None,
+            "summary": "Phase 5 real-smoke run id was not provided.",
+            "outcome": "none",
+        }
+    validation = validate_run_artifacts(run_id=smoke_run_id, runs_root=runs_root)
+    if validation.get("status") != "passed":
+        return {
+            "status": "failed",
+            "run_id": smoke_run_id,
+            "runs_root": str(runs_root),
+            "summary": "Real-smoke run artifacts did not pass validation.",
+            "run_validation": validation,
+            "outcome": "invalid_run_artifacts",
+        }
+    run_dir = Path(runs_root) / smoke_run_id
+    manifest = json.loads((run_dir / "run_manifest.json").read_text(encoding="utf-8"))
+    target_check = _audit_run_manifest_target(manifest, target)
+    if target_check["status"] != "passed":
+        return {
+            "status": "failed",
+            "run_id": smoke_run_id,
+            "runs_root": str(runs_root),
+            "summary": target_check["summary"],
+            "run_validation": validation,
+            "outcome": "target_mismatch",
+            "failed_conditions": target_check.get("failed_conditions", []),
+        }
+    manifest_status = str(manifest.get("status", ""))
+    if manifest_status == "succeeded":
+        return {
+            "status": "passed",
+            "run_id": smoke_run_id,
+            "runs_root": str(runs_root),
+            "summary": "Phase 5 real-smoke success bundle passed artifact validation.",
+            "run_validation": validation,
+            "outcome": "validated_real_smoke_success",
+        }
+    failure = json.loads((run_dir / "failure.json").read_text(encoding="utf-8"))
+    failure_type = str(failure.get("failure_type", ""))
+    if failure_type == "landmark_worker_execution_failed":
+        return {
+            "status": "passed",
+            "run_id": smoke_run_id,
+            "runs_root": str(runs_root),
+            "summary": "Phase 5 real-execution failure bundle passed artifact validation.",
+            "run_validation": validation,
+            "outcome": "reviewed_real_execution_failure",
+            "failure_type": failure_type,
+        }
+    return {
+        "status": "needs_attention",
+        "run_id": smoke_run_id,
+        "runs_root": str(runs_root),
+        "summary": f"Run failure_type `{failure_type}` is not a reviewed real-execution failure.",
+        "run_validation": validation,
+        "outcome": "pre_execution_gate_failure",
+        "failure_type": failure_type,
+    }
+
+
+def _audit_run_manifest_target(manifest: dict[str, Any], target: dict[str, Any]) -> dict[str, Any]:
+    return _audit_required_conditions(
+        [
+            (manifest.get("run_type") == "landmark_baseline", "Run manifest is a landmark baseline run."),
+            (manifest.get("model_id") == target.get("model_id"), "Run model_id matches the audit target."),
+            (manifest.get("benchmark_id") == target.get("benchmark_id"), "Run benchmark_id matches the audit target."),
+            (manifest.get("limit") == target.get("limit"), "Run limit matches the audit target."),
+            (
+                manifest.get("instrumentation_mode") == target.get("instrumentation_mode"),
+                "Run instrumentation mode matches the audit target.",
+            ),
+        ],
+        "Run manifest target matches the Phase 5 audit target.",
+    )
+
+
 def _audit_required_conditions(conditions: list[tuple[bool, str]], success_summary: str) -> dict[str, Any]:
     failed = [summary for passed, summary in conditions if not passed]
     if failed:
@@ -1026,24 +1121,53 @@ def _next_incomplete_gate(gate_checks: dict[str, dict[str, Any]]) -> str:
     for name, check in gate_checks.items():
         if check.get("status") != "passed":
             return name
-    return "real_smoke_execution"
+    return "none"
 
 
-def _gate_audit_next_actions(next_missing_gate: str, status: str) -> list[str]:
+def _gate_audit_terminal_outcome(gate_checks: dict[str, dict[str, Any]]) -> str:
+    if any(check.get("status") == "failed" for check in gate_checks.values()):
+        return "none"
+    real_smoke = gate_checks.get("real_smoke_result", {})
+    outcome = str(real_smoke.get("outcome", "none"))
+    if real_smoke.get("status") == "passed" and outcome in {
+        "validated_real_smoke_success",
+        "reviewed_real_execution_failure",
+    }:
+        return outcome
+    return "none"
+
+
+def _gate_audit_status(gate_checks: dict[str, dict[str, Any]], terminal_outcome: str) -> str:
+    if any(check.get("status") == "failed" for check in gate_checks.values()):
+        return "failed"
+    if terminal_outcome == "validated_real_smoke_success":
+        return "passed"
+    return "needs_attention"
+
+
+def _gate_audit_next_actions(next_missing_gate: str, status: str, terminal_outcome: str) -> list[str]:
     if status == "failed":
         return ["Fix the invalid Phase 5 gate artifact before changing config, exporting env vars, or running the real smoke."]
-    if next_missing_gate == "real_smoke_execution":
-        return ["Run the controlled Phase 5 real smoke only after separate execution authorization is reviewed."]
+    if terminal_outcome == "validated_real_smoke_success":
+        return ["Review and archive the validated Phase 5 real-smoke bundle before moving to later phases."]
+    if terminal_outcome == "reviewed_real_execution_failure":
+        return ["Review the preserved real-execution failure diagnostics before deciding whether to retry or continue."]
+    if next_missing_gate == "real_smoke_result":
+        return ["Provide a validated controlled run directory from the Phase 5 worker before continuing."]
     return [f"Provide or fix the `{next_missing_gate}` artifact before continuing toward the Phase 5 real smoke."]
 
 
-def _gate_audit_stop_reason(next_missing_gate: str, status: str) -> str:
+def _gate_audit_stop_reason(next_missing_gate: str, status: str, terminal_outcome: str) -> str:
     if status == "failed":
         return "At least one Phase 5 gate artifact is invalid."
     if next_missing_gate == "phase5_readiness":
         return "Phase 5 readiness has not passed."
-    if next_missing_gate == "real_smoke_execution":
-        return "All audited review artifacts passed, but the real smoke has not been executed or validated by this audit."
+    if terminal_outcome == "validated_real_smoke_success":
+        return "No missing Phase 5 gate: the real-smoke success bundle is validated."
+    if terminal_outcome == "reviewed_real_execution_failure":
+        return "Phase 5 has a reviewed real-execution failure bundle; the real smoke did not succeed."
+    if next_missing_gate == "real_smoke_result":
+        return "No validated real-smoke success or reviewed real-execution failure bundle has been provided."
     return f"Phase 5 gate `{next_missing_gate}` is missing or incomplete."
 
 
@@ -1065,6 +1189,7 @@ def _gate_audit_markdown(report: dict[str, Any]) -> str:
         f"write_config: `{str(report['write_config']).lower()}`\n\n"
         f"exports_applied: `{str(report['exports_applied']).lower()}`\n\n"
         f"next_missing_gate: `{report['next_missing_gate']}`\n\n"
+        f"phase5_terminal_outcome: `{report['phase5_terminal_outcome']}`\n\n"
         "## Target\n\n"
         f"- model: `{target['model_id']}`\n"
         f"- benchmark: `{target['benchmark_id']}`\n"

@@ -5,6 +5,8 @@ import sys
 from pathlib import Path
 
 from stable_core import config as config_module
+from stable_core.runner.remote import LANDMARK_SMOKE_ARTIFACT_CONTRACT
+from stable_core.storage.run_directory import artifact_manifest_for
 from stable_core.validation import phase5_readiness as phase5_module
 
 
@@ -49,6 +51,189 @@ def run_cli(*args: str, env: dict[str, str] | None = None) -> subprocess.Complet
         capture_output=True,
         check=False,
     )
+
+
+def _write_json(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+
+def _phase5_safety_flags() -> dict[str, bool]:
+    return {
+        "executed_real_model": False,
+        "executed_real_benchmark": False,
+        "submitted_remote_job": False,
+        "raw_outputs_written": False,
+        "write_config": False,
+    }
+
+
+def _write_passed_phase5_gate_chain(tmp_path: Path) -> dict[str, Path]:
+    target = {"model_id": "qwen3_vl_2b_instruct", "benchmark_id": "pope"}
+    safety_flags = _phase5_safety_flags()
+    paths = {
+        "decision_request": tmp_path / "phase5_model_path_decision_request.json",
+        "decision_validation": tmp_path / "phase5_model_path_decision_validation.json",
+        "approved_readiness": tmp_path / "phase5_approved_decision_readiness.json",
+        "config_proposal": tmp_path / "phase5_config_representation_proposal.json",
+        "config_decision_validation": tmp_path / "phase5_config_representation_decision_validation.json",
+        "readiness": tmp_path / "phase5_readiness.json",
+    }
+    approved_paths = {"model_path": "/models/variant/Ours", "benchmark_root": "/benchmarks"}
+    _write_json(
+        paths["decision_request"],
+        {
+            "phase": "Phase 5",
+            "mode": "model_path_decision_request",
+            "status": "needs_attention",
+            "approval_status": "pending",
+            "target": {**target, **approved_paths},
+            "safety_flags": safety_flags,
+        },
+    )
+    _write_json(
+        paths["decision_validation"],
+        {
+            "phase": "Phase 5",
+            "mode": "model_path_decision_validation",
+            "status": "passed",
+            "approval_status": "approved",
+            "target": {**target, **approved_paths},
+            "decision": {
+                "decision": "approve_variant_path",
+                "approved_model_path": approved_paths["model_path"],
+                "approved_benchmark_root": approved_paths["benchmark_root"],
+            },
+            "safety_flags": safety_flags,
+        },
+    )
+    _write_json(
+        paths["approved_readiness"],
+        {
+            "phase": "Phase 5",
+            "mode": "approved_model_path_readiness",
+            "status": "needs_attention",
+            "approval_status": "approved",
+            "ready_for_real_smoke": False,
+            "target": target,
+            "approved_paths": approved_paths,
+            "safety_flags": safety_flags,
+        },
+    )
+    _write_json(
+        paths["config_proposal"],
+        {
+            "phase": "Phase 5",
+            "mode": "config_representation_proposal",
+            "status": "needs_attention",
+            "ready_for_real_smoke": False,
+            "write_config": False,
+            "exports_applied": False,
+            "target": target,
+            "approved_paths": approved_paths,
+            "representation_options": [
+                {
+                    "name": "explicit_local_path_override",
+                    "proposed_models_yaml": {"local_path": approved_paths["model_path"]},
+                }
+            ],
+            "safety_flags": safety_flags,
+        },
+    )
+    _write_json(
+        paths["config_decision_validation"],
+        {
+            "phase": "Phase 5",
+            "mode": "config_representation_decision_validation",
+            "status": "passed",
+            "config_review_status": "approved",
+            "ready_for_real_smoke": False,
+            "write_config": False,
+            "exports_applied": False,
+            "target": target,
+            "selected_option": {"name": "explicit_local_path_override"},
+            "safety_flags": safety_flags,
+        },
+    )
+    _write_json(
+        paths["readiness"],
+        {
+            "phase": "Phase 5",
+            "status": "passed",
+            "target": {
+                **target,
+                "limit": 8,
+                "instrumentation_mode": "none",
+            },
+            "execution_authorization": {
+                "status": "passed",
+                "execution_plan": {"submits_process": True},
+            },
+            "safety_flags": safety_flags,
+        },
+    )
+    return paths
+
+
+def _write_landmark_failure_run(runs_root: Path, run_id: str, *, failure_type: str) -> Path:
+    run_dir = runs_root / run_id
+    run_dir.mkdir(parents=True)
+    command = {
+        "run_id": run_id,
+        "command": "landmark-worker",
+        "model_id": "qwen3_vl_2b_instruct",
+        "benchmark_id": "pope",
+        "limit": 8,
+        "instrumentation_mode": "none",
+        "controlled": True,
+    }
+    run_manifest = {
+        "run_id": run_id,
+        "run_type": "landmark_baseline",
+        "model_id": "qwen3_vl_2b_instruct",
+        "benchmark_id": "pope",
+        "idea_id": None,
+        "limit": 8,
+        "instrumentation_mode": "none",
+        "started_at": "2026-01-01T00:00:00Z",
+        "finished_at": "2026-01-01T00:00:01Z",
+        "status": "needs_attention",
+        "git_commit": "test",
+        "outputs": {
+            "stdout": "stdout.log",
+            "stderr": "stderr.log",
+            "exit_code": "exit_code.txt",
+        },
+        "artifact_contract": dict(LANDMARK_SMOKE_ARTIFACT_CONTRACT),
+    }
+    failure = {
+        "phase": "Phase 5",
+        "status": "needs_attention",
+        "failure_type": failure_type,
+        "failure_message": "Preserved failure diagnostics.",
+        "gate_failures": [{"gate": "worker-execution", "payload": {"status": "needs_attention"}}],
+        "stdout_tail": "",
+        "stderr_tail": "traceback tail",
+        "reproduction_command": "python experiments/landmark_baselines/run_landmark.py --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --run-id "
+        + run_id,
+        "config_snapshot": command,
+        "state_snapshot": run_manifest,
+        "executed_real_model": False,
+        "executed_real_benchmark": False,
+        "recommended_next_action": ["Inspect preserved diagnostics."],
+        "do_not_continue_reason": "Real smoke did not succeed.",
+    }
+    _write_json(run_dir / "command_manifest.json", command)
+    _write_json(run_dir / "env_snapshot.json", {"env": {}})
+    (run_dir / "git_commit.txt").write_text("test\n", encoding="utf-8")
+    (run_dir / "stdout.log").write_text("", encoding="utf-8")
+    (run_dir / "stderr.log").write_text("traceback tail\n", encoding="utf-8")
+    (run_dir / "exit_code.txt").write_text("1\n", encoding="utf-8")
+    _write_json(run_dir / "run_manifest.json", run_manifest)
+    _write_json(run_dir / "failure.json", failure)
+    (run_dir / "failure_report.md").write_text("# Failure\n", encoding="utf-8")
+    _write_json(run_dir / "artifact_manifest.json", artifact_manifest_for(run_dir, run_id))
+    return run_dir
 
 
 def test_validate_config_cli_reports_passed() -> None:
@@ -1445,6 +1630,112 @@ def test_phase5_gate_audit_accepts_review_chain_but_stops_at_readiness(tmp_path:
     assert report["do_not_continue_reason"] == "Phase 5 readiness has not passed."
     assert report["safety_flags"]["submitted_remote_job"] is False
     assert report["exports_applied"] is False
+
+
+def test_phase5_gate_audit_accepts_reviewed_real_execution_failure_bundle(tmp_path: Path) -> None:
+    gate_paths = _write_passed_phase5_gate_chain(tmp_path)
+    runs_root = tmp_path / "runs"
+    _write_landmark_failure_run(
+        runs_root,
+        "qwen_real_execution_failure",
+        failure_type="landmark_worker_execution_failed",
+    )
+    output_path = tmp_path / "phase5_gate_audit.json"
+
+    result = run_cli(
+        "phase5-gate-audit",
+        "--model",
+        "qwen3_vl_2b_instruct",
+        "--benchmark",
+        "pope",
+        "--limit",
+        "8",
+        "--instrumentation",
+        "none",
+        "--decision-request",
+        str(gate_paths["decision_request"]),
+        "--decision-validation",
+        str(gate_paths["decision_validation"]),
+        "--approved-readiness",
+        str(gate_paths["approved_readiness"]),
+        "--config-proposal",
+        str(gate_paths["config_proposal"]),
+        "--config-decision-validation",
+        str(gate_paths["config_decision_validation"]),
+        "--readiness",
+        str(gate_paths["readiness"]),
+        "--smoke-run-id",
+        "qwen_real_execution_failure",
+        "--runs-root",
+        str(runs_root),
+        "--output",
+        str(output_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["status"] == "needs_attention"
+    assert payload["next_missing_gate"] == "none"
+    assert payload["phase5_terminal_outcome"] == "reviewed_real_execution_failure"
+    assert report["gate_checks"]["real_smoke_result"]["status"] == "passed"
+    assert report["gate_checks"]["real_smoke_result"]["outcome"] == "reviewed_real_execution_failure"
+    assert report["gate_checks"]["real_smoke_result"]["run_validation"]["status"] == "passed"
+    assert report["do_not_continue_reason"] == (
+        "Phase 5 has a reviewed real-execution failure bundle; the real smoke did not succeed."
+    )
+    assert not (runs_root / "qwen_real_execution_failure" / "raw_outputs.jsonl").exists()
+
+
+def test_phase5_gate_audit_does_not_accept_validation_gate_failure_as_real_execution(tmp_path: Path) -> None:
+    gate_paths = _write_passed_phase5_gate_chain(tmp_path)
+    runs_root = tmp_path / "runs"
+    _write_landmark_failure_run(
+        runs_root,
+        "qwen_validation_gate_failure",
+        failure_type="landmark_worker_validation_gate_not_ready",
+    )
+    output_path = tmp_path / "phase5_gate_audit.json"
+
+    result = run_cli(
+        "phase5-gate-audit",
+        "--model",
+        "qwen3_vl_2b_instruct",
+        "--benchmark",
+        "pope",
+        "--limit",
+        "8",
+        "--instrumentation",
+        "none",
+        "--decision-request",
+        str(gate_paths["decision_request"]),
+        "--decision-validation",
+        str(gate_paths["decision_validation"]),
+        "--approved-readiness",
+        str(gate_paths["approved_readiness"]),
+        "--config-proposal",
+        str(gate_paths["config_proposal"]),
+        "--config-decision-validation",
+        str(gate_paths["config_decision_validation"]),
+        "--readiness",
+        str(gate_paths["readiness"]),
+        "--smoke-run-id",
+        "qwen_validation_gate_failure",
+        "--runs-root",
+        str(runs_root),
+        "--output",
+        str(output_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["status"] == "needs_attention"
+    assert payload["next_missing_gate"] == "real_smoke_result"
+    assert payload["phase5_terminal_outcome"] == "none"
+    assert report["gate_checks"]["real_smoke_result"]["status"] == "needs_attention"
+    assert report["gate_checks"]["real_smoke_result"]["outcome"] == "pre_execution_gate_failure"
+    assert "not a reviewed real-execution failure" in report["gate_checks"]["real_smoke_result"]["summary"]
 
 
 def test_phase5_discover_model_candidates_finds_configured_root_candidate(tmp_path: Path) -> None:

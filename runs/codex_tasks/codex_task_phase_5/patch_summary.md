@@ -49,6 +49,7 @@ This phase now contains two related records:
 - a follow-up config representation decision validator that checks an external human-selected representation option without editing config, exporting env vars, or opening execution gates.
 - a follow-up Phase 5 gate audit command that consolidates review/readiness artifact status and reports the next missing gate without editing config, exporting env vars, or executing anything.
 - a follow-up Phase 5 gate audit package writer that emits JSON and Markdown for human review without writing raw outputs or opening execution gates.
+- a follow-up Phase 5 final run-bundle audit that validates a recorded smoke run or reviewed worker execution failure without running or mutating anything.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -127,6 +128,7 @@ This phase now contains two related records:
 - `stable_core.validation.phase5_readiness.build_phase5_gate_audit`
 - `stable_core.cli phase5-gate-audit`
 - `stable_core.validation.phase5_readiness._gate_audit_markdown`
+- `stable_core.validation.phase5_readiness._audit_real_smoke_result`
 
 ## Gate Commands
 
@@ -309,6 +311,12 @@ This phase now contains two related records:
 - `phase5-gate-audit` with temporary review-chain artifacts and a `needs_attention` readiness bundle
   - status: initially failed because the CLI and builder did not exist, then passed after adding review-chain artifact checks
   - purpose: verify the review-chain artifacts can pass audit while Phase 5 still stops at `phase5_readiness`
+- `phase5-gate-audit --smoke-run-id` with temporary passed review-chain artifacts and a `landmark_worker_execution_failed` bundle
+  - status: initially failed because `--smoke-run-id` and `--runs-root` were not accepted, then passed after adding final run-bundle audit classification
+  - purpose: accept only validated real-smoke success bundles or reviewed worker execution-failure bundles as Phase 5 terminal evidence
+- `phase5-gate-audit --smoke-run-id` with temporary passed review-chain artifacts and a `landmark_worker_validation_gate_not_ready` bundle
+  - status: initially failed because the final run-bundle audit did not exist, then passed after adding failure-type classification
+  - purpose: prove setup/validation gate failures remain incomplete and are not mistaken for reviewed real-execution failures
 - server `phase5-probe-explicit-model-path` for `/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours` plus `/home/vepfs/data/work1/auto-research-test1/benchmarks`
   - status: `passed`
   - output: `/tmp/phase5_explicit_model_path_probe_server.json`
@@ -550,12 +558,14 @@ This phase now contains two related records:
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_validate_config_representation_decision_cli_accepts_explicit_override tests/test_config_cli.py::test_phase5_validate_config_representation_decision_rejects_mismatched_model_path -q`: initially `2 failed`, then `2 passed` after adding the config representation decision validator and CLI.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_gate_audit_cli_reports_missing_review_chain tests/test_config_cli.py::test_phase5_gate_audit_accepts_review_chain_but_stops_at_readiness -q`: initially `2 failed`, then `2 passed` after adding the read-only Phase 5 gate audit CLI.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_gate_audit_cli_writes_reviewable_markdown_package -q`: initially `1 failed`, then `1 passed` after adding `--output-dir` support and Markdown rendering.
-- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py -q`: `33 passed`.
-- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py tests/test_qwen3_vl_adapter.py tests/test_fake_adapters.py tests/test_landmark_gate.py tests/test_runner.py -q`: `81 passed`.
-- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest -q`: `114 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_gate_audit_accepts_reviewed_real_execution_failure_bundle tests/test_config_cli.py::test_phase5_gate_audit_does_not_accept_validation_gate_failure_as_real_execution -q`: initially `2 failed`, then `2 passed` after adding final run-bundle audit classification.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py -q`: `35 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py tests/test_qwen3_vl_adapter.py tests/test_fake_adapters.py tests/test_landmark_gate.py tests/test_runner.py -q`: `83 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest -q`: `116 passed`.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli phase5-validate-config-representation-decision --proposal /tmp/phase5_config_representation_decision_smoke/proposal.json --decision-record /tmp/phase5_config_representation_decision_smoke/decision.json --output /tmp/phase5_config_representation_decision_smoke/report.json`: `passed`, selected option `explicit_local_path_override`, `ready_for_real_smoke: false`, `write_config: false`, `exports_applied: false`, and all execution safety flags false.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli phase5-gate-audit --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output /tmp/phase5_gate_audit_smoke/report.json`: `needs_attention`, next missing gate `model_path_decision_request`, `ready_for_real_smoke: false`, `write_config: false`, `exports_applied: false`, and all execution safety flags false.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli phase5-gate-audit --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_gate_audit_package_smoke`: `needs_attention`, writes `phase5_gate_audit.json` and `phase5_gate_audit.md`, next missing gate `model_path_decision_request`, and all execution safety flags false.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli phase5-gate-audit --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_gate_audit_package_smoke_final`: `needs_attention`, `phase5_terminal_outcome: none`, next missing gate `model_path_decision_request`, and all execution safety flags false.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli validate-config`: `passed`.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.security.secret_scan --paths AGENTS.md README.md docs project_config stable_core adapters experiments research_tools tests runs/codex_tasks runs/needs_attention runs/subagent_reports`: `passed`, no findings.
 - `find . -type f -size +5M -not -path './.git/*' -print`: no output.

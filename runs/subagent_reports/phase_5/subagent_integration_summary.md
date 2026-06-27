@@ -192,6 +192,8 @@ This still does not resolve the Phase 5 blocker. The validation output keeps `re
 
 The command now supports `--output-dir`, writing `phase5_gate_audit.json` plus `phase5_gate_audit.md` for human review.
 
+It also supports `--smoke-run-id` with `--runs-root` to validate final recorded run evidence. A succeeded run bundle is classified as `validated_real_smoke_success`; a validated `landmark_worker_execution_failed` bundle is classified as `reviewed_real_execution_failure`; setup, validation, and runtime gate failures remain incomplete and report `next_missing_gate: real_smoke_result`.
+
 This is an audit surface only. It keeps `ready_for_real_smoke: false`, `write_config: false`, and `exports_applied: false`, and it does not edit config, export env vars, read `.env`, open gates, load weights, run generation, submit jobs, run benchmarks, or write raw outputs.
 
 ## Worker Execution Loop Follow-Up

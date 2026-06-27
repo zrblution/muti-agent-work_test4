@@ -206,6 +206,8 @@ def build_parser() -> argparse.ArgumentParser:
     phase5_gate_audit_parser.add_argument("--config-proposal", default=None)
     phase5_gate_audit_parser.add_argument("--config-decision-validation", default=None)
     phase5_gate_audit_parser.add_argument("--readiness", default=None)
+    phase5_gate_audit_parser.add_argument("--smoke-run-id", default=None)
+    phase5_gate_audit_parser.add_argument("--runs-root", default=str(DEFAULT_RUNS_ROOT))
     phase5_gate_audit_parser.add_argument("--output", default=None)
     phase5_gate_audit_parser.add_argument("--output-dir", default=None)
 
@@ -571,6 +573,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 config_proposal_path=args.config_proposal,
                 config_decision_validation_path=args.config_decision_validation,
                 readiness_path=args.readiness,
+                smoke_run_id=args.smoke_run_id,
+                runs_root=args.runs_root,
                 output=args.output,
                 output_dir=args.output_dir,
             )
@@ -585,6 +589,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "status": report["status"],
                     "ready_for_real_smoke": report["ready_for_real_smoke"],
                     "next_missing_gate": report["next_missing_gate"],
+                    "phase5_terminal_outcome": report["phase5_terminal_outcome"],
                     "write_config": report["write_config"],
                     "exports_applied": report["exports_applied"],
                     **safety_flags,
