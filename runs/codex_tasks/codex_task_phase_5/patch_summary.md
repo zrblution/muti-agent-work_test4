@@ -44,6 +44,7 @@ This phase now contains two related records:
 - a follow-up explicit model-path probe for review-only variant validation without requiring `REMOTE_MODEL_ROOT`.
 - a follow-up model-path decision request packet that records a pending human decision for an exact variant path without approving, mutating config, or executing anything.
 - a follow-up model-path decision-template writer that emits approve/reject/provide-base-root records matching the next validation command without approving, mutating config, or executing anything.
+- a committed Phase 5 pending model-path decision-request artifact for the reviewed server variant path, still requiring external human decision validation.
 - a follow-up model-path decision validator that checks a human-supplied decision record against a pending request without mutating config or opening execution.
 - a follow-up approved-decision readiness bundle that records approved exact paths and remaining gates without treating approval as execution permission.
 - a follow-up config representation proposal that reviews env/config options for approved paths without editing config or exporting env vars.
@@ -283,6 +284,10 @@ This phase now contains two related records:
 - `phase5-model-path-decision-request` with a temporary qwen-like variant path, POPE benchmark root, and required decision-record templates
   - status: initially failed because the request did not include `decision_record_templates`, then passed after adding approve/reject/provide-base-root templates and Markdown lines
   - purpose: give the human reviewer exact JSON fields for `phase5-validate-model-path-decision` while preserving `write_config: false`, all execution safety flags false, and no raw outputs
+- committed `runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json`
+  - status: `needs_attention`
+  - approval status: `pending`
+  - finding: server-generated no-load probe passed for `/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours`, but the path still requires human approval and decision validation before config representation or execution gates can change
 - server `phase5-model-path-decision-request` for `/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours` plus `/home/vepfs/data/work1/auto-research-test1/benchmarks`
   - status: `needs_attention`
   - approval status: `pending`
@@ -427,6 +432,7 @@ This phase now contains two related records:
 - `runs/qwen3vl_pope_limit8_gate/`
 - `runs/qwen3vl_pope_limit8_gate_diagnostics/`
 - `runs/needs_attention/phase_5_needs_human_decision.md`
+- `runs/needs_attention/phase_5_model_path_decision_request/`
 - `docs/verification/phase_5_acceptance_report.md`
 - optional readiness bundles written outside the repo for smoke checks, such as `/tmp/phase5_readiness_cli_smoke/`
 
@@ -573,19 +579,21 @@ This phase now contains two related records:
 - No raw output was written by `phase5-readiness`.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_validate_config_representation_decision_cli_accepts_explicit_override tests/test_config_cli.py::test_phase5_validate_config_representation_decision_rejects_mismatched_model_path -q`: initially `2 failed`, then `2 passed` after adding the config representation decision validator and CLI.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_model_path_decision_request_cli_writes_pending_review_packet -q`: initially `1 failed`, then `1 passed` after adding per-decision model-path decision templates to the request packet.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_committed_model_path_decision_request_advances_gate_audit -q`: initially `1 failed`, then `1 passed` after adding the committed pending decision-request artifact; gate audit accepts the first gate and stops at `model_path_decision_validation`.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_config_representation_proposal_cli_writes_reviewable_options -q`: initially `1 failed`, then `1 passed` after adding per-option decision-record templates to the config representation proposal.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_gate_audit_cli_reports_missing_review_chain tests/test_config_cli.py::test_phase5_gate_audit_accepts_review_chain_but_stops_at_readiness -q`: initially `2 failed`, then `2 passed` after adding the read-only Phase 5 gate audit CLI.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_gate_audit_cli_writes_reviewable_markdown_package -q`: initially `1 failed`, then `1 passed` after adding `--output-dir` support and Markdown rendering.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_gate_audit_cli_writes_reviewable_markdown_package -q`: initially `1 failed`, then `1 passed` after adding the structured `next_action_packet` to the gate audit JSON and Markdown.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_gate_audit_accepts_reviewed_real_execution_failure_bundle tests/test_config_cli.py::test_phase5_gate_audit_does_not_accept_validation_gate_failure_as_real_execution -q`: initially `2 failed`, then `2 passed` after adding final run-bundle audit classification.
-- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py -q`: `35 passed`.
-- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py tests/test_qwen3_vl_adapter.py tests/test_fake_adapters.py tests/test_landmark_gate.py tests/test_runner.py -q`: `83 passed`.
-- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest -q`: `116 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py -q`: `36 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py tests/test_qwen3_vl_adapter.py tests/test_fake_adapters.py tests/test_landmark_gate.py tests/test_runner.py -q`: `84 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest -q`: `117 passed`.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli phase5-validate-config-representation-decision --proposal /tmp/phase5_config_representation_decision_smoke/proposal.json --decision-record /tmp/phase5_config_representation_decision_smoke/decision.json --output /tmp/phase5_config_representation_decision_smoke/report.json`: `passed`, selected option `explicit_local_path_override`, `ready_for_real_smoke: false`, `write_config: false`, `exports_applied: false`, and all execution safety flags false.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli phase5-gate-audit --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output /tmp/phase5_gate_audit_smoke/report.json`: `needs_attention`, next missing gate `model_path_decision_request`, `ready_for_real_smoke: false`, `write_config: false`, `exports_applied: false`, and all execution safety flags false.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli phase5-gate-audit --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_gate_audit_package_smoke`: `needs_attention`, writes `phase5_gate_audit.json` and `phase5_gate_audit.md`, next missing gate `model_path_decision_request`, and all execution safety flags false.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli phase5-gate-audit --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_gate_audit_package_smoke_final`: `needs_attention`, `phase5_terminal_outcome: none`, next missing gate `model_path_decision_request`, and all execution safety flags false.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli phase5-gate-audit --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_gate_audit_packet_smoke`: `needs_attention`, `next_action_packet.gate: model_path_decision_request`, command template present, Markdown packet section present, and all execution safety flags false.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli phase5-gate-audit --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --decision-request runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json --output-dir /tmp/phase5_gate_audit_with_committed_decision_request`: `needs_attention`, first gate `model_path_decision_request` accepted, next missing gate `model_path_decision_validation`, and all execution safety flags false.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli validate-config`: `passed`.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.security.secret_scan --paths AGENTS.md README.md docs project_config stable_core adapters experiments research_tools tests runs/codex_tasks runs/needs_attention runs/subagent_reports`: `passed`, no findings.
 - `find . -type f -size +5M -not -path './.git/*' -print`: no output.

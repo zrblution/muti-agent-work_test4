@@ -1,0 +1,285 @@
+{
+  "phase": "Phase 5",
+  "mode": "model_path_decision_request",
+  "status": "needs_attention",
+  "approval_status": "pending",
+  "created_at": "2026-06-27T03:40:27Z",
+  "git_commit": "2137965266adcd9e9f947e7b67c458a472cc3a15",
+  "target": {
+    "model_id": "qwen3_vl_2b_instruct",
+    "benchmark_id": "pope",
+    "model_path": "/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours",
+    "benchmark_root": "/home/vepfs/data/work1/auto-research-test1/benchmarks"
+  },
+  "probe": {
+    "phase": "Phase 5",
+    "mode": "explicit_model_path_probe",
+    "status": "passed",
+    "created_at": "2026-06-27T03:40:27Z",
+    "git_commit": "2137965266adcd9e9f947e7b67c458a472cc3a15",
+    "target": {
+      "model_id": "qwen3_vl_2b_instruct",
+      "benchmark_id": "pope"
+    },
+    "candidate_model_path": "/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours",
+    "candidate_benchmark_env": {
+      "REMOTE_BENCHMARK_ROOT": "/home/vepfs/data/work1/auto-research-test1/benchmarks"
+    },
+    "configured_root_contract": {
+      "model_dir": "Qwen3-VL-2B-Instruct",
+      "satisfied": false,
+      "message": "Candidate path is an explicit model path and does not satisfy the configured root/subdirectory contract."
+    },
+    "requires_human_approval": true,
+    "checks": {
+      "config": {
+        "status": "passed",
+        "files": {
+          "paths.yaml": true,
+          "models.yaml": true,
+          "benchmarks.yaml": true,
+          "agents.yaml": true,
+          "security.yaml": true,
+          "server.yaml": true,
+          "experiment_budget.yaml": true,
+          "instrumentation.yaml": true,
+          "git_policy.yaml": true
+        },
+        "providers": {
+          "status": "passed",
+          "providers": {
+            "deepseek_v4_pro": {
+              "provider_type": "openai_compatible",
+              "model": "deepseek-v4-pro",
+              "api_key_env": "DEEPSEEK_API_KEY",
+              "base_url_env": null,
+              "timeout_seconds": "120",
+              "max_retries": "3"
+            },
+            "opus4_8_proxy": {
+              "provider_type": "openai_compatible",
+              "model": "opus4-8",
+              "api_key_env": "OPUS_PROXY_API_KEY",
+              "base_url_env": "OPUS_PROXY_BASE_URL",
+              "timeout_seconds": "180",
+              "max_retries": "3"
+            }
+          },
+          "findings": []
+        },
+        "inventory": {
+          "status": "passed",
+          "findings": []
+        },
+        "models": [
+          "fake_model",
+          "internvl3_5_4b",
+          "qwen3_vl_2b_instruct"
+        ],
+        "benchmarks": [
+          "amber",
+          "chair",
+          "fake_benchmark",
+          "mme",
+          "pope"
+        ],
+        "agents": [
+          "deepseek_v4_pro",
+          "opus4_8_proxy"
+        ],
+        "findings": []
+      },
+      "model_runtime_dependencies": {
+        "model_id": "qwen3_vl_2b_instruct",
+        "status": "passed",
+        "checks": [
+          {
+            "name": "load_attempted",
+            "status": "not_attempted"
+          },
+          {
+            "name": "runtime_dependencies",
+            "status": "passed",
+            "processor_class": "AutoProcessor",
+            "model_class": "Qwen3VLForConditionalGeneration",
+            "precision": "bf16",
+            "load_attempted": false
+          }
+        ],
+        "summary": "Qwen3-VL-2B-Instruct runtime dependencies are ready; no model was loaded."
+      },
+      "model_explicit_path_validation": {
+        "model_id": "qwen3_vl_2b_instruct",
+        "status": "passed",
+        "checks": [
+          {
+            "name": "download_allowed",
+            "status": "not_attempted",
+            "value": false
+          },
+          {
+            "name": "load_attempted",
+            "status": "not_attempted"
+          },
+          {
+            "name": "model_path",
+            "status": "passed",
+            "raw_path": "/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours",
+            "path": "/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours"
+          },
+          {
+            "name": "model_inventory",
+            "status": "passed",
+            "path": "/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours",
+            "required_files": [
+              "config.json"
+            ]
+          },
+          {
+            "name": "runtime_dependencies",
+            "status": "passed",
+            "processor_class": "AutoProcessor",
+            "model_class": "Qwen3VLForConditionalGeneration",
+            "precision": "bf16",
+            "load_attempted": false
+          }
+        ],
+        "summary": "Qwen3-VL-2B-Instruct path, inventory, and runtime dependencies are ready; no model was loaded."
+      },
+      "benchmark_inventory_discovery": {
+        "benchmark_id": "pope",
+        "status": "passed",
+        "raw_path": "${REMOTE_BENCHMARK_ROOT}/POPE",
+        "path": "/home/vepfs/data/work1/auto-research-test1/benchmarks/POPE",
+        "accepted_suffixes": [
+          ".csv",
+          ".json",
+          ".jsonl",
+          ".tsv",
+          ".txt",
+          ".yaml",
+          ".yml"
+        ],
+        "discovered_files": [
+          "requirements.txt",
+          "answer/example.json",
+          "caption_data/Instruction1_instructblip.json",
+          "caption_data/Instruction1_llava.json",
+          "caption_data/Instruction1_minigpt-4.json",
+          "caption_data/Instruction1_mmgpt.json",
+          "caption_data/Instruction1_mplug.json",
+          "caption_data/Instruction2_instructblip.json",
+          "caption_data/Instruction2_llava.json",
+          "caption_data/Instruction2_minigpt-4.json",
+          "caption_data/Instruction2_mmgpt.json",
+          "caption_data/Instruction2_mplug.json",
+          "segmentation/coco_ground_truth_segmentation.json",
+          "POPEv2/dataset/annotations.json"
+        ],
+        "write_config": false,
+        "summary": "Review discovered_files before copying any entries into project_config/benchmarks.yaml required_files."
+      },
+      "benchmark_validation": {
+        "benchmark_id": "pope",
+        "status": "passed",
+        "checks": [
+          {
+            "name": "adapter",
+            "status": "passed",
+            "value": "POPEAdapter"
+          },
+          {
+            "name": "benchmark_path",
+            "status": "passed",
+            "raw_path": "${REMOTE_BENCHMARK_ROOT}/POPE",
+            "path": "/home/vepfs/data/work1/auto-research-test1/benchmarks/POPE"
+          },
+          {
+            "name": "benchmark_inventory",
+            "status": "passed",
+            "path": "/home/vepfs/data/work1/auto-research-test1/benchmarks/POPE",
+            "discovered_files": [
+              "requirements.txt",
+              "answer/example.json",
+              "caption_data/Instruction1_instructblip.json",
+              "caption_data/Instruction1_llava.json",
+              "caption_data/Instruction1_minigpt-4.json",
+              "caption_data/Instruction1_mmgpt.json",
+              "caption_data/Instruction1_mplug.json",
+              "caption_data/Instruction2_instructblip.json",
+              "caption_data/Instruction2_llava.json",
+              "caption_data/Instruction2_minigpt-4.json",
+              "caption_data/Instruction2_mmgpt.json",
+              "caption_data/Instruction2_mplug.json",
+              "segmentation/coco_ground_truth_segmentation.json",
+              "POPEv2/dataset/annotations.json"
+            ]
+          }
+        ],
+        "summary": "POPE path exists; sample parsing is a later gate."
+      }
+    },
+    "safety_flags": {
+      "executed_real_model": false,
+      "executed_real_benchmark": false,
+      "submitted_remote_job": false,
+      "raw_outputs_written": false,
+      "write_config": false
+    },
+    "next_actions": [
+      "Treat this as a review-only variant path; obtain explicit approval before any config-path override or real smoke attempt.",
+      "Rerun phase5-readiness or a controlled worker plan only after the approved model and benchmark paths are represented in config."
+    ]
+  },
+  "requested_decision": {
+    "question": "Approve this exact model path as the Phase 5 Qwen3-VL path, reject it, or provide the base model root.",
+    "allowed_decisions": [
+      "approve_variant_path",
+      "reject_variant_path",
+      "provide_base_model_root"
+    ],
+    "approval_record_template": {
+      "decision": null,
+      "approver": null,
+      "approved_model_path": "/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours",
+      "approved_benchmark_root": "/home/vepfs/data/work1/auto-research-test1/benchmarks",
+      "rationale": null
+    },
+    "decision_record_templates": [
+      {
+        "decision": "approve_variant_path",
+        "approver": null,
+        "approved_model_path": "/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours",
+        "approved_benchmark_root": "/home/vepfs/data/work1/auto-research-test1/benchmarks",
+        "rationale": null
+      },
+      {
+        "decision": "reject_variant_path",
+        "approver": null,
+        "rejected_model_path": "/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours",
+        "approved_model_path": null,
+        "approved_benchmark_root": null,
+        "rationale": null
+      },
+      {
+        "decision": "provide_base_model_root",
+        "approver": null,
+        "provided_model_root": null,
+        "approved_benchmark_root": "/home/vepfs/data/work1/auto-research-test1/benchmarks",
+        "rationale": null
+      }
+    ]
+  },
+  "safety_flags": {
+    "executed_real_model": false,
+    "executed_real_benchmark": false,
+    "submitted_remote_job": false,
+    "raw_outputs_written": false,
+    "write_config": false
+  },
+  "do_not_continue_reason": "Human approval is pending for a non-contract model path.",
+  "next_actions": [
+    "Review the exact model-path probe and decide whether this path is an approved Phase 5 target.",
+    "Do not open process submission or run the real smoke until the decision is recorded and config representation is reviewed."
+  ]
+}

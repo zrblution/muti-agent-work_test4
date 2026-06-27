@@ -1497,6 +1497,49 @@ def test_phase5_gate_audit_cli_writes_reviewable_markdown_package(tmp_path: Path
     assert "raw_outputs.jsonl" not in {path.name for path in output_dir.iterdir()}
 
 
+def test_phase5_committed_model_path_decision_request_advances_gate_audit(tmp_path: Path) -> None:
+    artifact_dir = REPO_ROOT / "runs/needs_attention/phase_5_model_path_decision_request"
+    decision_request_path = artifact_dir / "phase5_model_path_decision_request.json"
+    decision_request_markdown = artifact_dir / "phase5_model_path_decision_request.md"
+    output_path = tmp_path / "phase5_gate_audit.json"
+
+    assert decision_request_path.exists()
+    assert decision_request_markdown.exists()
+
+    result = run_cli(
+        "phase5-gate-audit",
+        "--model",
+        "qwen3_vl_2b_instruct",
+        "--benchmark",
+        "pope",
+        "--limit",
+        "8",
+        "--instrumentation",
+        "none",
+        "--decision-request",
+        str(decision_request_path),
+        "--output",
+        str(output_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    request = json.loads(decision_request_path.read_text(encoding="utf-8"))
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["status"] == "needs_attention"
+    assert payload["next_missing_gate"] == "model_path_decision_validation"
+    assert request["approval_status"] == "pending"
+    assert request["safety_flags"]["write_config"] is False
+    assert request["safety_flags"]["executed_real_model"] is False
+    assert request["requested_decision"]["decision_record_templates"]
+    assert report["gate_checks"]["model_path_decision_request"]["status"] == "passed"
+    assert report["gate_checks"]["model_path_decision_validation"]["status"] == "missing"
+    assert report["ready_for_real_smoke"] is False
+    assert report["safety_flags"]["submitted_remote_job"] is False
+    assert "approval_status: `pending`" in decision_request_markdown.read_text(encoding="utf-8")
+    assert "raw_outputs.jsonl" not in {path.name for path in artifact_dir.iterdir()}
+
+
 def test_phase5_gate_audit_accepts_review_chain_but_stops_at_readiness(tmp_path: Path) -> None:
     request_path = tmp_path / "phase5_model_path_decision_request.json"
     decision_validation_path = tmp_path / "phase5_model_path_decision_validation.json"
