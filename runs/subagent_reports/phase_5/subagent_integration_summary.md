@@ -283,3 +283,9 @@ No subagent report conflict changes from this update. The integration decision i
 `runs/needs_attention/phase_5_execution_authorization_request_current/` now captures the next non-executing human handoff. It references the committed base-root probe, readiness bundle, and base-root decision validation by sha256; it also includes unfilled templates for `authorize_remote_execution` and `keep_execution_closed`.
 
 This resolves ambiguity in the current handoff without opening any gate. The only admissible next action is human review of exactly one authorization decision record, followed by a fresh server-side `phase5-readiness` run before any controlled worker submission is considered.
+
+## Execution Authorization Validation Integration
+
+The filled `authorize_remote_execution` record now validates against the pending request and exact Phase 5 scope. The validation package is stored under `runs/needs_attention/phase_5_execution_authorization_validation_current/` and keeps all execution safety flags false.
+
+Integration decision: sync the validated authorization to the server, rerun read-only root and readiness checks first, then temporarily open only `runner_mode`, real GPU, and process-submission gates for the reviewed Qwen3-VL + POPE limit=8 smoke. Any real execution failure must be preserved as a reviewed failure bundle before Phase 5 can terminate.

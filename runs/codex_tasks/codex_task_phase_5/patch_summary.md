@@ -813,3 +813,17 @@ Added `runs/needs_attention/phase_5_execution_authorization_request_current/` as
 - `decision_record_templates/keep_execution_closed.template.json`: an unfilled template to explicitly keep Phase 5 stopped at `needs_attention`.
 
 This follow-up is not authorization. It does not mutate config, export env vars, read `.env`, open gates, load weights, run generation, submit jobs, run benchmarks, write raw outputs, or start Phase 6.
+
+## Execution Authorization Validation Follow-Up
+
+The local `authorize_remote_execution` decision record is now filled and validated. Added `runs/needs_attention/phase_5_execution_authorization_validation_current/` with JSON and Markdown evidence that:
+
+- the decision is allowed by the pending request;
+- approver and rationale are present;
+- approved model and benchmark roots match the validated roots;
+- approved gate values are `runner_mode: remote_enabled`, `allow_real_gpu_jobs: true`, and `allow_process_submission: true`;
+- scope is exactly `qwen3_vl_2b_instruct` + `pope` + `limit=8` + `instrumentation=none`;
+- the reviewed worker is `experiments/landmark_baselines/run_landmark.py`;
+- all acknowledgements and execution safety flags are preserved.
+
+This validation does not mutate config, export env vars, run the model, run the benchmark, submit a process, write raw outputs, or start Phase 6.

@@ -296,3 +296,9 @@ The current evidence package is stored under `runs/needs_attention/phase_5_base_
 `runs/needs_attention/phase_5_execution_authorization_request_current/` now records the next human handoff after the base-root probe. The request summarizes the validated roots, passed no-load model and benchmark checks, closed execution gates, source-artifact hashes, and unfilled decision templates for either authorizing the reviewed Phase 5 smoke gates or keeping execution closed.
 
 This package is handoff evidence only. It keeps `ready_for_real_smoke: false`, `write_config: false`, `exports_applied: false`, and all execution safety flags false. It does not edit config, export env vars, load a model, run a benchmark, submit a process, write raw outputs, or start Phase 6.
+
+## Execution Authorization Validation Update
+
+`runs/needs_attention/phase_5_execution_authorization_validation_current/` now records a passed validation for the filled `authorize_remote_execution` decision record. The approved scope is limited to `qwen3_vl_2b_instruct` + `pope` + `limit=8` + `instrumentation=none` through the reviewed `experiments/landmark_baselines/run_landmark.py` worker, with `REMOTE_MODEL_ROOT=/home/tos_lx/basemodel` and `REMOTE_BENCHMARK_ROOT=/home/vepfs/data/work1/auto-research-test1/benchmarks`.
+
+This validation is authorization evidence only. It does not edit config, export env vars, run a model, run a benchmark, submit a process, write raw outputs, or start Phase 6. The next step is server-side root/readiness revalidation, then a scoped temporary opening of the reviewed remote/GPU/process gates for the controlled smoke.

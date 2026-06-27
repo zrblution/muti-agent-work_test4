@@ -1,0 +1,72 @@
+{
+  "command": "manual_phase5_execution_authorization_validation",
+  "phase": "phase_5",
+  "status": "passed",
+  "authorization_status": "approved",
+  "request": {
+    "path": "runs/needs_attention/phase_5_execution_authorization_request_current/phase5_execution_authorization_request.json",
+    "sha256": "df54a75027257e76bbd7504b06c755d94ddaef70553e7990654f4b3d01b1f095"
+  },
+  "decision_record": {
+    "path": "runs/needs_attention/phase_5_execution_authorization_request_current/decision_record_templates/authorize_remote_execution.template.json",
+    "sha256": "f4f51a961cac3b50a29581b9f27831ec28e59c51d111b11effdcd35dc68a0b7a",
+    "decision": "authorize_remote_execution",
+    "approver": "zrblution"
+  },
+  "approved_scope": {
+    "model": "qwen3_vl_2b_instruct",
+    "benchmark": "pope",
+    "limit": 8,
+    "instrumentation": "none",
+    "worker": "experiments/landmark_baselines/run_landmark.py",
+    "remote_model_root": "/home/tos_lx/basemodel",
+    "remote_benchmark_root": "/home/vepfs/data/work1/auto-research-test1/benchmarks"
+  },
+  "approved_gate_values": {
+    "runner_mode": "remote_enabled",
+    "allow_real_gpu_jobs": true,
+    "allow_process_submission": true
+  },
+  "checks": [
+    {"name": "request_status_pending", "status": "passed", "expected": "pending", "actual": "pending"},
+    {"name": "decision_allowed", "status": "passed", "expected": ["authorize_remote_execution", "keep_execution_closed"], "actual": "authorize_remote_execution"},
+    {"name": "approver_present", "status": "passed", "expected": "non-empty", "actual": "zrblution"},
+    {"name": "rationale_present", "status": "passed", "expected": "non-empty"},
+    {"name": "model_root_match", "status": "passed", "expected": "/home/tos_lx/basemodel", "actual": "/home/tos_lx/basemodel"},
+    {"name": "benchmark_root_match", "status": "passed", "expected": "/home/vepfs/data/work1/auto-research-test1/benchmarks", "actual": "/home/vepfs/data/work1/auto-research-test1/benchmarks"},
+    {"name": "runner_mode_approved", "status": "passed", "expected": "remote_enabled", "actual": "remote_enabled"},
+    {"name": "gpu_gate_approved", "status": "passed", "expected": true, "actual": true},
+    {"name": "process_gate_approved", "status": "passed", "expected": true, "actual": true},
+    {"name": "scope_model", "status": "passed", "expected": "qwen3_vl_2b_instruct", "actual": "qwen3_vl_2b_instruct"},
+    {"name": "scope_benchmark", "status": "passed", "expected": "pope", "actual": "pope"},
+    {"name": "scope_limit", "status": "passed", "expected": 8, "actual": 8},
+    {"name": "scope_instrumentation", "status": "passed", "expected": "none", "actual": "none"},
+    {"name": "scope_worker", "status": "passed", "expected": "experiments/landmark_baselines/run_landmark.py", "actual": "experiments/landmark_baselines/run_landmark.py"},
+    {"name": "ack_approved_roots_must_be_revalidated_before_execution", "status": "passed", "expected": true, "actual": true},
+    {"name": "ack_authorization_is_limited_to_phase5_limit8_smoke", "status": "passed", "expected": true, "actual": true},
+    {"name": "ack_raw_outputs_must_not_be_overwritten", "status": "passed", "expected": true, "actual": true},
+    {"name": "ack_large_artifacts_are_manifest_only", "status": "passed", "expected": true, "actual": true},
+    {"name": "ack_run_directory_must_be_preserved_for_validate_run", "status": "passed", "expected": true, "actual": true}
+  ],
+  "safe_next_actions": [
+    "Commit and push this filled decision record and validation report.",
+    "Fast-forward the server repository to the committed authorization evidence.",
+    "Rerun phase5-probe-paths and phase5-readiness with the approved roots before opening execution gates.",
+    "Temporarily open only the reviewed remote execution, GPU, and process-submission gates on the server for qwen3_vl_2b_instruct + pope + limit=8 + instrumentation=none.",
+    "Run the controlled RemoteRunner path and preserve either a validated success bundle or reviewed real-execution failure bundle."
+  ],
+  "forbidden_actions": [
+    "Do not use this authorization for any other model, benchmark, limit, instrumentation mode, or worker.",
+    "Do not proceed to Phase 6 before Phase 5 has a validated terminal outcome.",
+    "Do not overwrite raw_outputs.jsonl."
+  ],
+  "safety_flags": {
+    "executed_real_model": false,
+    "executed_real_benchmark": false,
+    "submitted_remote_job": false,
+    "raw_outputs_written": false,
+    "write_config": false,
+    "exports_applied": false
+  },
+  "ready_for_real_smoke": false
+}

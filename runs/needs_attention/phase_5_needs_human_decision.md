@@ -56,6 +56,7 @@ Phase 5: minimal real smoke for `qwen3_vl_2b_instruct` + `pope` with `limit=8` a
 - Do not fill a second model-path decision record unless replacing the current `provide_base_model_root` choice and rerunning the decision-record status check.
 - Current base-root decision evidence is stored under `runs/needs_attention/phase_5_base_model_root_decision_current/`.
 - Current execution-authorization handoff is stored under `runs/needs_attention/phase_5_execution_authorization_request_current/`. It has unfilled templates for either authorizing the reviewed Phase 5 smoke gates or keeping execution closed.
+- `runs/needs_attention/phase_5_execution_authorization_request_current/decision_record_templates/authorize_remote_execution.template.json` is now filled and validated by `runs/needs_attention/phase_5_execution_authorization_validation_current/`. The authorization is limited to `qwen3_vl_2b_instruct` + `pope` + `limit=8` + `instrumentation=none` through `experiments/landmark_baselines/run_landmark.py`.
 
 - Provide approved server environment values for `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` without committing secrets or large artifacts.
 - Review `phase5-discover-model-candidates` output before approving any `REMOTE_MODEL_ROOT` value.
