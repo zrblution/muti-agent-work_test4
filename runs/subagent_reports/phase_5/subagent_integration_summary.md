@@ -190,6 +190,8 @@ This still does not resolve the Phase 5 blocker. The validation output keeps `re
 
 `phase5-gate-audit` now reads the Phase 5 review/readiness artifact chain and reports the first missing or incomplete gate. It covers the model-path decision request, model-path decision validation, approved-decision readiness, config representation proposal, config representation decision validation, and Phase 5 readiness bundle.
 
+The command now supports `--output-dir`, writing `phase5_gate_audit.json` plus `phase5_gate_audit.md` for human review.
+
 This is an audit surface only. It keeps `ready_for_real_smoke: false`, `write_config: false`, and `exports_applied: false`, and it does not edit config, export env vars, read `.env`, open gates, load weights, run generation, submit jobs, run benchmarks, or write raw outputs.
 
 ## Worker Execution Loop Follow-Up

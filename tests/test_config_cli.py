@@ -1228,6 +1228,41 @@ def test_phase5_gate_audit_cli_reports_missing_review_chain(tmp_path: Path) -> N
     assert "raw_outputs.jsonl" not in {path.name for path in tmp_path.iterdir()}
 
 
+def test_phase5_gate_audit_cli_writes_reviewable_markdown_package(tmp_path: Path) -> None:
+    output_dir = tmp_path / "gate_audit"
+
+    result = run_cli(
+        "phase5-gate-audit",
+        "--model",
+        "qwen3_vl_2b_instruct",
+        "--benchmark",
+        "pope",
+        "--limit",
+        "8",
+        "--instrumentation",
+        "none",
+        "--output-dir",
+        str(output_dir),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    report = json.loads((output_dir / "phase5_gate_audit.json").read_text(encoding="utf-8"))
+    markdown = (output_dir / "phase5_gate_audit.md").read_text(encoding="utf-8")
+    assert payload["command"] == "phase5-gate-audit"
+    assert payload["status"] == "needs_attention"
+    assert payload["next_missing_gate"] == "model_path_decision_request"
+    assert report["mode"] == "gate_audit"
+    assert report["ready_for_real_smoke"] is False
+    assert report["write_config"] is False
+    assert report["exports_applied"] is False
+    assert "# Phase 5 Gate Audit" in markdown
+    assert "next_missing_gate: `model_path_decision_request`" in markdown
+    assert "ready_for_real_smoke: `false`" in markdown
+    assert "- model_path_decision_request: `missing`" in markdown
+    assert "raw_outputs.jsonl" not in {path.name for path in output_dir.iterdir()}
+
+
 def test_phase5_gate_audit_accepts_review_chain_but_stops_at_readiness(tmp_path: Path) -> None:
     request_path = tmp_path / "phase5_model_path_decision_request.json"
     decision_validation_path = tmp_path / "phase5_model_path_decision_validation.json"

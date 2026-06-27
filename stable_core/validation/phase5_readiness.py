@@ -435,6 +435,7 @@ def build_phase5_gate_audit(
     config_decision_validation_path: str | Path | None = None,
     readiness_path: str | Path | None = None,
     output: str | Path | None = None,
+    output_dir: str | Path | None = None,
 ) -> dict[str, Any]:
     target = {
         "model_id": model_id,
@@ -494,6 +495,11 @@ def build_phase5_gate_audit(
     }
     if output is not None:
         write_json(Path(output), report)
+    if output_dir is not None:
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        write_json(output_path / "phase5_gate_audit.json", report)
+        write_text(output_path / "phase5_gate_audit.md", _gate_audit_markdown(report))
     return report
 
 
@@ -1039,6 +1045,43 @@ def _gate_audit_stop_reason(next_missing_gate: str, status: str) -> str:
     if next_missing_gate == "real_smoke_execution":
         return "All audited review artifacts passed, but the real smoke has not been executed or validated by this audit."
     return f"Phase 5 gate `{next_missing_gate}` is missing or incomplete."
+
+
+def _gate_audit_markdown(report: dict[str, Any]) -> str:
+    target = report["target"]
+    gate_lines = [
+        f"- {name}: `{payload.get('status')}`"
+        for name, payload in report["gate_checks"].items()
+    ]
+    safety_lines = [
+        f"- {name}: `{str(value).lower()}`"
+        for name, value in report["safety_flags"].items()
+    ]
+    next_action_lines = [f"- {action}" for action in report["next_actions"]]
+    return (
+        "# Phase 5 Gate Audit\n\n"
+        f"Status: `{report['status']}`\n\n"
+        f"ready_for_real_smoke: `{str(report['ready_for_real_smoke']).lower()}`\n\n"
+        f"write_config: `{str(report['write_config']).lower()}`\n\n"
+        f"exports_applied: `{str(report['exports_applied']).lower()}`\n\n"
+        f"next_missing_gate: `{report['next_missing_gate']}`\n\n"
+        "## Target\n\n"
+        f"- model: `{target['model_id']}`\n"
+        f"- benchmark: `{target['benchmark_id']}`\n"
+        f"- limit: `{target['limit']}`\n"
+        f"- instrumentation: `{target['instrumentation_mode']}`\n\n"
+        "## Gate Checks\n\n"
+        + "\n".join(gate_lines)
+        + "\n\n"
+        "## Safety Flags\n\n"
+        + "\n".join(safety_lines)
+        + "\n\n"
+        "## Next Actions\n\n"
+        + "\n".join(next_action_lines)
+        + "\n\n"
+        "## Stop Reason\n\n"
+        f"{report['do_not_continue_reason']}\n"
+    )
 
 
 def _next_actions(checks: dict[str, dict[str, Any]], execution_authorization: dict[str, Any]) -> list[str]:

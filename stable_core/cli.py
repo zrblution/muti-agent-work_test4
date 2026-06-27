@@ -207,6 +207,7 @@ def build_parser() -> argparse.ArgumentParser:
     phase5_gate_audit_parser.add_argument("--config-decision-validation", default=None)
     phase5_gate_audit_parser.add_argument("--readiness", default=None)
     phase5_gate_audit_parser.add_argument("--output", default=None)
+    phase5_gate_audit_parser.add_argument("--output-dir", default=None)
 
     phase5_discover_model_parser = subparsers.add_parser("phase5-discover-model-candidates", help="Discover reviewable Phase 5 model path candidates under explicit search roots.")
     phase5_discover_model_parser.add_argument("model_id")
@@ -571,6 +572,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 config_decision_validation_path=args.config_decision_validation,
                 readiness_path=args.readiness,
                 output=args.output,
+                output_dir=args.output_dir,
             )
         except Exception as exc:
             print(json.dumps({"command": "phase5-gate-audit", "status": "failed", "error": str(exc)}, ensure_ascii=False))
