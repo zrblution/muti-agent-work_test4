@@ -21,6 +21,7 @@ from stable_core.validation.phase5_readiness import (
     build_phase5_model_path_decision_request,
     build_phase5_path_probe,
     build_phase5_readiness_bundle,
+    validate_phase5_model_path_decision,
 )
 from stable_core.validation.preflight import run_preflight
 
@@ -156,6 +157,14 @@ def build_parser() -> argparse.ArgumentParser:
     phase5_model_path_decision_parser.add_argument("--model-path", required=True)
     phase5_model_path_decision_parser.add_argument("--benchmark-root", required=True)
     phase5_model_path_decision_parser.add_argument("--output-dir", required=True)
+
+    phase5_validate_model_path_decision_parser = subparsers.add_parser(
+        "phase5-validate-model-path-decision",
+        help="Validate a human model-path decision record against a pending Phase 5 request without executing it.",
+    )
+    phase5_validate_model_path_decision_parser.add_argument("--request", required=True)
+    phase5_validate_model_path_decision_parser.add_argument("--decision-record", required=True)
+    phase5_validate_model_path_decision_parser.add_argument("--output", default=None)
 
     phase5_discover_model_parser = subparsers.add_parser("phase5-discover-model-candidates", help="Discover reviewable Phase 5 model path candidates under explicit search roots.")
     phase5_discover_model_parser.add_argument("model_id")
@@ -402,6 +411,30 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "approval_status": report["approval_status"],
                     "model_id": args.model,
                     "benchmark_id": args.benchmark,
+                    **safety_flags,
+                },
+                ensure_ascii=False,
+            )
+        )
+        return _exit_code(str(report["status"]))
+    if args.command == "phase5-validate-model-path-decision":
+        try:
+            report = validate_phase5_model_path_decision(
+                request_path=args.request,
+                decision_record_path=args.decision_record,
+                output=args.output,
+            )
+        except Exception as exc:
+            print(json.dumps({"command": "phase5-validate-model-path-decision", "status": "failed", "error": str(exc)}, ensure_ascii=False))
+            return 1
+        safety_flags = report["safety_flags"]
+        print(
+            json.dumps(
+                {
+                    "command": "phase5-validate-model-path-decision",
+                    "status": report["status"],
+                    "approval_status": report["approval_status"],
+                    "decision": report["decision"].get("decision"),
                     **safety_flags,
                 },
                 ensure_ascii=False,

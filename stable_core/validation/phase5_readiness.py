@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import re
 from pathlib import Path
@@ -237,6 +238,57 @@ def build_phase5_model_path_decision_request(
     return bundle
 
 
+def validate_phase5_model_path_decision(
+    *,
+    request_path: str | Path,
+    decision_record_path: str | Path,
+    output: str | Path | None = None,
+) -> dict[str, Any]:
+    request_file = Path(request_path)
+    decision_file = Path(decision_record_path)
+    request = json.loads(request_file.read_text(encoding="utf-8"))
+    decision_record = json.loads(decision_file.read_text(encoding="utf-8"))
+    target = request.get("target", {})
+    probe = request.get("probe", {})
+    requested_decision = request.get("requested_decision", {})
+    allowed_decisions = requested_decision.get("allowed_decisions", [])
+    decision = str(decision_record.get("decision", ""))
+    checks = _decision_validation_checks(
+        request=request,
+        decision_record=decision_record,
+        target=target,
+        probe=probe,
+        allowed_decisions=allowed_decisions,
+        decision=decision,
+    )
+    status = _decision_validation_status(checks, decision)
+    approval_status = _decision_approval_status(status, decision)
+    report = {
+        "phase": "Phase 5",
+        "mode": "model_path_decision_validation",
+        "status": status,
+        "approval_status": approval_status,
+        "created_at": utc_now(),
+        "git_commit": current_git_commit(Path.cwd()),
+        "request_path": str(request_file),
+        "decision_record_path": str(decision_file),
+        "target": {
+            "model_id": target.get("model_id"),
+            "benchmark_id": target.get("benchmark_id"),
+            "model_path": target.get("model_path"),
+            "benchmark_root": target.get("benchmark_root"),
+        },
+        "decision": decision_record,
+        "checks": checks,
+        "safety_flags": dict(SAFETY_FLAGS),
+        "next_actions": _decision_validation_next_actions(status, decision),
+        "do_not_continue_reason": _decision_validation_stop_reason(status, decision),
+    }
+    if output is not None:
+        write_json(Path(output), report)
+    return report
+
+
 def _readiness_status(checks: dict[str, dict[str, Any]], execution_authorization: dict[str, Any]) -> str:
     statuses = [str(check.get("status")) for check in checks.values()]
     execution_status = str(execution_authorization.get("status"))
@@ -254,6 +306,110 @@ def _checks_status(checks: dict[str, dict[str, Any]]) -> str:
     if all(status == "passed" for status in statuses):
         return "passed"
     return "needs_attention"
+
+
+def _decision_validation_checks(
+    *,
+    request: dict[str, Any],
+    decision_record: dict[str, Any],
+    target: dict[str, Any],
+    probe: dict[str, Any],
+    allowed_decisions: Any,
+    decision: str,
+) -> dict[str, dict[str, Any]]:
+    allowed = allowed_decisions if isinstance(allowed_decisions, list) else []
+    checks: dict[str, dict[str, Any]] = {
+        "request_mode": _check(
+            request.get("mode") == "model_path_decision_request",
+            "Request is a Phase 5 model-path decision request.",
+        ),
+        "request_pending": _check(
+            request.get("approval_status") == "pending",
+            "Request is still pending human decision.",
+        ),
+        "decision_allowed": _check(
+            decision in allowed,
+            "Decision is one of the options declared by the request.",
+        ),
+        "approver_present": _check(
+            bool(str(decision_record.get("approver", "")).strip()),
+            "Decision record names a human approver.",
+        ),
+        "rationale_present": _check(
+            bool(str(decision_record.get("rationale", "")).strip()),
+            "Decision record includes a rationale.",
+        ),
+    }
+    if decision == "approve_variant_path":
+        checks.update(
+            {
+                "probe_passed": _check(
+                    probe.get("status") == "passed",
+                    "Approval can only reference a passed explicit model-path probe.",
+                ),
+                "approved_model_path_matches": _check(
+                    decision_record.get("approved_model_path") == target.get("model_path"),
+                    "Approved model path must match the pending request target exactly.",
+                ),
+                "approved_benchmark_root_matches": _check(
+                    decision_record.get("approved_benchmark_root") == target.get("benchmark_root"),
+                    "Approved benchmark root must match the pending request target exactly.",
+                ),
+            }
+        )
+    elif decision == "provide_base_model_root":
+        checks["provided_model_root_present"] = _check(
+            bool(str(decision_record.get("provided_model_root", "")).strip()),
+            "A provided base model root is required for this decision.",
+        )
+    return checks
+
+
+def _check(passed: bool, summary: str) -> dict[str, str]:
+    return {"status": "passed" if passed else "failed", "summary": summary}
+
+
+def _decision_validation_status(checks: dict[str, dict[str, Any]], decision: str) -> str:
+    if any(check.get("status") == "failed" for check in checks.values()):
+        return "failed"
+    if decision == "approve_variant_path":
+        return "passed"
+    return "needs_attention"
+
+
+def _decision_approval_status(status: str, decision: str) -> str:
+    if status == "failed":
+        return "invalid"
+    if decision == "approve_variant_path":
+        return "approved"
+    if decision == "reject_variant_path":
+        return "rejected"
+    if decision == "provide_base_model_root":
+        return "base_model_root_provided"
+    return "pending"
+
+
+def _decision_validation_next_actions(status: str, decision: str) -> list[str]:
+    if status == "failed":
+        return ["Fix the decision record and rerun the validation command before changing config or execution gates."]
+    if decision == "approve_variant_path":
+        return [
+            "Review the config representation for the approved exact path before any real smoke attempt.",
+            "Keep remote execution and process submission closed until readiness is rerun with the approved representation.",
+        ]
+    if decision == "reject_variant_path":
+        return ["Choose a different exact model path or provide a base model root that satisfies the configured contract."]
+    if decision == "provide_base_model_root":
+        return ["Probe the provided base model root with phase5-probe-paths before exporting env vars or editing config."]
+    return ["Record a valid Phase 5 model-path decision before continuing."]
+
+
+def _decision_validation_stop_reason(status: str, decision: str) -> str | None:
+    if status == "failed":
+        return "The model-path decision record is invalid."
+    if decision == "approve_variant_path":
+        return None
+    return "A valid approval for an executable Phase 5 model path has not been recorded."
 
 
 def _next_actions(checks: dict[str, dict[str, Any]], execution_authorization: dict[str, Any]) -> list[str]:

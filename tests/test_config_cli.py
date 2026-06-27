@@ -642,6 +642,149 @@ def test_phase5_model_path_decision_request_restores_existing_environment(monkey
     assert report["safety_flags"]["write_config"] is False
 
 
+def test_phase5_validate_model_path_decision_cli_accepts_matching_human_approval_record(tmp_path: Path) -> None:
+    model_path = tmp_path / "variant_models" / "Qwen3-VL-2B-3epoch" / "Ours"
+    model_path.mkdir(parents=True)
+    (model_path / "config.json").write_text("{}\n", encoding="utf-8")
+    (model_path / "model.safetensors").write_text("weight placeholder\n", encoding="utf-8")
+    benchmark_root = tmp_path / "benchmarks"
+    benchmark_path = benchmark_root / "POPE"
+    benchmark_path.mkdir(parents=True)
+    (benchmark_path / "samples.jsonl").write_text("{}\n", encoding="utf-8")
+    fake_runtime_path = _write_fake_qwen_runtime_modules(tmp_path / "fake_qwen_runtime")
+    request_dir = tmp_path / "decision_request"
+    env = os.environ.copy()
+    env.pop("REMOTE_MODEL_ROOT", None)
+    env.pop("REMOTE_BENCHMARK_ROOT", None)
+    env["PYTHONPATH"] = os.pathsep.join(
+        item for item in [fake_runtime_path, os.environ.get("PYTHONPATH", "")] if item
+    )
+    request_result = run_cli(
+        "phase5-model-path-decision-request",
+        "--model",
+        "qwen3_vl_2b_instruct",
+        "--benchmark",
+        "pope",
+        "--model-path",
+        str(model_path),
+        "--benchmark-root",
+        str(benchmark_root),
+        "--output-dir",
+        str(request_dir),
+        env=env,
+    )
+    assert request_result.returncode == 0, request_result.stderr
+    request_path = request_dir / "phase5_model_path_decision_request.json"
+    decision_path = tmp_path / "decision_record.json"
+    decision_path.write_text(
+        json.dumps(
+            {
+                "decision": "approve_variant_path",
+                "approver": "human-reviewer",
+                "approved_model_path": str(model_path),
+                "approved_benchmark_root": str(benchmark_root),
+                "rationale": "Approved exact temporary path for validation-gate coverage.",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    output_path = tmp_path / "decision_validation.json"
+
+    result = run_cli(
+        "phase5-validate-model-path-decision",
+        "--request",
+        str(request_path),
+        "--decision-record",
+        str(decision_path),
+        "--output",
+        str(output_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["command"] == "phase5-validate-model-path-decision"
+    assert payload["status"] == "passed"
+    assert payload["approval_status"] == "approved"
+    assert report["status"] == "passed"
+    assert report["approval_status"] == "approved"
+    assert report["decision"]["decision"] == "approve_variant_path"
+    assert report["checks"]["approved_model_path_matches"]["status"] == "passed"
+    assert report["checks"]["approved_benchmark_root_matches"]["status"] == "passed"
+    assert report["safety_flags"]["executed_real_model"] is False
+    assert report["safety_flags"]["write_config"] is False
+    assert "raw_outputs.jsonl" not in {path.name for path in tmp_path.iterdir()}
+
+
+def test_phase5_validate_model_path_decision_rejects_mismatched_approval_path(tmp_path: Path) -> None:
+    request_path = tmp_path / "decision_request.json"
+    decision_path = tmp_path / "decision_record.json"
+    output_path = tmp_path / "decision_validation.json"
+    request_path.write_text(
+        json.dumps(
+            {
+                "phase": "Phase 5",
+                "mode": "model_path_decision_request",
+                "status": "needs_attention",
+                "approval_status": "pending",
+                "target": {
+                    "model_id": "qwen3_vl_2b_instruct",
+                    "benchmark_id": "pope",
+                    "model_path": "/models/variant/Ours",
+                    "benchmark_root": "/benchmarks",
+                },
+                "probe": {
+                    "status": "passed",
+                    "requires_human_approval": True,
+                },
+                "requested_decision": {
+                    "allowed_decisions": [
+                        "approve_variant_path",
+                        "reject_variant_path",
+                        "provide_base_model_root",
+                    ],
+                },
+                "safety_flags": {
+                    "executed_real_model": False,
+                    "executed_real_benchmark": False,
+                    "submitted_remote_job": False,
+                    "raw_outputs_written": False,
+                    "write_config": False,
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    decision_path.write_text(
+        json.dumps(
+            {
+                "decision": "approve_variant_path",
+                "approver": "human-reviewer",
+                "approved_model_path": "/models/other/Ours",
+                "approved_benchmark_root": "/benchmarks",
+                "rationale": "This path should not match the pending request.",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    report = phase5_module.validate_phase5_model_path_decision(
+        request_path=request_path,
+        decision_record_path=decision_path,
+        output=output_path,
+    )
+
+    assert report["status"] == "failed"
+    assert report["approval_status"] == "invalid"
+    assert report["checks"]["approved_model_path_matches"]["status"] == "failed"
+    assert report["checks"]["approved_benchmark_root_matches"]["status"] == "passed"
+    assert report["safety_flags"]["write_config"] is False
+    assert json.loads(output_path.read_text(encoding="utf-8"))["approval_status"] == "invalid"
+
+
 def test_phase5_discover_model_candidates_finds_configured_root_candidate(tmp_path: Path) -> None:
     model_root = tmp_path / "candidate_models"
     model_path = model_root / "Qwen3-VL-2B-Instruct"

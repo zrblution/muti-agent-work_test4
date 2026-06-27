@@ -162,6 +162,12 @@ This does not resolve the Phase 5 blocker. The command does not approve the vari
 
 Server verification generated `/tmp/phase5_model_path_decision_request_server/phase5_model_path_decision_request.json` and `.md` for `/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours` plus `/home/vepfs/data/work1/auto-research-test1/benchmarks`. The packet remains `approval_status: pending`, with `probe.status: passed`, `requires_human_approval: true`, and all execution safety flags false.
 
+## Model Path Decision Validation Follow-Up
+
+`phase5-validate-model-path-decision` now validates an external human decision record against a pending request. A matching `approve_variant_path` record validates as `passed` only when the approved model path and benchmark root exactly match the request, and mismatched approvals fail as `approval_status: invalid`.
+
+This still does not resolve the Phase 5 blocker without an actual human decision. It does not mutate config, export env vars, read `.env`, load weights, run generation, submit jobs, run benchmarks, open process gates, or write raw outputs.
+
 ## Worker Execution Loop Follow-Up
 
 The whitelisted worker now calls the model and benchmark runtime methods after validation and adapter runtime gates pass. The success path writes raw outputs, normalized outputs, metrics, failure cases, experiment summary, reproducibility notes, run manifest, and artifact manifest. It refuses to overwrite existing `raw_outputs.jsonl`.

@@ -43,6 +43,7 @@ This phase now contains two related records:
 - a follow-up model-like variant classifier so qwen-like directories with `config.json` are surfaced for review without becoming usable configured roots.
 - a follow-up explicit model-path probe for review-only variant validation without requiring `REMOTE_MODEL_ROOT`.
 - a follow-up model-path decision request packet that records a pending human decision for an exact variant path without approving, mutating config, or executing anything.
+- a follow-up model-path decision validator that checks a human-supplied decision record against a pending request without mutating config or opening execution.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -110,6 +111,8 @@ This phase now contains two related records:
 - `stable_core.cli phase5-probe-explicit-model-path`
 - `stable_core.validation.phase5_readiness.build_phase5_model_path_decision_request`
 - `stable_core.cli phase5-model-path-decision-request`
+- `stable_core.validation.phase5_readiness.validate_phase5_model_path_decision`
+- `stable_core.cli phase5-validate-model-path-decision`
 
 ## Gate Commands
 
@@ -259,6 +262,12 @@ This phase now contains two related records:
   - approval status: `pending`
   - output: `/tmp/phase5_model_path_decision_request_server/phase5_model_path_decision_request.json` and `.md`
   - finding: probe status `passed`, `requires_human_approval: true`, allowed decisions recorded, and all execution safety flags false
+- `phase5-validate-model-path-decision` with a temporary matching human approval record
+  - status: initially failed because the CLI and validator did not exist, then passed after adding the decision validator
+  - purpose: validate exact model-path and benchmark-root matching while keeping config mutation, execution, and raw outputs disabled
+- `validate_phase5_model_path_decision(...)` with a mismatched approval path
+  - status: initially failed because the validator did not exist, then passed after adding mismatch checks
+  - purpose: reject invalid approval records before any config representation or execution gate can change
 - server `phase5-probe-explicit-model-path` for `/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours` plus `/home/vepfs/data/work1/auto-research-test1/benchmarks`
   - status: `passed`
   - output: `/tmp/phase5_explicit_model_path_probe_server.json`
