@@ -29,6 +29,7 @@ Phase 5: minimal real smoke for `qwen3_vl_2b_instruct` + `pope` with `limit=8` a
 - `phase5-probe-explicit-model-path` can now validate an exact variant model path plus benchmark root as a review-only diagnostic. It marks non-contract paths as requiring human approval and keeps all execution safety flags false.
 - Server exact-path probe passed for `/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours` plus `/home/vepfs/data/work1/auto-research-test1/benchmarks`, but it is still review-only because it does not satisfy the configured base-model root contract.
 - `phase5-model-path-decision-request` can now package an exact-path probe into a JSON and Markdown decision request with `approval_status: pending`, allowed decisions, and an approval-record template. This is still review-only and does not approve a path, mutate config, run a model, run a benchmark, submit a job, or write raw outputs.
+- Server packet generation for `/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours` plus `/home/vepfs/data/work1/auto-research-test1/benchmarks` wrote `/tmp/phase5_model_path_decision_request_server/phase5_model_path_decision_request.json` and `.md`. The packet is still `approval_status: pending`, with `probe.status: passed`, `requires_human_approval: true`, and all execution safety flags false.
 
 ## Human Decisions Required
 

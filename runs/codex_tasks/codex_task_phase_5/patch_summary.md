@@ -254,6 +254,11 @@ This phase now contains two related records:
 - `phase5-model-path-decision-request` with a temporary qwen-like variant path and POPE benchmark root
   - status: initially failed because the CLI and builder did not exist, then passed after adding the pending decision-request packet
   - purpose: generate JSON and Markdown review artifacts with `approval_status: pending`, allowed decisions, probe evidence, environment restoration, and all execution safety flags false
+- server `phase5-model-path-decision-request` for `/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours` plus `/home/vepfs/data/work1/auto-research-test1/benchmarks`
+  - status: `needs_attention`
+  - approval status: `pending`
+  - output: `/tmp/phase5_model_path_decision_request_server/phase5_model_path_decision_request.json` and `.md`
+  - finding: probe status `passed`, `requires_human_approval: true`, allowed decisions recorded, and all execution safety flags false
 - server `phase5-probe-explicit-model-path` for `/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours` plus `/home/vepfs/data/work1/auto-research-test1/benchmarks`
   - status: `passed`
   - output: `/tmp/phase5_explicit_model_path_probe_server.json`
