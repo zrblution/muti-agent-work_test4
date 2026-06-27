@@ -294,6 +294,58 @@ def validate_phase5_model_path_decision(
     return report
 
 
+def inspect_phase5_model_path_decision_records(
+    *,
+    request_path: str | Path,
+    records_dir: str | Path,
+    output: str | Path | None = None,
+) -> dict[str, Any]:
+    request_file = Path(request_path)
+    records_path = Path(records_dir)
+    request = json.loads(request_file.read_text(encoding="utf-8"))
+    target = request.get("target", {})
+    probe = request.get("probe", {})
+    requested_decision = request.get("requested_decision", {})
+    allowed_decisions = requested_decision.get("allowed_decisions", [])
+    records = [
+        _inspect_phase5_decision_record(path, request, target, probe, allowed_decisions)
+        for path in sorted(records_path.glob("*.json"))
+        if path.is_file()
+    ]
+    filled_candidates = [record for record in records if record.get("classification") == "filled_candidate"]
+    template_unfilled = [record for record in records if record.get("classification") == "template_unfilled"]
+    invalid_candidates = [record for record in records if record.get("classification") == "invalid_candidate"]
+    ready_for_decision_validation = len(filled_candidates) == 1 and not invalid_candidates
+    status = "passed" if ready_for_decision_validation else "failed" if invalid_candidates else "needs_attention"
+    selected_path = filled_candidates[0]["path"] if ready_for_decision_validation else None
+    report = {
+        "phase": "Phase 5",
+        "mode": "model_path_decision_record_status",
+        "status": status,
+        "created_at": utc_now(),
+        "git_commit": current_git_commit(Path.cwd()),
+        "request_path": str(request_file),
+        "records_dir": str(records_path),
+        "allowed_decisions": allowed_decisions if isinstance(allowed_decisions, list) else [],
+        "record_count": len(records),
+        "filled_candidate_count": len(filled_candidates),
+        "template_unfilled_count": len(template_unfilled),
+        "invalid_candidate_count": len(invalid_candidates),
+        "ready_for_decision_validation": ready_for_decision_validation,
+        "ready_for_real_smoke": False,
+        "write_config": False,
+        "exports_applied": False,
+        "selected_decision_record_path": selected_path,
+        "records": records,
+        "safety_flags": dict(SAFETY_FLAGS),
+        "next_actions": _decision_record_status_next_actions(status, filled_candidates, invalid_candidates),
+        "do_not_continue_reason": _decision_record_status_stop_reason(status, filled_candidates, invalid_candidates),
+    }
+    if output is not None:
+        write_json(Path(output), report)
+    return report
+
+
 def build_phase5_approved_decision_readiness(
     *,
     decision_validation_path: str | Path,
@@ -712,6 +764,101 @@ def _decision_approval_status(status: str, decision: str) -> str:
     if decision == "provide_base_model_root":
         return "base_model_root_provided"
     return "pending"
+
+
+def _inspect_phase5_decision_record(
+    path: Path,
+    request: dict[str, Any],
+    target: dict[str, Any],
+    probe: dict[str, Any],
+    allowed_decisions: Any,
+) -> dict[str, Any]:
+    try:
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {
+            "path": str(path),
+            "status": "failed",
+            "classification": "invalid_candidate",
+            "summary": f"Decision record could not be parsed as JSON: {exc}",
+        }
+    if not isinstance(loaded, dict):
+        return {
+            "path": str(path),
+            "status": "failed",
+            "classification": "invalid_candidate",
+            "summary": "Decision record must be a JSON object.",
+        }
+    decision = str(loaded.get("decision", ""))
+    checks = _decision_validation_checks(
+        request=request,
+        decision_record=loaded,
+        target=target,
+        probe=probe,
+        allowed_decisions=allowed_decisions,
+        decision=decision,
+    )
+    failed_checks = [name for name, check in checks.items() if check.get("status") == "failed"]
+    validation_status = _decision_validation_status(checks, decision)
+    approval_status = _decision_approval_status(validation_status, decision)
+    if path.name.endswith(".template.json") and {"approver_present", "rationale_present"}.intersection(failed_checks):
+        classification = "template_unfilled"
+        status = "needs_attention"
+        summary = "Decision record template is still unfilled."
+    elif failed_checks:
+        classification = "invalid_candidate"
+        status = "failed"
+        summary = f"Decision record failed checks: {', '.join(failed_checks)}."
+    else:
+        classification = "filled_candidate"
+        status = validation_status
+        summary = "Decision record is ready for phase5-validate-model-path-decision."
+    return {
+        "path": str(path),
+        "status": status,
+        "classification": classification,
+        "decision": decision,
+        "decision_validation_status": validation_status,
+        "approval_status": approval_status,
+        "checks": checks,
+        "summary": summary,
+    }
+
+
+def _decision_record_status_next_actions(
+    status: str,
+    filled_candidates: list[dict[str, Any]],
+    invalid_candidates: list[dict[str, Any]],
+) -> list[str]:
+    if invalid_candidates:
+        return ["Fix or remove invalid decision record candidates before validating the Phase 5 model-path decision."]
+    if len(filled_candidates) == 1:
+        return [
+            (
+                "Run python -m stable_core.cli phase5-validate-model-path-decision "
+                "--request <phase5_model_path_decision_request.json> "
+                f"--decision-record {filled_candidates[0]['path']} "
+                "--output <phase5_model_path_decision_validation.json>"
+            ),
+            "Do not edit config, export env vars, or run the real smoke from this status report.",
+        ]
+    if len(filled_candidates) > 1:
+        return ["Keep exactly one filled decision record before running phase5-validate-model-path-decision."]
+    return ["Fill exactly one copied decision record template before running phase5-validate-model-path-decision."]
+
+
+def _decision_record_status_stop_reason(
+    status: str,
+    filled_candidates: list[dict[str, Any]],
+    invalid_candidates: list[dict[str, Any]],
+) -> str:
+    if status == "passed":
+        return "Exactly one filled decision record is ready for non-executing validation."
+    if invalid_candidates:
+        return "At least one decision record candidate is invalid."
+    if len(filled_candidates) > 1:
+        return "More than one filled decision record candidate was found."
+    return "No filled Phase 5 model-path decision record was found."
 
 
 def _decision_validation_next_actions(status: str, decision: str) -> list[str]:

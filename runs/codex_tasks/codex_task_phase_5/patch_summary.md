@@ -48,6 +48,7 @@ This phase now contains two related records:
 - committed unfilled decision-record template files for the pending model-path decision request, with tests proving unfilled templates do not validate as approval.
 - a committed current Phase 5 gate-audit handoff package for the pending model-path decision request, pointing to model-path decision validation without executing or mutating anything.
 - a follow-up model-path decision validator that checks a human-supplied decision record against a pending request without mutating config or opening execution.
+- a follow-up model-path decision-record status scanner that reports unfilled templates, filled candidates, and invalid candidates before validation without approving, mutating config, exporting env vars, or executing anything.
 - a follow-up approved-decision readiness bundle that records approved exact paths and remaining gates without treating approval as execution permission.
 - a follow-up config representation proposal that reviews env/config options for approved paths without editing config or exporting env vars.
 - a follow-up config representation decision-template writer that emits per-option records matching the next validation command without editing config or exporting env vars.
@@ -134,6 +135,8 @@ This phase now contains two related records:
 - `stable_core.cli phase5-model-path-decision-request`
 - `stable_core.validation.phase5_readiness.validate_phase5_model_path_decision`
 - `stable_core.cli phase5-validate-model-path-decision`
+- `stable_core.validation.phase5_readiness.inspect_phase5_model_path_decision_records`
+- `stable_core.cli phase5-decision-record-status`
 - `stable_core.validation.phase5_readiness.build_phase5_approved_decision_readiness`
 - `stable_core.cli phase5-approved-decision-readiness`
 - `stable_core.validation.phase5_readiness.build_phase5_config_representation_proposal`
@@ -310,6 +313,9 @@ This phase now contains two related records:
 - committed `runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/*.template.json`
   - status: unfilled human handoff templates
   - finding: the files match the request's embedded templates and keep `approver` / `rationale` unset so they cannot validate as approval records
+- `phase5-decision-record-status` with committed unfilled templates and with one temporary filled approval record
+  - status: initially failed because the CLI command did not exist, then passed after adding the read-only decision-record status scanner
+  - purpose: require exactly one filled decision record before `phase5-validate-model-path-decision` while preserving `ready_for_real_smoke: false`, no config write, no env export, and all execution safety flags false
 - committed `runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.json` and `.md`
   - status: `needs_attention`
   - finding: the current committed gate handoff stops at `model_path_decision_validation`, lists the filled human decision record as required input, points to `phase5-validate-model-path-decision`, records the decision-request source sha256, and keeps all execution safety flags false
@@ -629,9 +635,15 @@ This phase now contains two related records:
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_verify_gate_audit_accepts_current_handoff tests/test_config_cli.py::test_phase5_verify_gate_audit_rejects_stale_source_hash -q`: initially `2 failed` because `phase5-verify-gate-audit` was not registered, then `2 passed` after adding the read-only gate-audit package verifier.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_verify_gate_audit_accepts_current_handoff tests/test_config_cli.py::test_phase5_verify_gate_audit_rejects_stale_markdown_sidecar -q`: initially `2 failed` because the verifier did not record or reject a Markdown sidecar check, then `2 passed` after adding sidecar consistency validation.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_verify_gate_audit_rejects_stale_markdown_command_template -q`: initially `1 failed` because the verifier did not check Markdown `safe_command_templates`, then `1 passed` after extending sidecar packet-list validation.
-- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py -q`: `49 passed`.
-- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py tests/test_qwen3_vl_adapter.py tests/test_fake_adapters.py tests/test_landmark_gate.py tests/test_runner.py -q`: `97 passed`.
-- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest -q`: `130 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_decision_record_status_reports_unfilled_committed_templates tests/test_config_cli.py::test_phase5_decision_record_status_accepts_one_filled_candidate -q`: initially `2 failed` because `phase5-decision-record-status` was not registered, then `2 passed` after adding the read-only decision-record status scanner.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py -q`: `51 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py tests/test_qwen3_vl_adapter.py tests/test_fake_adapters.py tests/test_landmark_gate.py tests/test_runner.py -q`: `99 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest -q`: `132 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli phase5-decision-record-status --request runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json --records-dir runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates --output /tmp/phase5_decision_record_status_smoke.json`: `needs_attention`, `filled_candidate_count: 0`, `template_unfilled_count: 3`, `ready_for_decision_validation: false`, `ready_for_real_smoke: false`, and all safety flags false.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli validate-config`: `passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.security.secret_scan --paths stable_core project_config experiments tests docs runs/needs_attention runs/subagent_reports runs/codex_tasks --output /tmp/phase5_decision_record_status_secret_scan.json`: `passed`, no findings.
+- Large-file scan across `stable_core`, `project_config`, `experiments`, `tests`, `docs`, `runs/needs_attention`, `runs/subagent_reports`, and `runs/codex_tasks`: no files over 5 MB.
+- `git diff --check`: passed.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli phase5-validate-config-representation-decision --proposal /tmp/phase5_config_representation_decision_smoke/proposal.json --decision-record /tmp/phase5_config_representation_decision_smoke/decision.json --output /tmp/phase5_config_representation_decision_smoke/report.json`: `passed`, selected option `explicit_local_path_override`, `ready_for_real_smoke: false`, `write_config: false`, `exports_applied: false`, and all execution safety flags false.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli phase5-gate-audit --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output /tmp/phase5_gate_audit_smoke/report.json`: `needs_attention`, next missing gate `model_path_decision_request`, `ready_for_real_smoke: false`, `write_config: false`, `exports_applied: false`, and all execution safety flags false.
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli phase5-gate-audit --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --output-dir /tmp/phase5_gate_audit_package_smoke`: `needs_attention`, writes `phase5_gate_audit.json` and `phase5_gate_audit.md`, next missing gate `model_path_decision_request`, and all execution safety flags false.

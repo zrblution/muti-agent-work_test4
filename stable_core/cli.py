@@ -24,6 +24,7 @@ from stable_core.validation.phase5_readiness import (
     build_phase5_model_path_decision_request,
     build_phase5_path_probe,
     build_phase5_readiness_bundle,
+    inspect_phase5_model_path_decision_records,
     validate_phase5_config_representation_decision,
     validate_phase5_model_path_decision,
     verify_phase5_gate_audit_package,
@@ -170,6 +171,14 @@ def build_parser() -> argparse.ArgumentParser:
     phase5_validate_model_path_decision_parser.add_argument("--request", required=True)
     phase5_validate_model_path_decision_parser.add_argument("--decision-record", required=True)
     phase5_validate_model_path_decision_parser.add_argument("--output", default=None)
+
+    phase5_decision_record_status_parser = subparsers.add_parser(
+        "phase5-decision-record-status",
+        help="Inspect Phase 5 model-path decision record candidates without approving or executing them.",
+    )
+    phase5_decision_record_status_parser.add_argument("--request", required=True)
+    phase5_decision_record_status_parser.add_argument("--records-dir", required=True)
+    phase5_decision_record_status_parser.add_argument("--output", default=None)
 
     phase5_approved_decision_readiness_parser = subparsers.add_parser(
         "phase5-approved-decision-readiness",
@@ -488,6 +497,35 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "status": report["status"],
                     "approval_status": report["approval_status"],
                     "decision": report["decision"].get("decision"),
+                    **safety_flags,
+                },
+                ensure_ascii=False,
+            )
+        )
+        return _exit_code(str(report["status"]))
+    if args.command == "phase5-decision-record-status":
+        try:
+            report = inspect_phase5_model_path_decision_records(
+                request_path=args.request,
+                records_dir=args.records_dir,
+                output=args.output,
+            )
+        except Exception as exc:
+            print(json.dumps({"command": "phase5-decision-record-status", "status": "failed", "error": str(exc)}, ensure_ascii=False))
+            return 1
+        safety_flags = report["safety_flags"]
+        print(
+            json.dumps(
+                {
+                    "command": "phase5-decision-record-status",
+                    "status": report["status"],
+                    "filled_candidate_count": report["filled_candidate_count"],
+                    "template_unfilled_count": report["template_unfilled_count"],
+                    "invalid_candidate_count": report["invalid_candidate_count"],
+                    "ready_for_decision_validation": report["ready_for_decision_validation"],
+                    "ready_for_real_smoke": report["ready_for_real_smoke"],
+                    "write_config": report["write_config"],
+                    "exports_applied": report["exports_applied"],
                     **safety_flags,
                 },
                 ensure_ascii=False,

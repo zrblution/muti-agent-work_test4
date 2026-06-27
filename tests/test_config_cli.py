@@ -1780,6 +1780,102 @@ def test_phase5_verify_gate_audit_rejects_stale_source_hash(tmp_path: Path) -> N
     assert "sha256 mismatch" in source_check["summary"]
 
 
+def test_phase5_decision_record_status_reports_unfilled_committed_templates(tmp_path: Path) -> None:
+    artifact_dir = REPO_ROOT / "runs/needs_attention/phase_5_model_path_decision_request"
+    request_path = artifact_dir / "phase5_model_path_decision_request.json"
+    records_dir = artifact_dir / "decision_record_templates"
+    output_path = tmp_path / "phase5_decision_record_status.json"
+
+    result = run_cli(
+        "phase5-decision-record-status",
+        "--request",
+        str(request_path),
+        "--records-dir",
+        str(records_dir),
+        "--output",
+        str(output_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["command"] == "phase5-decision-record-status"
+    assert payload["status"] == "needs_attention"
+    assert payload["filled_candidate_count"] == 0
+    assert payload["template_unfilled_count"] == 3
+    assert payload["ready_for_decision_validation"] is False
+    assert payload["ready_for_real_smoke"] is False
+    assert payload["write_config"] is False
+    assert payload["exports_applied"] is False
+    assert payload["executed_real_model"] is False
+    assert payload["executed_real_benchmark"] is False
+    assert payload["submitted_remote_job"] is False
+    assert payload["raw_outputs_written"] is False
+
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    assert report["status"] == "needs_attention"
+    assert report["records_dir"] == str(records_dir)
+    assert report["template_unfilled_count"] == 3
+    assert report["filled_candidate_count"] == 0
+    assert report["ready_for_decision_validation"] is False
+    assert {record["classification"] for record in report["records"]} == {"template_unfilled"}
+    assert all(record["status"] == "needs_attention" for record in report["records"])
+    assert "Fill exactly one" in " ".join(report["next_actions"])
+
+
+def test_phase5_decision_record_status_accepts_one_filled_candidate(tmp_path: Path) -> None:
+    artifact_dir = REPO_ROOT / "runs/needs_attention/phase_5_model_path_decision_request"
+    request_path = artifact_dir / "phase5_model_path_decision_request.json"
+    request = json.loads(request_path.read_text(encoding="utf-8"))
+    records_dir = tmp_path / "records"
+    records_dir.mkdir()
+    decision_path = records_dir / "approve_variant_path.json"
+    _write_json(
+        decision_path,
+        {
+            "decision": "approve_variant_path",
+            "approver": "phase5-human-reviewer",
+            "approved_model_path": request["target"]["model_path"],
+            "approved_benchmark_root": request["target"]["benchmark_root"],
+            "rationale": "Reviewed exact variant path for the Phase 5 handoff.",
+        },
+    )
+    output_path = tmp_path / "phase5_decision_record_status.json"
+
+    result = run_cli(
+        "phase5-decision-record-status",
+        "--request",
+        str(request_path),
+        "--records-dir",
+        str(records_dir),
+        "--output",
+        str(output_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["command"] == "phase5-decision-record-status"
+    assert payload["status"] == "passed"
+    assert payload["filled_candidate_count"] == 1
+    assert payload["template_unfilled_count"] == 0
+    assert payload["ready_for_decision_validation"] is True
+    assert payload["ready_for_real_smoke"] is False
+    assert payload["write_config"] is False
+    assert payload["exports_applied"] is False
+    assert payload["executed_real_model"] is False
+    assert payload["executed_real_benchmark"] is False
+    assert payload["submitted_remote_job"] is False
+    assert payload["raw_outputs_written"] is False
+
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    assert report["status"] == "passed"
+    assert report["ready_for_decision_validation"] is True
+    assert report["selected_decision_record_path"] == str(decision_path)
+    assert report["records"][0]["classification"] == "filled_candidate"
+    assert report["records"][0]["decision_validation_status"] == "passed"
+    assert report["records"][0]["approval_status"] == "approved"
+    assert "phase5-validate-model-path-decision" in " ".join(report["next_actions"])
+
+
 def test_phase5_committed_decision_record_templates_are_unfilled_handoff_files() -> None:
     artifact_dir = REPO_ROOT / "runs/needs_attention/phase_5_model_path_decision_request"
     decision_request_path = artifact_dir / "phase5_model_path_decision_request.json"
