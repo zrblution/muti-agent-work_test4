@@ -1,0 +1,88 @@
+{
+  "phase": "Phase 5",
+  "status": "needs_attention",
+  "failure_type": "landmark_worker_execution_failed",
+  "failure_message": "Landmark worker execution failed; preserving failure diagnostics.",
+  "gate_failures": [
+    {
+      "gate": "worker-execution",
+      "payload": {
+        "status": "needs_attention",
+        "exception_type": "ValueError",
+        "message": "Incorrect image source. Must be a valid URL starting with `http://` or `https://`, a valid path to an image file, or a base64 encoded string. Got file:///home/vepfs/data/work1/auto-research-test1/benchmarks/POPE/images/coco_official_val2014/COCO_val2014_000000310196.jpg. Failed with cannot identify image file <_io.BytesIO object at 0x7fceb89b7f10>"
+      }
+    }
+  ],
+  "stack_trace": null,
+  "stdout_tail": "",
+  "stderr_tail": "nputs = self._processor.apply_chat_template(\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/miniconda3/lib/python3.11/site-packages/transformers/utils/deprecation.py\", line 172, in wrapped_func\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/miniconda3/lib/python3.11/site-packages/transformers/utils/deprecation.py\", line 172, in wrapped_func\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/miniconda3/lib/python3.11/site-packages/transformers/processing_utils.py\", line 1705, in apply_chat_template\n    out = self(\n          ^^^^^\n  File \"/root/miniconda3/lib/python3.11/site-packages/transformers/models/qwen3_vl/processing_qwen3_vl.py\", line 163, in __call__\n    image_inputs = self.image_processor(images=images, **output_kwargs[\"images_kwargs\"])\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/miniconda3/lib/python3.11/site-packages/transformers/image_processing_utils_fast.py\", line 732, in __call__\n    return self.preprocess(images, *args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/miniconda3/lib/python3.11/site-packages/transformers/models/qwen2_vl/image_processing_qwen2_vl_fast.py\", line 141, in preprocess\n    return super().preprocess(images, videos, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/miniconda3/lib/python3.11/site-packages/transformers/image_processing_utils_fast.py\", line 757, in preprocess\n    return self._preprocess_image_like_inputs(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/miniconda3/lib/python3.11/site-packages/transformers/models/qwen2_vl/image_processing_qwen2_vl_fast.py\", line 160, in _preprocess_image_like_inputs\n    images = self._prepare_image_like_inputs(\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/miniconda3/lib/python3.11/site-packages/transformers/image_processing_utils_fast.py\", line 633, in _prepare_image_like_inputs\n    images = self._prepare_images_structure(images, expected_ndims=expected_ndims)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/miniconda3/lib/python3.11/site-packages/transformers/image_processing_utils_fast.py\", line 564, in _prepare_images_structure\n    images = self.fetch_images(images)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/miniconda3/lib/python3.11/site-packages/transformers/image_processing_base.py\", line 530, in fetch_images\n    return [self.fetch_images(x) for x in image_url_or_urls]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/miniconda3/lib/python3.11/site-packages/transformers/image_processing_base.py\", line 530, in <listcomp>\n    return [self.fetch_images(x) for x in image_url_or_urls]\n            ^^^^^^^^^^^^^^^^^^^^\n  File \"/root/miniconda3/lib/python3.11/site-packages/transformers/image_processing_base.py\", line 530, in fetch_images\n    return [self.fetch_images(x) for x in image_url_or_urls]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/miniconda3/lib/python3.11/site-packages/transformers/image_processing_base.py\", line 530, in <listcomp>\n    return [self.fetch_images(x) for x in image_url_or_urls]\n            ^^^^^^^^^^^^^^^^^^^^\n  File \"/root/miniconda3/lib/python3.11/site-packages/transformers/image_processing_base.py\", line 532, in fetch_images\n    return load_image(image_url_or_urls)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/miniconda3/lib/python3.11/site-packages/transformers/image_utils.py\", line 483, in load_image\n    raise ValueError(\nValueError: Incorrect image source. Must be a valid URL starting with `http://` or `https://`, a valid path to an image file, or a base64 encoded string. Got file:///home/vepfs/data/work1/auto-research-test1/benchmarks/POPE/images/coco_official_val2014/COCO_val2014_000000310196.jpg. Failed with cannot identify image file <_io.BytesIO object at 0x7fceb89b7f10>\n",
+  "reproduction_command": "python experiments/landmark_baselines/run_landmark.py --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --run-id qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa --runs-root runs",
+  "config_snapshot": {
+    "run_id": "qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa",
+    "command": "landmark-worker",
+    "model_id": "qwen3_vl_2b_instruct",
+    "benchmark_id": "pope",
+    "limit": 8,
+    "instrumentation_mode": "none",
+    "controlled": true,
+    "reproduction_command": "python experiments/landmark_baselines/run_landmark.py --model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --run-id qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa --runs-root runs"
+  },
+  "state_snapshot": {
+    "run_id": "qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa",
+    "run_type": "landmark_baseline",
+    "model_id": "qwen3_vl_2b_instruct",
+    "benchmark_id": "pope",
+    "idea_id": null,
+    "limit": 8,
+    "instrumentation_mode": "none",
+    "started_at": "2026-06-27T10:54:50Z",
+    "finished_at": "2026-06-27T10:56:39Z",
+    "status": "needs_attention",
+    "git_commit": "44803633b72a603a8f06f7e9165d137b1ab1ed0b",
+    "outputs": {
+      "stdout": "stdout.log",
+      "stderr": "stderr.log",
+      "exit_code": "exit_code.txt"
+    },
+    "missing_outputs": {
+      "raw_outputs": "Landmark worker execution failed; preserving failure diagnostics.",
+      "normalized_outputs": "No raw outputs exist to normalize.",
+      "metrics": "No real smoke outputs exist to score.",
+      "failure_cases": "No real benchmark outputs exist to inspect."
+    },
+    "artifact_contract": {
+      "success_outputs": [
+        "run_manifest.json",
+        "raw_outputs.jsonl",
+        "normalized_outputs.jsonl",
+        "metrics.json",
+        "failure_cases.jsonl",
+        "artifact_manifest.json",
+        "experiment_summary.md",
+        "reproducibility_notes.md"
+      ],
+      "failure_outputs": [
+        "run_manifest.json",
+        "stdout.log",
+        "stderr.log",
+        "exit_code.txt",
+        "env_snapshot.json",
+        "failure.json",
+        "failure_report.md",
+        "artifact_manifest.json"
+      ],
+      "never_overwrite": [
+        "raw_outputs.jsonl"
+      ],
+      "large_artifact_policy": "manifest_only"
+    }
+  },
+  "executed_real_model": false,
+  "executed_real_benchmark": false,
+  "recommended_next_action": [
+    "Inspect stderr.log and failure.json for the worker execution exception.",
+    "Fix the model, benchmark, dependency, or worker-loop issue before retrying.",
+    "Do not continue to later phases until this real-smoke run succeeds or has a reviewed failure bundle."
+  ],
+  "do_not_continue_reason": "Required validation and execution gates are not satisfied."
+}

@@ -1,0 +1,68 @@
+{
+  "status": "needs_attention",
+  "runner_mode": "remote_enabled",
+  "allow_real_gpu_jobs": true,
+  "allow_process_submission": true,
+  "execution_plan": {
+    "experiment_id": "qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa",
+    "action": "run_model_smoke_test",
+    "allowed_script": "experiments/landmark_baselines/run_landmark.py",
+    "argv": [
+      "python",
+      "experiments/landmark_baselines/run_landmark.py",
+      "--model",
+      "qwen3_vl_2b_instruct",
+      "--benchmark",
+      "pope",
+      "--limit",
+      "8",
+      "--instrumentation",
+      "none",
+      "--run-id",
+      "qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa"
+    ],
+    "cwd": ".",
+    "submits_process": true,
+    "artifact_contract": {
+      "success_outputs": [
+        "run_manifest.json",
+        "raw_outputs.jsonl",
+        "normalized_outputs.jsonl",
+        "metrics.json",
+        "failure_cases.jsonl",
+        "artifact_manifest.json",
+        "experiment_summary.md",
+        "reproducibility_notes.md"
+      ],
+      "failure_outputs": [
+        "run_manifest.json",
+        "stdout.log",
+        "stderr.log",
+        "exit_code.txt",
+        "env_snapshot.json",
+        "failure.json",
+        "failure_report.md",
+        "artifact_manifest.json"
+      ],
+      "never_overwrite": [
+        "raw_outputs.jsonl"
+      ],
+      "large_artifact_policy": "manifest_only"
+    }
+  },
+  "gate_failures": [],
+  "submitted_process": true,
+  "job_id": "qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa",
+  "exit_code": 1,
+  "stdout_tail": "{\"run_id\": \"qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa\", \"run_dir\": \"runs/qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa\", \"status\": \"needs_attention\", \"failure_type\": \"landmark_worker_execution_failed\", \"executed_real_model\": false, \"executed_real_benchmark\": false}\n",
+  "stderr_tail": "/root/miniconda3/lib/python3.11/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.\n  import pynvml  # type: ignore[import]\n`torch_dtype` is deprecated! Use `dtype` instead!\n",
+  "worker_payload": {
+    "run_id": "qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa",
+    "run_dir": "runs/qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa",
+    "status": "needs_attention",
+    "failure_type": "landmark_worker_execution_failed",
+    "executed_real_model": false,
+    "executed_real_benchmark": false
+  },
+  "message": "Whitelisted remote worker process completed."
+}

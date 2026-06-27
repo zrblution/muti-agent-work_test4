@@ -827,3 +827,18 @@ The local `authorize_remote_execution` decision record is now filled and validat
 - all acknowledgements and execution safety flags are preserved.
 
 This validation does not mutate config, export env vars, run the model, run the benchmark, submit a process, write raw outputs, or start Phase 6.
+
+## Reviewed Real-Execution Failure Bundle
+
+After the authorization validation, the server was updated to `44803633b72a603a8f06f7e9165d137b1ab1ed0b`. The approved roots were revalidated with `phase5-probe-paths`, `validate-model qwen3_vl_2b_instruct`, `validate-benchmark pope`, and `validate-config`. The first `phase5-readiness` rerun remained `needs_attention` because the repository defaults keep execution gates closed, which was the expected audit state before using the scoped temporary runner config.
+
+Two adapter defects were fixed before the terminal reviewed failure bundle:
+
+- `197c7fd`: POPE `.json` files can contain line-delimited JSON objects, so the adapter now parses consecutive JSON values instead of assuming a single JSON document.
+- `4480363`: POPE sample selection now prefers `output/coco/coco_pope_*.json` and resolves `COCO_val2014_*.jpg` under `images/coco_official_val2014/`.
+
+The final authorized run used run id `qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa`. RemoteRunner submitted the whitelisted worker process with exactly the authorized model, benchmark, limit, instrumentation mode, and worker path. The worker returned `needs_attention`, exit code `1`, and `failure_type: landmark_worker_execution_failed`.
+
+The run bundle passed `validate-run`, `poll` recorded the run status, `parse-results` preserved `needs_attention` with artifact validation `passed`, and `phase5-gate-audit --smoke-run-id qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa --runs-root runs` classified the outcome as `reviewed_real_execution_failure`.
+
+The local review copy is stored under `runs/needs_attention/phase_5_reviewed_real_execution_failure_current/`. It contains only small audit and manifest files; the original remote run directory remains on the server. No `raw_outputs.jsonl` was written, and no Phase 6 work was started.

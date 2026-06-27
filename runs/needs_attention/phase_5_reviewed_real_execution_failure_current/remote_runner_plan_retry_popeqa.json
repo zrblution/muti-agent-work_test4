@@ -1,0 +1,62 @@
+{
+  "status": "needs_attention",
+  "runner_mode": "remote_enabled",
+  "allow_real_gpu_jobs": true,
+  "allow_process_submission": true,
+  "submitted_process": false,
+  "execution_plan": {
+    "experiment_id": "qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa",
+    "action": "run_model_smoke_test",
+    "allowed_script": "experiments/landmark_baselines/run_landmark.py",
+    "argv": [
+      "python",
+      "experiments/landmark_baselines/run_landmark.py",
+      "--model",
+      "qwen3_vl_2b_instruct",
+      "--benchmark",
+      "pope",
+      "--limit",
+      "8",
+      "--instrumentation",
+      "none",
+      "--run-id",
+      "qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa"
+    ],
+    "cwd": ".",
+    "submits_process": false,
+    "artifact_contract": {
+      "success_outputs": [
+        "run_manifest.json",
+        "raw_outputs.jsonl",
+        "normalized_outputs.jsonl",
+        "metrics.json",
+        "failure_cases.jsonl",
+        "artifact_manifest.json",
+        "experiment_summary.md",
+        "reproducibility_notes.md"
+      ],
+      "failure_outputs": [
+        "run_manifest.json",
+        "stdout.log",
+        "stderr.log",
+        "exit_code.txt",
+        "env_snapshot.json",
+        "failure.json",
+        "failure_report.md",
+        "artifact_manifest.json"
+      ],
+      "never_overwrite": [
+        "raw_outputs.jsonl"
+      ],
+      "large_artifact_policy": "manifest_only"
+    }
+  },
+  "gate_failures": [
+    {
+      "name": "plan_only",
+      "status": "needs_attention",
+      "message": "Execution plan requested without process submission."
+    }
+  ],
+  "message": "Remote execution plan generated without submitting a process."
+}

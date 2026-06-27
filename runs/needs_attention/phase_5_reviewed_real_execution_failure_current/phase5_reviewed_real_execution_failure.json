@@ -1,0 +1,87 @@
+{
+  "phase": "Phase 5",
+  "status": "needs_attention",
+  "phase5_terminal_outcome": "reviewed_real_execution_failure",
+  "created_at": "2026-06-27T10:58:01Z",
+  "git_commit": "44803633b72a603a8f06f7e9165d137b1ab1ed0b",
+  "target": {
+    "model_id": "qwen3_vl_2b_instruct",
+    "benchmark_id": "pope",
+    "limit": 8,
+    "instrumentation_mode": "none",
+    "worker": "experiments/landmark_baselines/run_landmark.py"
+  },
+  "authorization": {
+    "decision_record": "runs/needs_attention/phase_5_execution_authorization_request_current/decision_record_templates/authorize_remote_execution.template.json",
+    "decision_record_sha256": "f4f51a961cac3b50a29581b9f27831ec28e59c51d111b11effdcd35dc68a0b7a",
+    "validation": "runs/needs_attention/phase_5_execution_authorization_validation_current/phase5_execution_authorization_validation.json",
+    "scope_limited_to_target": true,
+    "approved_remote_model_root": "/home/tos_lx/basemodel",
+    "approved_remote_benchmark_root": "/home/vepfs/data/work1/auto-research-test1/benchmarks"
+  },
+  "remote_execution": {
+    "server_root": "/home/vepfs/data/work1/muti-agent-work_test4",
+    "run_id": "qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa",
+    "run_dir": "runs/qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa",
+    "runner_status": "needs_attention",
+    "submitted_process": true,
+    "exit_code": 1,
+    "worker_failure_type": "landmark_worker_execution_failed",
+    "executed_real_model": false,
+    "executed_real_benchmark": false,
+    "raw_outputs_written": false
+  },
+  "reviewed_failure": {
+    "run_validation_status": "passed",
+    "poll_status": "recorded",
+    "parse_results_status": "needs_attention",
+    "artifact_validation_status": "passed",
+    "gate_audit_terminal_outcome": "reviewed_real_execution_failure",
+    "root_cause": "Qwen3VLAdapter passed a local POPE image as file://... to the current transformers image loader. The server verified the JPEG itself is valid and load_image accepts the bare local path, but load_image rejects the file:// form before generation completes.",
+    "recommended_next_action": "Before any retry, add a regression test and change Qwen3VLAdapter local image message construction to pass a transformers-compatible bare local path or image object, then obtain or confirm scoped authorization for another controlled smoke."
+  },
+  "evidence_files": {
+    "path_probe": {
+      "path": "runs/needs_attention/phase_5_reviewed_real_execution_failure_current/phase5_probe_paths_retry_popeqa.json",
+      "sha256": "e0d03432fa43c62e8c1db395e07f962b39973cb89a0628bdcda6fad3b790de52"
+    },
+    "closed_readiness": {
+      "path": "runs/needs_attention/phase_5_reviewed_real_execution_failure_current/phase5_readiness_retry_popeqa_closed.json",
+      "sha256": "8dd57a4d24c4822b75cab07f5c9405c852d999374a5ff380194f5dbfe2838d0d"
+    },
+    "runner_plan": {
+      "path": "runs/needs_attention/phase_5_reviewed_real_execution_failure_current/remote_runner_plan_retry_popeqa.json",
+      "sha256": "2fe787b308583112724b8751abfb6d650809c7e8173e6b18c70dce74092abe8a"
+    },
+    "runner_submit": {
+      "path": "runs/needs_attention/phase_5_reviewed_real_execution_failure_current/remote_runner_submit_retry_popeqa.json",
+      "sha256": "c8ea667aa290a9e0ef9aecfc3ba48d7d78bccb335dcbae821cf6b5c3057f6a63"
+    },
+    "gate_audit": {
+      "path": "runs/needs_attention/phase_5_reviewed_real_execution_failure_current/phase5_gate_audit_retry_popeqa.json",
+      "sha256": "cf0a9b2fce9f5b414c4e2c4dee4a3642c6b5f55a8e2c16ad071c86f5d3aef167"
+    },
+    "remote_run_manifest": {
+      "path": "runs/needs_attention/phase_5_reviewed_real_execution_failure_current/remote_run_bundle/run_manifest.json",
+      "sha256": "7df3a7d4e7522a32e163ead212864720187db9bfd17cfbbe46cf3937cb01838e"
+    },
+    "remote_artifact_manifest": {
+      "path": "runs/needs_attention/phase_5_reviewed_real_execution_failure_current/remote_run_bundle/artifact_manifest.json",
+      "sha256": "014604bfe11cd220ddf2250da452b91f95ba8a87421e78ec645ebdb871f7366f"
+    },
+    "remote_failure_json": {
+      "path": "runs/needs_attention/phase_5_reviewed_real_execution_failure_current/remote_run_bundle/failure.json",
+      "sha256": "fbd69755f3e4f0de9f7086a4a3f689c4aa52292c800a8c29e7cdfdb261c2835d"
+    },
+    "remote_failure_report": {
+      "path": "runs/needs_attention/phase_5_reviewed_real_execution_failure_current/remote_run_bundle/failure_report.md",
+      "sha256": "783ed9d41ea40b277dcec06d43c080da0923a46d8f186f5ce7341b1587984c6f"
+    }
+  },
+  "safety_flags": {
+    "write_config": false,
+    "exports_applied": false,
+    "raw_outputs_overwritten": false,
+    "phase_6_started": false
+  }
+}

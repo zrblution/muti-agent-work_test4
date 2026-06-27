@@ -114,3 +114,18 @@ python -m stable_core.cli parse-results --run-id qwen3vl_pope_limit8_real_smoke
 ## Do Not Continue Automatically
 
 Do not start the Pro review, idea plugin, or landmark expansion phases until this first real-smoke gate either succeeds with a validated run bundle or records a reviewed real-execution failure bundle.
+
+## Reviewed Real-Execution Failure Update
+
+The authorized Phase 5 smoke has now recorded a reviewed real-execution failure bundle. The run id is `qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa`, produced on the server at commit `44803633b72a603a8f06f7e9165d137b1ab1ed0b`.
+
+Validation status:
+
+- `validate-run`: `passed`
+- `poll`: recorded run status `needs_attention`
+- `parse-results`: `needs_attention`, artifact validation `passed`
+- `phase5-gate-audit --smoke-run-id`: `phase5_terminal_outcome: reviewed_real_execution_failure`
+
+The current root cause is not missing roots or missing images. The POPE JPEG exists and is valid, but Qwen3-VL adapter local-image message construction sends `file://...`; the installed Transformers image loader accepts the bare local path and rejects the `file://` form. The review bundle is stored in `runs/needs_attention/phase_5_reviewed_real_execution_failure_current/`.
+
+Phase 5 remains `needs_attention`. Do not enter Phase 6 from this state unless the project owner accepts the reviewed failure as the terminal Phase 5 outcome. A retry should first add a regression test for Qwen3-VL local-image formatting and change the adapter to use a Transformers-compatible local image source.

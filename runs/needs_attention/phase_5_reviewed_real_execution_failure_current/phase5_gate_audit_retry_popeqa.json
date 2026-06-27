@@ -1,0 +1,162 @@
+{
+  "phase": "Phase 5",
+  "mode": "gate_audit",
+  "status": "needs_attention",
+  "phase5_terminal_outcome": "reviewed_real_execution_failure",
+  "ready_for_real_smoke": false,
+  "write_config": false,
+  "exports_applied": false,
+  "created_at": "2026-06-27T10:58:01Z",
+  "git_commit": "44803633b72a603a8f06f7e9165d137b1ab1ed0b",
+  "target": {
+    "model_id": "qwen3_vl_2b_instruct",
+    "benchmark_id": "pope",
+    "limit": 8,
+    "instrumentation_mode": "none"
+  },
+  "source_artifacts": {
+    "phase5_readiness": {
+      "path": "/tmp/phase5_readiness_retry_popeqa_closed/phase5_readiness.json",
+      "exists": true,
+      "sha256": "8dd57a4d24c4822b75cab07f5c9405c852d999374a5ff380194f5dbfe2838d0d"
+    }
+  },
+  "gate_checks": {
+    "model_path_decision_request": {
+      "status": "missing",
+      "path": null,
+      "summary": "Phase 5 model-path decision request was not provided."
+    },
+    "model_path_decision_validation": {
+      "status": "missing",
+      "path": null,
+      "summary": "Phase 5 model-path decision validation was not provided."
+    },
+    "approved_decision_readiness": {
+      "status": "missing",
+      "path": null,
+      "summary": "Phase 5 approved-decision readiness bundle was not provided."
+    },
+    "config_representation_proposal": {
+      "status": "missing",
+      "path": null,
+      "summary": "Phase 5 config representation proposal was not provided."
+    },
+    "config_representation_decision": {
+      "status": "missing",
+      "path": null,
+      "summary": "Phase 5 config representation decision validation was not provided."
+    },
+    "phase5_readiness": {
+      "path": "/tmp/phase5_readiness_retry_popeqa_closed/phase5_readiness.json",
+      "status": "needs_attention",
+      "summary": "Phase 5 readiness has not passed."
+    },
+    "real_smoke_result": {
+      "status": "passed",
+      "run_id": "qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa",
+      "runs_root": "runs",
+      "summary": "Phase 5 real-execution failure bundle passed artifact validation.",
+      "run_validation": {
+        "status": "passed",
+        "checks": [
+          {
+            "name": "run_dir",
+            "status": "passed",
+            "path": "runs/qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa"
+          },
+          {
+            "name": "run_manifest",
+            "status": "passed",
+            "path": "runs/qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa/run_manifest.json"
+          },
+          {
+            "name": "run_manifest_run_id",
+            "status": "passed",
+            "value": "qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa"
+          },
+          {
+            "name": "run_manifest_status",
+            "status": "passed",
+            "value": "needs_attention"
+          },
+          {
+            "name": "support_files",
+            "status": "passed",
+            "missing": []
+          },
+          {
+            "name": "declared_outputs",
+            "status": "passed",
+            "missing": [],
+            "unsafe_paths": []
+          },
+          {
+            "name": "failure_artifacts",
+            "status": "passed",
+            "missing": []
+          },
+          {
+            "name": "artifact_contract",
+            "status": "passed"
+          },
+          {
+            "name": "artifact_contract_failure_outputs",
+            "status": "passed",
+            "missing": [],
+            "unsafe_paths": []
+          },
+          {
+            "name": "artifact_manifest",
+            "status": "passed",
+            "path": "runs/qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa/artifact_manifest.json"
+          },
+          {
+            "name": "artifact_hashes",
+            "status": "passed",
+            "problems": []
+          }
+        ],
+        "summary": "Run artifacts passed validation."
+      },
+      "outcome": "reviewed_real_execution_failure",
+      "failure_type": "landmark_worker_execution_failed"
+    }
+  },
+  "next_missing_gate": "model_path_decision_request",
+  "safety_flags": {
+    "executed_real_model": false,
+    "executed_real_benchmark": false,
+    "submitted_remote_job": false,
+    "raw_outputs_written": false,
+    "write_config": false
+  },
+  "next_actions": [
+    "Review the preserved real-execution failure diagnostics before deciding whether to retry or continue."
+  ],
+  "next_action_packet": {
+    "gate": "model_path_decision_request",
+    "status": "needs_attention",
+    "required_inputs": [
+      "reviewed_variant_or_exact_model_path",
+      "candidate_REMOTE_BENCHMARK_ROOT",
+      "decision_request_output_dir"
+    ],
+    "safe_command_templates": [
+      "python -m stable_core.cli phase5-model-path-decision-request --model qwen3_vl_2b_instruct --benchmark pope --model-path <reviewed_variant_or_exact_model_path> --benchmark-root <candidate_REMOTE_BENCHMARK_ROOT> --output-dir <decision_request_output_dir>"
+    ],
+    "expected_artifacts": [
+      "phase5_model_path_decision_request.json",
+      "phase5_model_path_decision_request.md"
+    ],
+    "forbidden_actions": [
+      "Do not run the real model or benchmark from this gate audit.",
+      "Do not edit project_config or export environment variables from this gate audit.",
+      "Do not submit remote jobs or write raw_outputs.jsonl from this gate audit.",
+      "Do not treat unfilled template files as human approval.",
+      "Do not treat model-path approval as permission to run the real smoke.",
+      "Do not apply approved paths to project_config or environment variables from this gate audit."
+    ]
+  },
+  "do_not_continue_reason": "Phase 5 has a reviewed real-execution failure bundle; the real smoke did not succeed."
+}

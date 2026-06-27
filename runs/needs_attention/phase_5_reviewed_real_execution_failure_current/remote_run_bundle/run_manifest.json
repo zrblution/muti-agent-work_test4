@@ -1,0 +1,50 @@
+{
+  "run_id": "qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa",
+  "run_type": "landmark_baseline",
+  "model_id": "qwen3_vl_2b_instruct",
+  "benchmark_id": "pope",
+  "idea_id": null,
+  "limit": 8,
+  "instrumentation_mode": "none",
+  "started_at": "2026-06-27T10:54:50Z",
+  "finished_at": "2026-06-27T10:56:39Z",
+  "status": "needs_attention",
+  "git_commit": "44803633b72a603a8f06f7e9165d137b1ab1ed0b",
+  "outputs": {
+    "stdout": "stdout.log",
+    "stderr": "stderr.log",
+    "exit_code": "exit_code.txt"
+  },
+  "missing_outputs": {
+    "raw_outputs": "Landmark worker execution failed; preserving failure diagnostics.",
+    "normalized_outputs": "No raw outputs exist to normalize.",
+    "metrics": "No real smoke outputs exist to score.",
+    "failure_cases": "No real benchmark outputs exist to inspect."
+  },
+  "artifact_contract": {
+    "success_outputs": [
+      "run_manifest.json",
+      "raw_outputs.jsonl",
+      "normalized_outputs.jsonl",
+      "metrics.json",
+      "failure_cases.jsonl",
+      "artifact_manifest.json",
+      "experiment_summary.md",
+      "reproducibility_notes.md"
+    ],
+    "failure_outputs": [
+      "run_manifest.json",
+      "stdout.log",
+      "stderr.log",
+      "exit_code.txt",
+      "env_snapshot.json",
+      "failure.json",
+      "failure_report.md",
+      "artifact_manifest.json"
+    ],
+    "never_overwrite": [
+      "raw_outputs.jsonl"
+    ],
+    "large_artifact_policy": "manifest_only"
+  }
+}

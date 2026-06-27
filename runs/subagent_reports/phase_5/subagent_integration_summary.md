@@ -289,3 +289,13 @@ This resolves ambiguity in the current handoff without opening any gate. The onl
 The filled `authorize_remote_execution` record now validates against the pending request and exact Phase 5 scope. The validation package is stored under `runs/needs_attention/phase_5_execution_authorization_validation_current/` and keeps all execution safety flags false.
 
 Integration decision: sync the validated authorization to the server, rerun read-only root and readiness checks first, then temporarily open only `runner_mode`, real GPU, and process-submission gates for the reviewed Qwen3-VL + POPE limit=8 smoke. Any real execution failure must be preserved as a reviewed failure bundle before Phase 5 can terminate.
+
+## Reviewed Real-Execution Failure Integration
+
+The server was fast-forwarded to `44803633b72a603a8f06f7e9165d137b1ab1ed0b`. The main agent reran `phase5-probe-paths`, `phase5-readiness`, `validate-model`, `validate-benchmark`, and `validate-config` with the approved roots. The root probe, no-load model validation, benchmark validation, and config validation passed; readiness still reported the expected closed execution gates before the scoped temporary runner config was used.
+
+The authorized RemoteRunner plan targeted only `experiments/landmark_baselines/run_landmark.py` with `--model qwen3_vl_2b_instruct --benchmark pope --limit 8 --instrumentation none --run-id qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa`. The submitted process returned exit code `1` and `failure_type: landmark_worker_execution_failed`.
+
+The preserved run directory validated successfully with `validate-run`; `poll` and `parse-results` inspected the recorded bundle without recomputing missing metrics. `phase5-gate-audit --smoke-run-id qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa --runs-root runs` classified the terminal outcome as `reviewed_real_execution_failure`.
+
+The reviewed root cause is the Qwen3-VL adapter passing a local image as `file://...` to the installed Transformers image loader. Server checks confirmed the JPEG itself is valid and the loader accepts the bare local path, but rejects the `file://` form. This is a real execution failure bundle, not a setup-gate failure, and it stops Phase 5 at `needs_attention`.

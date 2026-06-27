@@ -302,3 +302,13 @@ This package is handoff evidence only. It keeps `ready_for_real_smoke: false`, `
 `runs/needs_attention/phase_5_execution_authorization_validation_current/` now records a passed validation for the filled `authorize_remote_execution` decision record. The approved scope is limited to `qwen3_vl_2b_instruct` + `pope` + `limit=8` + `instrumentation=none` through the reviewed `experiments/landmark_baselines/run_landmark.py` worker, with `REMOTE_MODEL_ROOT=/home/tos_lx/basemodel` and `REMOTE_BENCHMARK_ROOT=/home/vepfs/data/work1/auto-research-test1/benchmarks`.
 
 This validation is authorization evidence only. It does not edit config, export env vars, run a model, run a benchmark, submit a process, write raw outputs, or start Phase 6. The next step is server-side root/readiness revalidation, then a scoped temporary opening of the reviewed remote/GPU/process gates for the controlled smoke.
+
+## Reviewed Real-Execution Failure Update
+
+The scoped authorized smoke was run on the server at commit `44803633b72a603a8f06f7e9165d137b1ab1ed0b` with `qwen3_vl_2b_instruct`, `pope`, `limit=8`, and `instrumentation=none`. The run id is `qwen3vl_pope_limit8_real_smoke_authorized_retry_popeqa`.
+
+The RemoteRunner submitted the reviewed worker process and the worker returned `needs_attention` with `failure_type: landmark_worker_execution_failed`. `validate-run` passed for the preserved run directory, `poll` recorded the run status, `parse-results` preserved `needs_attention` with artifact validation `passed`, and `phase5-gate-audit --smoke-run-id` classified the terminal outcome as `reviewed_real_execution_failure`.
+
+The reviewed root cause is a local-image formatting mismatch: the server verified the first POPE image is a valid JPEG and `transformers.image_utils.load_image` accepts the bare local path, but the current Qwen3-VL adapter sends a `file://...` local image source and the installed Transformers loader rejects that form. No `raw_outputs.jsonl` was written, no large artifact was committed, and Phase 6 was not started.
+
+The committed review bundle is stored in `runs/needs_attention/phase_5_reviewed_real_execution_failure_current/`. Phase 5 remains `needs_attention` rather than a successful smoke.
