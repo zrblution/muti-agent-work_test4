@@ -1190,6 +1190,228 @@ def test_phase5_validate_config_representation_decision_rejects_mismatched_model
     assert json.loads(output_path.read_text(encoding="utf-8"))["status"] == "failed"
 
 
+def test_phase5_gate_audit_cli_reports_missing_review_chain(tmp_path: Path) -> None:
+    output_path = tmp_path / "phase5_gate_audit.json"
+
+    result = run_cli(
+        "phase5-gate-audit",
+        "--model",
+        "qwen3_vl_2b_instruct",
+        "--benchmark",
+        "pope",
+        "--limit",
+        "8",
+        "--instrumentation",
+        "none",
+        "--output",
+        str(output_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["command"] == "phase5-gate-audit"
+    assert payload["status"] == "needs_attention"
+    assert payload["ready_for_real_smoke"] is False
+    assert payload["next_missing_gate"] == "model_path_decision_request"
+    assert report["mode"] == "gate_audit"
+    assert report["target"] == {
+        "model_id": "qwen3_vl_2b_instruct",
+        "benchmark_id": "pope",
+        "limit": 8,
+        "instrumentation_mode": "none",
+    }
+    assert report["gate_checks"]["model_path_decision_request"]["status"] == "missing"
+    assert report["gate_checks"]["model_path_decision_validation"]["status"] == "missing"
+    assert report["safety_flags"]["write_config"] is False
+    assert report["exports_applied"] is False
+    assert "raw_outputs.jsonl" not in {path.name for path in tmp_path.iterdir()}
+
+
+def test_phase5_gate_audit_accepts_review_chain_but_stops_at_readiness(tmp_path: Path) -> None:
+    request_path = tmp_path / "phase5_model_path_decision_request.json"
+    decision_validation_path = tmp_path / "phase5_model_path_decision_validation.json"
+    approved_readiness_path = tmp_path / "phase5_approved_decision_readiness.json"
+    config_proposal_path = tmp_path / "phase5_config_representation_proposal.json"
+    config_decision_path = tmp_path / "phase5_config_representation_decision_validation.json"
+    readiness_path = tmp_path / "phase5_readiness.json"
+    output_path = tmp_path / "phase5_gate_audit.json"
+    target = {"model_id": "qwen3_vl_2b_instruct", "benchmark_id": "pope"}
+    safety_flags = {
+        "executed_real_model": False,
+        "executed_real_benchmark": False,
+        "submitted_remote_job": False,
+        "raw_outputs_written": False,
+        "write_config": False,
+    }
+    request_path.write_text(
+        json.dumps(
+            {
+                "phase": "Phase 5",
+                "mode": "model_path_decision_request",
+                "status": "needs_attention",
+                "approval_status": "pending",
+                "target": {
+                    **target,
+                    "model_path": "/models/variant/Ours",
+                    "benchmark_root": "/benchmarks",
+                },
+                "safety_flags": safety_flags,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    decision_validation_path.write_text(
+        json.dumps(
+            {
+                "phase": "Phase 5",
+                "mode": "model_path_decision_validation",
+                "status": "passed",
+                "approval_status": "approved",
+                "target": {
+                    **target,
+                    "model_path": "/models/variant/Ours",
+                    "benchmark_root": "/benchmarks",
+                },
+                "decision": {
+                    "decision": "approve_variant_path",
+                    "approved_model_path": "/models/variant/Ours",
+                    "approved_benchmark_root": "/benchmarks",
+                },
+                "safety_flags": safety_flags,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    approved_readiness_path.write_text(
+        json.dumps(
+            {
+                "phase": "Phase 5",
+                "mode": "approved_model_path_readiness",
+                "status": "needs_attention",
+                "approval_status": "approved",
+                "ready_for_real_smoke": False,
+                "target": target,
+                "approved_paths": {
+                    "model_path": "/models/variant/Ours",
+                    "benchmark_root": "/benchmarks",
+                },
+                "safety_flags": safety_flags,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    config_proposal_path.write_text(
+        json.dumps(
+            {
+                "phase": "Phase 5",
+                "mode": "config_representation_proposal",
+                "status": "needs_attention",
+                "ready_for_real_smoke": False,
+                "write_config": False,
+                "exports_applied": False,
+                "target": target,
+                "approved_paths": {
+                    "model_path": "/models/variant/Ours",
+                    "benchmark_root": "/benchmarks",
+                },
+                "representation_options": [
+                    {
+                        "name": "explicit_local_path_override",
+                        "proposed_models_yaml": {"local_path": "/models/variant/Ours"},
+                    }
+                ],
+                "safety_flags": safety_flags,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    config_decision_path.write_text(
+        json.dumps(
+            {
+                "phase": "Phase 5",
+                "mode": "config_representation_decision_validation",
+                "status": "passed",
+                "config_review_status": "approved",
+                "ready_for_real_smoke": False,
+                "write_config": False,
+                "exports_applied": False,
+                "target": target,
+                "selected_option": {"name": "explicit_local_path_override"},
+                "safety_flags": safety_flags,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    readiness_path.write_text(
+        json.dumps(
+            {
+                "phase": "Phase 5",
+                "status": "needs_attention",
+                "target": {
+                    **target,
+                    "limit": 8,
+                    "instrumentation_mode": "none",
+                },
+                "execution_authorization": {
+                    "status": "needs_attention",
+                    "gate_failures": [{"name": "runner_mode"}],
+                },
+                "safety_flags": safety_flags,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = run_cli(
+        "phase5-gate-audit",
+        "--model",
+        "qwen3_vl_2b_instruct",
+        "--benchmark",
+        "pope",
+        "--limit",
+        "8",
+        "--instrumentation",
+        "none",
+        "--decision-request",
+        str(request_path),
+        "--decision-validation",
+        str(decision_validation_path),
+        "--approved-readiness",
+        str(approved_readiness_path),
+        "--config-proposal",
+        str(config_proposal_path),
+        "--config-decision-validation",
+        str(config_decision_path),
+        "--readiness",
+        str(readiness_path),
+        "--output",
+        str(output_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["status"] == "needs_attention"
+    assert payload["next_missing_gate"] == "phase5_readiness"
+    assert payload["ready_for_real_smoke"] is False
+    assert report["gate_checks"]["model_path_decision_request"]["status"] == "passed"
+    assert report["gate_checks"]["model_path_decision_validation"]["status"] == "passed"
+    assert report["gate_checks"]["approved_decision_readiness"]["status"] == "passed"
+    assert report["gate_checks"]["config_representation_proposal"]["status"] == "passed"
+    assert report["gate_checks"]["config_representation_decision"]["status"] == "passed"
+    assert report["gate_checks"]["phase5_readiness"]["status"] == "needs_attention"
+    assert report["do_not_continue_reason"] == "Phase 5 readiness has not passed."
+    assert report["safety_flags"]["submitted_remote_job"] is False
+    assert report["exports_applied"] is False
+
+
 def test_phase5_discover_model_candidates_finds_configured_root_candidate(tmp_path: Path) -> None:
     model_root = tmp_path / "candidate_models"
     model_path = model_root / "Qwen3-VL-2B-Instruct"

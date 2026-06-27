@@ -186,6 +186,12 @@ The proposal does not edit `project_config`, export env vars, read `.env`, open 
 
 This still does not resolve the Phase 5 blocker. The validation output keeps `ready_for_real_smoke: false`, `write_config: false`, and `exports_applied: false`; it does not edit `project_config`, export env vars, read `.env`, open gates, load weights, run generation, submit jobs, run benchmarks, or write raw outputs.
 
+## Phase 5 Gate Audit Follow-Up
+
+`phase5-gate-audit` now reads the Phase 5 review/readiness artifact chain and reports the first missing or incomplete gate. It covers the model-path decision request, model-path decision validation, approved-decision readiness, config representation proposal, config representation decision validation, and Phase 5 readiness bundle.
+
+This is an audit surface only. It keeps `ready_for_real_smoke: false`, `write_config: false`, and `exports_applied: false`, and it does not edit config, export env vars, read `.env`, open gates, load weights, run generation, submit jobs, run benchmarks, or write raw outputs.
+
 ## Worker Execution Loop Follow-Up
 
 The whitelisted worker now calls the model and benchmark runtime methods after validation and adapter runtime gates pass. The success path writes raw outputs, normalized outputs, metrics, failure cases, experiment summary, reproducibility notes, run manifest, and artifact manifest. It refuses to overwrite existing `raw_outputs.jsonl`.

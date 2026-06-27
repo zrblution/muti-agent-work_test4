@@ -422,6 +422,81 @@ def validate_phase5_config_representation_decision(
     return report
 
 
+def build_phase5_gate_audit(
+    *,
+    model_id: str,
+    benchmark_id: str,
+    limit: int,
+    instrumentation_mode: str,
+    decision_request_path: str | Path | None = None,
+    decision_validation_path: str | Path | None = None,
+    approved_readiness_path: str | Path | None = None,
+    config_proposal_path: str | Path | None = None,
+    config_decision_validation_path: str | Path | None = None,
+    readiness_path: str | Path | None = None,
+    output: str | Path | None = None,
+) -> dict[str, Any]:
+    target = {
+        "model_id": model_id,
+        "benchmark_id": benchmark_id,
+        "limit": limit,
+        "instrumentation_mode": instrumentation_mode,
+    }
+    gate_checks = {
+        "model_path_decision_request": _audit_artifact_gate(
+            decision_request_path,
+            lambda report: _audit_model_path_decision_request(report, target),
+            "Phase 5 model-path decision request was not provided.",
+        ),
+        "model_path_decision_validation": _audit_artifact_gate(
+            decision_validation_path,
+            lambda report: _audit_model_path_decision_validation(report, target),
+            "Phase 5 model-path decision validation was not provided.",
+        ),
+        "approved_decision_readiness": _audit_artifact_gate(
+            approved_readiness_path,
+            lambda report: _audit_approved_decision_readiness(report, target),
+            "Phase 5 approved-decision readiness bundle was not provided.",
+        ),
+        "config_representation_proposal": _audit_artifact_gate(
+            config_proposal_path,
+            lambda report: _audit_config_representation_proposal(report, target),
+            "Phase 5 config representation proposal was not provided.",
+        ),
+        "config_representation_decision": _audit_artifact_gate(
+            config_decision_validation_path,
+            lambda report: _audit_config_representation_decision(report, target),
+            "Phase 5 config representation decision validation was not provided.",
+        ),
+        "phase5_readiness": _audit_artifact_gate(
+            readiness_path,
+            lambda report: _audit_phase5_readiness(report, target),
+            "Phase 5 readiness bundle was not provided.",
+        ),
+    }
+    next_missing_gate = _next_incomplete_gate(gate_checks)
+    status = "failed" if any(check.get("status") == "failed" for check in gate_checks.values()) else "needs_attention"
+    report = {
+        "phase": "Phase 5",
+        "mode": "gate_audit",
+        "status": status,
+        "ready_for_real_smoke": False,
+        "write_config": False,
+        "exports_applied": False,
+        "created_at": utc_now(),
+        "git_commit": current_git_commit(Path.cwd()),
+        "target": target,
+        "gate_checks": gate_checks,
+        "next_missing_gate": next_missing_gate,
+        "safety_flags": dict(SAFETY_FLAGS),
+        "next_actions": _gate_audit_next_actions(next_missing_gate, status),
+        "do_not_continue_reason": _gate_audit_stop_reason(next_missing_gate, status),
+    }
+    if output is not None:
+        write_json(Path(output), report)
+    return report
+
+
 def _readiness_status(checks: dict[str, dict[str, Any]], execution_authorization: dict[str, Any]) -> str:
     statuses = [str(check.get("status")) for check in checks.values()]
     execution_status = str(execution_authorization.get("status"))
@@ -805,6 +880,165 @@ def _config_representation_decision_stop_reason(status: str) -> str:
     if status == "failed":
         return "The config representation decision record is invalid."
     return "Config representation review is validated, but no config, env, or execution gate has changed."
+
+
+def _audit_artifact_gate(
+    artifact_path: str | Path | None,
+    validator: Any,
+    missing_summary: str,
+) -> dict[str, Any]:
+    if artifact_path is None:
+        return {"status": "missing", "path": None, "summary": missing_summary}
+    path = Path(artifact_path)
+    if not path.exists():
+        return {"status": "missing", "path": str(path), "summary": "Artifact path does not exist."}
+    try:
+        report = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return {"status": "failed", "path": str(path), "summary": f"Artifact is not valid JSON: {exc}"}
+    check = validator(report)
+    return {"path": str(path), **check}
+
+
+def _audit_model_path_decision_request(report: dict[str, Any], target: dict[str, Any]) -> dict[str, Any]:
+    return _audit_required_conditions(
+        [
+            (report.get("mode") == "model_path_decision_request", "Artifact is a model-path decision request."),
+            (report.get("approval_status") == "pending", "Decision request remains pending for external review."),
+            (_audit_target_matches(report, target), "Artifact target matches the Phase 5 audit target."),
+            (_audit_safety_flags_false(report), "Artifact records no execution, raw-output, or config-write side effects."),
+        ],
+        "Model-path decision request is reviewable.",
+    )
+
+
+def _audit_model_path_decision_validation(report: dict[str, Any], target: dict[str, Any]) -> dict[str, Any]:
+    return _audit_required_conditions(
+        [
+            (report.get("mode") == "model_path_decision_validation", "Artifact is a model-path decision validation."),
+            (report.get("status") == "passed", "Model-path decision validation passed."),
+            (report.get("approval_status") == "approved", "Model-path decision approval is recorded."),
+            (_audit_target_matches(report, target), "Artifact target matches the Phase 5 audit target."),
+            (_audit_safety_flags_false(report), "Artifact records no execution, raw-output, or config-write side effects."),
+        ],
+        "Model-path decision validation is approved.",
+    )
+
+
+def _audit_approved_decision_readiness(report: dict[str, Any], target: dict[str, Any]) -> dict[str, Any]:
+    return _audit_required_conditions(
+        [
+            (report.get("mode") == "approved_model_path_readiness", "Artifact is an approved-decision readiness bundle."),
+            (report.get("status") == "needs_attention", "Approved readiness remains non-executing."),
+            (report.get("approval_status") == "approved", "Approved readiness references an approved decision."),
+            (report.get("ready_for_real_smoke") is False, "Approved readiness does not authorize the real smoke."),
+            (_audit_target_matches(report, target), "Artifact target matches the Phase 5 audit target."),
+            (_audit_safety_flags_false(report), "Artifact records no execution, raw-output, or config-write side effects."),
+        ],
+        "Approved-decision readiness is reviewable.",
+    )
+
+
+def _audit_config_representation_proposal(report: dict[str, Any], target: dict[str, Any]) -> dict[str, Any]:
+    return _audit_required_conditions(
+        [
+            (report.get("mode") == "config_representation_proposal", "Artifact is a config representation proposal."),
+            (report.get("status") == "needs_attention", "Config representation proposal remains review-only."),
+            (report.get("ready_for_real_smoke") is False, "Config representation proposal does not authorize the real smoke."),
+            (report.get("write_config") is False, "Config representation proposal did not write config."),
+            (report.get("exports_applied") is False, "Config representation proposal did not export environment values."),
+            (_audit_target_matches(report, target), "Artifact target matches the Phase 5 audit target."),
+            (_audit_safety_flags_false(report), "Artifact records no execution, raw-output, or config-write side effects."),
+        ],
+        "Config representation proposal is reviewable.",
+    )
+
+
+def _audit_config_representation_decision(report: dict[str, Any], target: dict[str, Any]) -> dict[str, Any]:
+    return _audit_required_conditions(
+        [
+            (report.get("mode") == "config_representation_decision_validation", "Artifact is a config representation decision validation."),
+            (report.get("status") == "passed", "Config representation decision validation passed."),
+            (report.get("config_review_status") == "approved", "Config representation review is approved."),
+            (report.get("ready_for_real_smoke") is False, "Config representation decision does not authorize the real smoke."),
+            (report.get("write_config") is False, "Config representation decision did not write config."),
+            (report.get("exports_applied") is False, "Config representation decision did not export environment values."),
+            (_audit_target_matches(report, target), "Artifact target matches the Phase 5 audit target."),
+            (_audit_safety_flags_false(report), "Artifact records no execution, raw-output, or config-write side effects."),
+        ],
+        "Config representation decision validation is approved.",
+    )
+
+
+def _audit_phase5_readiness(report: dict[str, Any], target: dict[str, Any]) -> dict[str, Any]:
+    base_conditions = [
+        (report.get("phase") == "Phase 5", "Artifact is a Phase 5 readiness bundle."),
+        (_audit_target_matches(report, target, include_limit=True), "Artifact target matches the Phase 5 audit target."),
+        (_audit_safety_flags_false(report), "Artifact records no execution, raw-output, or config-write side effects."),
+    ]
+    base_check = _audit_required_conditions(base_conditions, "Phase 5 readiness target and safety metadata are valid.")
+    if base_check["status"] != "passed":
+        return base_check
+    if report.get("status") == "passed":
+        return {"status": "passed", "summary": "Phase 5 readiness passed."}
+    if report.get("status") == "failed":
+        return {"status": "failed", "summary": "Phase 5 readiness failed."}
+    return {"status": "needs_attention", "summary": "Phase 5 readiness has not passed."}
+
+
+def _audit_required_conditions(conditions: list[tuple[bool, str]], success_summary: str) -> dict[str, Any]:
+    failed = [summary for passed, summary in conditions if not passed]
+    if failed:
+        return {"status": "failed", "summary": failed[0], "failed_conditions": failed}
+    return {"status": "passed", "summary": success_summary}
+
+
+def _audit_target_matches(report: dict[str, Any], target: dict[str, Any], *, include_limit: bool = False) -> bool:
+    artifact_target = report.get("target", {})
+    if not isinstance(artifact_target, dict):
+        return False
+    if artifact_target.get("model_id") != target.get("model_id"):
+        return False
+    if artifact_target.get("benchmark_id") != target.get("benchmark_id"):
+        return False
+    if include_limit:
+        if artifact_target.get("limit") != target.get("limit"):
+            return False
+        if artifact_target.get("instrumentation_mode") != target.get("instrumentation_mode"):
+            return False
+    return True
+
+
+def _audit_safety_flags_false(report: dict[str, Any]) -> bool:
+    flags = report.get("safety_flags", {})
+    if not isinstance(flags, dict):
+        return False
+    return all(flags.get(name) is False for name in SAFETY_FLAGS)
+
+
+def _next_incomplete_gate(gate_checks: dict[str, dict[str, Any]]) -> str:
+    for name, check in gate_checks.items():
+        if check.get("status") != "passed":
+            return name
+    return "real_smoke_execution"
+
+
+def _gate_audit_next_actions(next_missing_gate: str, status: str) -> list[str]:
+    if status == "failed":
+        return ["Fix the invalid Phase 5 gate artifact before changing config, exporting env vars, or running the real smoke."]
+    if next_missing_gate == "real_smoke_execution":
+        return ["Run the controlled Phase 5 real smoke only after separate execution authorization is reviewed."]
+    return [f"Provide or fix the `{next_missing_gate}` artifact before continuing toward the Phase 5 real smoke."]
+
+
+def _gate_audit_stop_reason(next_missing_gate: str, status: str) -> str:
+    if status == "failed":
+        return "At least one Phase 5 gate artifact is invalid."
+    if next_missing_gate == "phase5_readiness":
+        return "Phase 5 readiness has not passed."
+    if next_missing_gate == "real_smoke_execution":
+        return "All audited review artifacts passed, but the real smoke has not been executed or validated by this audit."
+    return f"Phase 5 gate `{next_missing_gate}` is missing or incomplete."
 
 
 def _next_actions(checks: dict[str, dict[str, Any]], execution_authorization: dict[str, Any]) -> list[str]:

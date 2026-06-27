@@ -17,6 +17,7 @@ from stable_core.storage.run_validator import validate_run_artifacts
 from stable_core.validation.inventory_discovery import discover_benchmark_inventory, discover_model_inventory
 from stable_core.validation.model_candidates import discover_phase5_model_candidates
 from stable_core.validation.phase5_readiness import (
+    build_phase5_gate_audit,
     build_phase5_approved_decision_readiness,
     build_phase5_config_representation_proposal,
     build_phase5_explicit_model_path_probe,
@@ -190,6 +191,22 @@ def build_parser() -> argparse.ArgumentParser:
     phase5_validate_config_representation_parser.add_argument("--proposal", required=True)
     phase5_validate_config_representation_parser.add_argument("--decision-record", required=True)
     phase5_validate_config_representation_parser.add_argument("--output", default=None)
+
+    phase5_gate_audit_parser = subparsers.add_parser(
+        "phase5-gate-audit",
+        help="Audit Phase 5 review/readiness artifacts without mutating config or executing the real smoke.",
+    )
+    phase5_gate_audit_parser.add_argument("--model", required=True)
+    phase5_gate_audit_parser.add_argument("--benchmark", required=True)
+    phase5_gate_audit_parser.add_argument("--limit", type=int, required=True)
+    phase5_gate_audit_parser.add_argument("--instrumentation", default="none")
+    phase5_gate_audit_parser.add_argument("--decision-request", default=None)
+    phase5_gate_audit_parser.add_argument("--decision-validation", default=None)
+    phase5_gate_audit_parser.add_argument("--approved-readiness", default=None)
+    phase5_gate_audit_parser.add_argument("--config-proposal", default=None)
+    phase5_gate_audit_parser.add_argument("--config-decision-validation", default=None)
+    phase5_gate_audit_parser.add_argument("--readiness", default=None)
+    phase5_gate_audit_parser.add_argument("--output", default=None)
 
     phase5_discover_model_parser = subparsers.add_parser("phase5-discover-model-candidates", help="Discover reviewable Phase 5 model path candidates under explicit search roots.")
     phase5_discover_model_parser.add_argument("model_id")
@@ -532,6 +549,40 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "config_review_status": report["config_review_status"],
                     "selected_option": report["selected_option"].get("name"),
                     "ready_for_real_smoke": report["ready_for_real_smoke"],
+                    "write_config": report["write_config"],
+                    "exports_applied": report["exports_applied"],
+                    **safety_flags,
+                },
+                ensure_ascii=False,
+            )
+        )
+        return _exit_code(str(report["status"]))
+    if args.command == "phase5-gate-audit":
+        try:
+            report = build_phase5_gate_audit(
+                model_id=args.model,
+                benchmark_id=args.benchmark,
+                limit=args.limit,
+                instrumentation_mode=args.instrumentation,
+                decision_request_path=args.decision_request,
+                decision_validation_path=args.decision_validation,
+                approved_readiness_path=args.approved_readiness,
+                config_proposal_path=args.config_proposal,
+                config_decision_validation_path=args.config_decision_validation,
+                readiness_path=args.readiness,
+                output=args.output,
+            )
+        except Exception as exc:
+            print(json.dumps({"command": "phase5-gate-audit", "status": "failed", "error": str(exc)}, ensure_ascii=False))
+            return 1
+        safety_flags = report["safety_flags"]
+        print(
+            json.dumps(
+                {
+                    "command": "phase5-gate-audit",
+                    "status": report["status"],
+                    "ready_for_real_smoke": report["ready_for_real_smoke"],
+                    "next_missing_gate": report["next_missing_gate"],
                     "write_config": report["write_config"],
                     "exports_applied": report["exports_applied"],
                     **safety_flags,
