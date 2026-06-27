@@ -1,0 +1,91 @@
+{
+  "phase": "Phase 5",
+  "mode": "gate_audit",
+  "status": "needs_attention",
+  "phase5_terminal_outcome": "none",
+  "ready_for_real_smoke": false,
+  "write_config": false,
+  "exports_applied": false,
+  "created_at": "2026-06-27T04:33:47Z",
+  "git_commit": "ee28b619f471cac69f20e0dbab80495d18ac37b5",
+  "target": {
+    "model_id": "qwen3_vl_2b_instruct",
+    "benchmark_id": "pope",
+    "limit": 8,
+    "instrumentation_mode": "none"
+  },
+  "gate_checks": {
+    "model_path_decision_request": {
+      "path": "runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json",
+      "status": "passed",
+      "summary": "Model-path decision request is reviewable."
+    },
+    "model_path_decision_validation": {
+      "status": "missing",
+      "path": null,
+      "summary": "Phase 5 model-path decision validation was not provided."
+    },
+    "approved_decision_readiness": {
+      "status": "missing",
+      "path": null,
+      "summary": "Phase 5 approved-decision readiness bundle was not provided."
+    },
+    "config_representation_proposal": {
+      "status": "missing",
+      "path": null,
+      "summary": "Phase 5 config representation proposal was not provided."
+    },
+    "config_representation_decision": {
+      "status": "missing",
+      "path": null,
+      "summary": "Phase 5 config representation decision validation was not provided."
+    },
+    "phase5_readiness": {
+      "status": "missing",
+      "path": null,
+      "summary": "Phase 5 readiness bundle was not provided."
+    },
+    "real_smoke_result": {
+      "status": "missing",
+      "run_id": null,
+      "summary": "Phase 5 real-smoke run id was not provided.",
+      "outcome": "none"
+    }
+  },
+  "next_missing_gate": "model_path_decision_validation",
+  "safety_flags": {
+    "executed_real_model": false,
+    "executed_real_benchmark": false,
+    "submitted_remote_job": false,
+    "raw_outputs_written": false,
+    "write_config": false
+  },
+  "next_actions": [
+    "Provide or fix the `model_path_decision_validation` artifact before continuing toward the Phase 5 real smoke."
+  ],
+  "next_action_packet": {
+    "gate": "model_path_decision_validation",
+    "status": "needs_attention",
+    "required_inputs": [
+      "phase5_model_path_decision_request.json",
+      "filled_human_decision_record.json",
+      "phase5_model_path_decision_validation_output"
+    ],
+    "safe_command_templates": [
+      "python -m stable_core.cli phase5-validate-model-path-decision --request <phase5_model_path_decision_request.json> --decision-record <filled_human_decision_record.json> --output <phase5_model_path_decision_validation_output>",
+      "Fill exactly one JSON file copied from runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/ before validation."
+    ],
+    "expected_artifacts": [
+      "phase5_model_path_decision_validation.json"
+    ],
+    "forbidden_actions": [
+      "Do not run the real model or benchmark from this gate audit.",
+      "Do not edit project_config or export environment variables from this gate audit.",
+      "Do not submit remote jobs or write raw_outputs.jsonl from this gate audit.",
+      "Do not treat unfilled template files as human approval.",
+      "Do not treat model-path approval as permission to run the real smoke.",
+      "Do not apply approved paths to project_config or environment variables from this gate audit."
+    ]
+  },
+  "do_not_continue_reason": "Phase 5 gate `model_path_decision_validation` is missing or incomplete."
+}

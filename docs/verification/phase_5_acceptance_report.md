@@ -55,6 +55,8 @@ Server decision-request result: generating a packet for `/home/vepfs/data/LLM_HM
 
 Model-path decision validation update: `phase5-validate-model-path-decision --request <decision_request.json> --decision-record <human_record.json> --output <report.json>` now validates a human-supplied decision record against a pending request. It can validate a matching approval record as `passed` but still does not mutate config, export env vars, open execution gates, read `.env`, load weights, run generation, submit jobs, run benchmarks, or write raw outputs. Rejection and base-root decisions remain `needs_attention`; invalid or mismatched approval records fail.
 
+Committed current gate-audit update: `runs/needs_attention/phase_5_gate_audit_current/` now stores the current read-only gate audit package for the committed pending model-path decision request. The JSON and Markdown both report `next_missing_gate: model_path_decision_validation`, include the filled human decision-record handoff, point to `phase5-validate-model-path-decision`, and preserve all no-execution safety flags.
+
 Approved-decision readiness update: `phase5-approved-decision-readiness --decision-validation <report.json> --output-dir <dir>` now turns a validated approval report into a non-executing readiness bundle. It records the approved exact paths and next actions for config representation review, but always sets `ready_for_real_smoke: false` because remote/GPU/process gates and reviewed config representation must still be handled separately. It does not mutate config, export env vars, open execution gates, read `.env`, load weights, run generation, submit jobs, run benchmarks, or write raw outputs.
 
 Config representation proposal update: `phase5-config-representation-proposal --approved-readiness <report.json> --output-dir <dir>` now writes a read-only proposal for representing approved exact paths. It reports whether the approved model path satisfies the existing `${REMOTE_MODEL_ROOT}/Qwen3-VL-2B-Instruct` contract, proposes benchmark root env representation, lists reviewable model representation options such as explicit local path override or materializing under the configured root, and emits per-option decision-record templates for the next validation step. It does not edit `project_config`, export env vars, open execution gates, read `.env`, load weights, run generation, submit jobs, run benchmarks, or write raw outputs.
@@ -147,6 +149,7 @@ Remote-gate diagnostics update: `run-landmark` now has separate next-action guid
 - server `phase5-model-path-decision-request` for variant `/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours` and POPE benchmark root: wrote JSON and Markdown decision artifacts under `/tmp/phase5_model_path_decision_request_server`, with `status: needs_attention`, `approval_status: pending`, `probe.status: passed`, `requires_human_approval: true`, and all execution flags false
 - committed `runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json`: `approval_status: pending`, `probe.status: passed`, `requires_human_approval: true`, all execution safety flags false, and accepted by `phase5-gate-audit` as the model-path decision-request gate while still stopping at `model_path_decision_validation`
 - `phase5-gate-audit` with the committed pending decision request: `next_action_packet.gate` is `model_path_decision_validation`, the packet lists the pending request, a filled human decision record, the validation output, the `phase5-validate-model-path-decision` command template, and a forbidden action against treating unfilled templates as approval
+- committed `runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.json` and `.md`: `needs_attention`, next missing gate `model_path_decision_validation`, current `next_action_packet` points to the filled human decision-record validation handoff, and all execution safety flags remain false
 - committed `runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/*.template.json`: extracted unfilled approve/reject/provide-base-root decision templates; unfilled approval/base-root templates fail validation until a human fills `approver`, `rationale`, and required decision fields
 - `phase5-validate-model-path-decision` with a temporary matching human approval record: `passed`, `approval_status: approved`, exact model path and benchmark root checks passed, all execution safety flags false, and no raw outputs
 - `validate_phase5_model_path_decision(...)` with a mismatched approved model path: `failed`, `approval_status: invalid`, mismatch check failed, benchmark-root match passed, and no config write
@@ -191,6 +194,8 @@ Remote-gate diagnostics update: `run-landmark` now has separate next-action guid
 Logs are stored in `runs/phase_5_gate_logs/`.
 
 Current structured gate artifacts are stored in `runs/qwen3vl_pope_limit8_gate/`.
+
+The current committed gate-audit handoff is stored in `runs/needs_attention/phase_5_gate_audit_current/`.
 
 Current enhanced diagnostic gate artifacts are stored in `runs/qwen3vl_pope_limit8_gate_diagnostics/`.
 

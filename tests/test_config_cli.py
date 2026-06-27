@@ -1557,6 +1557,50 @@ def test_phase5_committed_model_path_decision_request_advances_gate_audit(tmp_pa
     assert "raw_outputs.jsonl" not in {path.name for path in artifact_dir.iterdir()}
 
 
+def test_phase5_committed_current_gate_audit_points_to_decision_validation() -> None:
+    audit_dir = REPO_ROOT / "runs/needs_attention/phase_5_gate_audit_current"
+    audit_path = audit_dir / "phase5_gate_audit.json"
+    audit_markdown_path = audit_dir / "phase5_gate_audit.md"
+
+    assert audit_path.exists()
+    assert audit_markdown_path.exists()
+
+    report = json.loads(audit_path.read_text(encoding="utf-8"))
+    markdown = audit_markdown_path.read_text(encoding="utf-8")
+    assert report["status"] == "needs_attention"
+    assert report["next_missing_gate"] == "model_path_decision_validation"
+    assert report["gate_checks"]["model_path_decision_request"]["status"] == "passed"
+    assert report["gate_checks"]["model_path_decision_validation"]["status"] == "missing"
+    assert report["ready_for_real_smoke"] is False
+    assert report["write_config"] is False
+    assert report["exports_applied"] is False
+    assert report["safety_flags"]["executed_real_model"] is False
+    assert report["safety_flags"]["executed_real_benchmark"] is False
+    assert report["safety_flags"]["submitted_remote_job"] is False
+    assert report["safety_flags"]["raw_outputs_written"] is False
+
+    packet = report["next_action_packet"]
+    assert packet["gate"] == "model_path_decision_validation"
+    assert packet["required_inputs"] == [
+        "phase5_model_path_decision_request.json",
+        "filled_human_decision_record.json",
+        "phase5_model_path_decision_validation_output",
+    ]
+    assert packet["expected_artifacts"] == [
+        "phase5_model_path_decision_validation.json",
+    ]
+    assert any(
+        "phase5-validate-model-path-decision --request <phase5_model_path_decision_request.json>"
+        in command
+        for command in packet["safe_command_templates"]
+    )
+    assert "Do not treat unfilled template files as human approval." in packet["forbidden_actions"]
+    assert "next_missing_gate: `model_path_decision_validation`" in markdown
+    assert "- gate: `model_path_decision_validation`" in markdown
+    assert "phase5-validate-model-path-decision --request <phase5_model_path_decision_request.json>" in markdown
+    assert "raw_outputs.jsonl" not in {path.name for path in audit_dir.iterdir()}
+
+
 def test_phase5_committed_decision_record_templates_are_unfilled_handoff_files() -> None:
     artifact_dir = REPO_ROOT / "runs/needs_attention/phase_5_model_path_decision_request"
     decision_request_path = artifact_dir / "phase5_model_path_decision_request.json"
