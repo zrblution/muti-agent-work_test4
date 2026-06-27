@@ -1358,6 +1358,95 @@ def _gate_audit_next_action_packet(
             ],
             "forbidden_actions": forbidden_actions,
         }
+    if next_missing_gate == "config_representation_decision":
+        return {
+            "gate": "config_representation_decision",
+            "status": "needs_attention",
+            "required_inputs": [
+                "phase5_config_representation_proposal.json",
+                "filled_config_representation_decision_record.json",
+                "phase5_config_representation_decision_validation_output",
+            ],
+            "safe_command_templates": [
+                (
+                    "python -m stable_core.cli phase5-validate-config-representation-decision "
+                    "--proposal <phase5_config_representation_proposal.json> "
+                    "--decision-record <filled_config_representation_decision_record.json> "
+                    "--output <phase5_config_representation_decision_validation_output>"
+                ),
+                (
+                    "Fill exactly one JSON file copied from the config proposal "
+                    "decision_record_templates before validation."
+                ),
+            ],
+            "expected_artifacts": [
+                "phase5_config_representation_decision_validation.json",
+            ],
+            "forbidden_actions": forbidden_actions,
+        }
+    if next_missing_gate == "phase5_readiness":
+        model_id = target["model_id"]
+        benchmark_id = target["benchmark_id"]
+        limit = target["limit"]
+        instrumentation_mode = target["instrumentation_mode"]
+        return {
+            "gate": "phase5_readiness",
+            "status": "needs_attention",
+            "required_inputs": [
+                "reviewed_config_or_env_representation",
+                "phase5_readiness_output_dir",
+            ],
+            "safe_command_templates": [
+                (
+                    "python -m stable_core.cli phase5-readiness "
+                    f"--model {model_id} --benchmark {benchmark_id} "
+                    f"--limit {limit} --instrumentation {instrumentation_mode} "
+                    "--output-dir <phase5_readiness_output_dir>"
+                )
+            ],
+            "expected_artifacts": [
+                "phase5_readiness.json",
+                "phase5_readiness.md",
+            ],
+            "forbidden_actions": forbidden_actions,
+        }
+    if next_missing_gate == "real_smoke_result":
+        model_id = target["model_id"]
+        benchmark_id = target["benchmark_id"]
+        limit = target["limit"]
+        instrumentation_mode = target["instrumentation_mode"]
+        return {
+            "gate": "real_smoke_result",
+            "status": "needs_attention",
+            "required_inputs": [
+                "controlled_worker_run_id",
+                "runs_root",
+                "validated_run_artifact_bundle",
+            ],
+            "safe_command_templates": [
+                "python -m stable_core.cli validate-run --run-id <controlled_worker_run_id>",
+                (
+                    "python -m stable_core.cli phase5-gate-audit "
+                    f"--model {model_id} --benchmark {benchmark_id} "
+                    f"--limit {limit} --instrumentation {instrumentation_mode} "
+                    "--decision-request <phase5_model_path_decision_request.json> "
+                    "--decision-validation <phase5_model_path_decision_validation.json> "
+                    "--approved-readiness <phase5_approved_decision_readiness.json> "
+                    "--config-proposal <phase5_config_representation_proposal.json> "
+                    "--config-decision-validation <phase5_config_representation_decision_validation.json> "
+                    "--readiness <phase5_readiness.json> "
+                    "--smoke-run-id <controlled_worker_run_id> "
+                    "--runs-root <runs_root> "
+                    "--output-dir <phase5_gate_audit_output_dir>"
+                ),
+            ],
+            "expected_artifacts": [
+                "run_manifest.json",
+                "artifact_manifest.json",
+                "raw_outputs.jsonl_or_failure_diagnostics",
+            ],
+            "forbidden_actions": forbidden_actions,
+        }
     return {
         "gate": next_missing_gate,
         "status": "needs_attention",
