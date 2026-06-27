@@ -1406,6 +1406,10 @@ def _verify_gate_audit_markdown_sidecar(audit_path: Path, audit: dict[str, Any])
                 "Markdown sidecar next_action_packet gate matches JSON.",
             )
         )
+        conditions.extend(_markdown_packet_list_conditions(text, packet, "required_inputs", quoted=True))
+        conditions.extend(_markdown_packet_list_conditions(text, packet, "safe_command_templates", quoted=True))
+        conditions.extend(_markdown_packet_list_conditions(text, packet, "expected_artifacts", quoted=True))
+        conditions.extend(_markdown_packet_list_conditions(text, packet, "forbidden_actions", quoted=False))
     if isinstance(source_artifacts, dict):
         for name, artifact in source_artifacts.items():
             if not isinstance(artifact, dict):
@@ -1445,6 +1449,30 @@ def _markdown_field_matches(text: str, label: str, value: Any) -> bool:
     else:
         return False
     return f"{label}: `{expected_value}`" in text
+
+
+def _markdown_packet_list_conditions(
+    text: str,
+    packet: dict[str, Any],
+    field: str,
+    *,
+    quoted: bool,
+) -> list[tuple[bool, str]]:
+    values = packet.get(field)
+    if not isinstance(values, list):
+        return []
+    conditions: list[tuple[bool, str]] = []
+    for value in values:
+        if not _has_text(value):
+            continue
+        expected_line = f"- `{value}`" if quoted else f"- {value}"
+        conditions.append(
+            (
+                expected_line in text,
+                f"Markdown sidecar next_action_packet {field} item matches JSON.",
+            )
+        )
+    return conditions
 
 
 def _verify_gate_audit_next_actions(status: str) -> list[str]:
