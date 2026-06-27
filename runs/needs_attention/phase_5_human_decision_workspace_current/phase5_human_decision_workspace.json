@@ -1,0 +1,421 @@
+{
+  "phase": "Phase 5",
+  "mode": "human_decision_workspace",
+  "status": "needs_attention",
+  "verification_status": "passed",
+  "created_at": "2026-06-27T09:09:46Z",
+  "git_commit": "04a5b004493ef4c51adb2090956212f0c0f67ba5",
+  "request_path": "runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json",
+  "records_dir": "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates",
+  "current_handoff_path": "runs/needs_attention/phase_5_current_handoff/phase5_current_handoff.json",
+  "prepared_records_dir": "runs/needs_attention/phase_5_human_decision_workspace_current/decision_records",
+  "template_count": 3,
+  "prepared_record_count": 3,
+  "filled_candidate_count": 0,
+  "expected_fill_count": 1,
+  "ready_for_decision_validation": false,
+  "ready_for_real_smoke": false,
+  "write_config": false,
+  "exports_applied": false,
+  "safety_flags": {
+    "executed_real_model": false,
+    "executed_real_benchmark": false,
+    "submitted_remote_job": false,
+    "raw_outputs_written": false,
+    "write_config": false
+  },
+  "checks": {
+    "request": {
+      "status": "passed",
+      "summary": "Decision request is a pending non-executing Phase 5 handoff."
+    },
+    "current_handoff": {
+      "status": "passed",
+      "summary": "Current handoff is valid for preparing a human decision workspace."
+    },
+    "source_templates": {
+      "status": "passed",
+      "summary": "Source decision templates match the pending decision request."
+    },
+    "prepared_records_unfilled": {
+      "status": "passed",
+      "summary": "Prepared decision records are unfilled fillable copies."
+    },
+    "non_executing_safety": {
+      "status": "passed",
+      "summary": "Human decision workspace preserves non-executing safety."
+    }
+  },
+  "source_templates": [
+    {
+      "decision": "approve_variant_path",
+      "source_template_path": "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/approve_variant_path.template.json",
+      "source_sha256": "b2d3bd332f073adf866babab486cd822eba843cf278f721255b4fca2782af4fc",
+      "template": {
+        "decision": "approve_variant_path",
+        "approver": null,
+        "approved_model_path": "/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours",
+        "approved_benchmark_root": "/home/vepfs/data/work1/auto-research-test1/benchmarks",
+        "rationale": null
+      }
+    },
+    {
+      "decision": "provide_base_model_root",
+      "source_template_path": "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/provide_base_model_root.template.json",
+      "source_sha256": "69cb40ab05a8a27fc6baa7f8808391cb6cdfadd39f0d8379429af687cdfa10c6",
+      "template": {
+        "decision": "provide_base_model_root",
+        "approver": null,
+        "provided_model_root": null,
+        "approved_benchmark_root": "/home/vepfs/data/work1/auto-research-test1/benchmarks",
+        "rationale": null
+      }
+    },
+    {
+      "decision": "reject_variant_path",
+      "source_template_path": "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/reject_variant_path.template.json",
+      "source_sha256": "40401a572d660a32391152114b3ecb800aa41d466943dc048ee30087dee064c5",
+      "template": {
+        "decision": "reject_variant_path",
+        "approver": null,
+        "rejected_model_path": "/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours",
+        "approved_model_path": null,
+        "approved_benchmark_root": null,
+        "rationale": null
+      }
+    }
+  ],
+  "prepared_records": [
+    {
+      "decision": "approve_variant_path",
+      "source_template_path": "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/approve_variant_path.template.json",
+      "prepared_path": "runs/needs_attention/phase_5_human_decision_workspace_current/decision_records/approve_variant_path.json",
+      "prepared_sha256": "b2d3bd332f073adf866babab486cd822eba843cf278f721255b4fca2782af4fc",
+      "approver": null,
+      "rationale": null,
+      "is_filled_candidate": false
+    },
+    {
+      "decision": "provide_base_model_root",
+      "source_template_path": "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/provide_base_model_root.template.json",
+      "prepared_path": "runs/needs_attention/phase_5_human_decision_workspace_current/decision_records/provide_base_model_root.json",
+      "prepared_sha256": "69cb40ab05a8a27fc6baa7f8808391cb6cdfadd39f0d8379429af687cdfa10c6",
+      "approver": null,
+      "rationale": null,
+      "is_filled_candidate": false
+    },
+    {
+      "decision": "reject_variant_path",
+      "source_template_path": "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/reject_variant_path.template.json",
+      "prepared_path": "runs/needs_attention/phase_5_human_decision_workspace_current/decision_records/reject_variant_path.json",
+      "prepared_sha256": "40401a572d660a32391152114b3ecb800aa41d466943dc048ee30087dee064c5",
+      "approver": null,
+      "rationale": null,
+      "is_filled_candidate": false
+    }
+  ],
+  "current_handoff": {
+    "phase": "Phase 5",
+    "mode": "current_handoff_verification",
+    "status": "needs_attention",
+    "verification_status": "passed",
+    "created_at": "2026-06-27T08:55:18Z",
+    "git_commit": "fa722f44b0e904fee4abc52f2eca0a4063a9e8bb",
+    "gate_audit_path": "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.json",
+    "decision_status_path": "runs/needs_attention/phase_5_decision_record_status_current/phase5_decision_record_status.json",
+    "next_missing_gate": "model_path_decision_validation",
+    "decision_status_report_status": "needs_attention",
+    "record_count": 3,
+    "ready_for_decision_validation": false,
+    "ready_for_real_smoke": false,
+    "write_config": false,
+    "exports_applied": false,
+    "safety_flags": {
+      "executed_real_model": false,
+      "executed_real_benchmark": false,
+      "submitted_remote_job": false,
+      "raw_outputs_written": false,
+      "write_config": false
+    },
+    "checks": {
+      "gate_audit_verification": {
+        "status": "passed",
+        "summary": "Current gate-audit package verifies as current."
+      },
+      "decision_record_status_verification": {
+        "status": "passed",
+        "summary": "Current decision-record status package verifies as current."
+      },
+      "gate_alignment": {
+        "status": "passed",
+        "summary": "Current Phase 5 handoff still stops at the human model-path decision gate."
+      },
+      "non_executing_safety": {
+        "status": "passed",
+        "summary": "Current handoff preserves all non-executing safety flags."
+      }
+    },
+    "gate_audit_verification": {
+      "phase": "Phase 5",
+      "mode": "gate_audit_verification",
+      "status": "passed",
+      "created_at": "2026-06-27T08:55:18Z",
+      "git_commit": "fa722f44b0e904fee4abc52f2eca0a4063a9e8bb",
+      "audit_path": "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.json",
+      "audit_status": "needs_attention",
+      "next_missing_gate": "model_path_decision_validation",
+      "ready_for_real_smoke": false,
+      "write_config": false,
+      "exports_applied": false,
+      "safety_flags": {
+        "executed_real_model": false,
+        "executed_real_benchmark": false,
+        "submitted_remote_job": false,
+        "raw_outputs_written": false,
+        "write_config": false
+      },
+      "source_artifact_count": 1,
+      "checks": {
+        "audit_identity": {
+          "status": "passed",
+          "summary": "Audit package identity is a Phase 5 gate audit."
+        },
+        "non_executing_safety": {
+          "status": "passed",
+          "summary": "Gate audit package preserves all non-executing safety flags."
+        },
+        "next_action_packet": {
+          "status": "passed",
+          "summary": "Gate audit package includes a structured next_action_packet."
+        },
+        "source_artifacts": {
+          "status": "passed",
+          "summary": "All recorded source artifacts match current files."
+        },
+        "markdown_sidecar": {
+          "status": "passed",
+          "summary": "Markdown sidecar matches recorded gate audit JSON.",
+          "path": "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.md",
+          "exists": true
+        }
+      },
+      "source_artifacts": {
+        "model_path_decision_request": {
+          "path": "runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json",
+          "expected_exists": true,
+          "actual_exists": true,
+          "expected_sha256": "f574e3f9235878c4a67ff4b2157c1a6a2806f0e14501ebd367a6ddc33928c085",
+          "actual_sha256": "f574e3f9235878c4a67ff4b2157c1a6a2806f0e14501ebd367a6ddc33928c085",
+          "status": "passed",
+          "summary": "Source artifact matches recorded provenance."
+        }
+      },
+      "markdown_sidecar": {
+        "status": "passed",
+        "summary": "Markdown sidecar matches recorded gate audit JSON.",
+        "path": "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.md",
+        "exists": true
+      },
+      "next_actions": [
+        "Use this gate audit handoff as current only for the recorded source artifact revisions."
+      ],
+      "do_not_continue_reason": "Gate audit package provenance and non-executing safety checks passed."
+    },
+    "decision_record_status_verification": {
+      "phase": "Phase 5",
+      "mode": "decision_record_status_verification",
+      "status": "passed",
+      "created_at": "2026-06-27T08:55:18Z",
+      "git_commit": "fa722f44b0e904fee4abc52f2eca0a4063a9e8bb",
+      "status_report_path": "runs/needs_attention/phase_5_decision_record_status_current/phase5_decision_record_status.json",
+      "status_report_status": "needs_attention",
+      "ready_for_decision_validation": false,
+      "ready_for_real_smoke": false,
+      "write_config": false,
+      "exports_applied": false,
+      "safety_flags": {
+        "executed_real_model": false,
+        "executed_real_benchmark": false,
+        "submitted_remote_job": false,
+        "raw_outputs_written": false,
+        "write_config": false
+      },
+      "record_count": 3,
+      "checks": {
+        "status_identity": {
+          "status": "passed",
+          "summary": "Decision-record status package identity is valid."
+        },
+        "non_executing_safety": {
+          "status": "passed",
+          "summary": "Decision-record status package preserves all non-executing safety flags."
+        },
+        "source_paths": {
+          "status": "passed",
+          "summary": "Decision-record status source paths match current files."
+        },
+        "gate_audit_verification": {
+          "status": "passed",
+          "summary": "Gate audit verification matches the status package."
+        },
+        "markdown_sidecar": {
+          "status": "passed",
+          "summary": "Markdown sidecar matches recorded decision-record status JSON.",
+          "path": "runs/needs_attention/phase_5_decision_record_status_current/phase5_decision_record_status.md",
+          "exists": true
+        }
+      },
+      "source_paths": {
+        "request_path": {
+          "status": "passed",
+          "path": "runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json",
+          "exists": true,
+          "summary": "Request path exists."
+        },
+        "records_dir": {
+          "status": "passed",
+          "path": "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates",
+          "exists": true,
+          "summary": "Records directory exists."
+        },
+        "record_files": {
+          "status": "passed",
+          "recorded_paths": [
+            "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/approve_variant_path.template.json",
+            "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/provide_base_model_root.template.json",
+            "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/reject_variant_path.template.json"
+          ],
+          "current_paths": [
+            "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/approve_variant_path.template.json",
+            "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/provide_base_model_root.template.json",
+            "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/reject_variant_path.template.json"
+          ],
+          "summary": "Recorded decision files match the current records directory."
+        },
+        "gate_audit_path": {
+          "status": "passed",
+          "path": "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.json",
+          "exists": true,
+          "summary": "Gate audit path exists."
+        }
+      },
+      "gate_audit_verification": {
+        "phase": "Phase 5",
+        "mode": "gate_audit_verification",
+        "status": "passed",
+        "created_at": "2026-06-27T08:55:18Z",
+        "git_commit": "fa722f44b0e904fee4abc52f2eca0a4063a9e8bb",
+        "audit_path": "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.json",
+        "audit_status": "needs_attention",
+        "next_missing_gate": "model_path_decision_validation",
+        "ready_for_real_smoke": false,
+        "write_config": false,
+        "exports_applied": false,
+        "safety_flags": {
+          "executed_real_model": false,
+          "executed_real_benchmark": false,
+          "submitted_remote_job": false,
+          "raw_outputs_written": false,
+          "write_config": false
+        },
+        "source_artifact_count": 1,
+        "checks": {
+          "audit_identity": {
+            "status": "passed",
+            "summary": "Audit package identity is a Phase 5 gate audit."
+          },
+          "non_executing_safety": {
+            "status": "passed",
+            "summary": "Gate audit package preserves all non-executing safety flags."
+          },
+          "next_action_packet": {
+            "status": "passed",
+            "summary": "Gate audit package includes a structured next_action_packet."
+          },
+          "source_artifacts": {
+            "status": "passed",
+            "summary": "All recorded source artifacts match current files."
+          },
+          "markdown_sidecar": {
+            "status": "passed",
+            "summary": "Markdown sidecar matches recorded gate audit JSON.",
+            "path": "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.md",
+            "exists": true
+          }
+        },
+        "source_artifacts": {
+          "model_path_decision_request": {
+            "path": "runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json",
+            "expected_exists": true,
+            "actual_exists": true,
+            "expected_sha256": "f574e3f9235878c4a67ff4b2157c1a6a2806f0e14501ebd367a6ddc33928c085",
+            "actual_sha256": "f574e3f9235878c4a67ff4b2157c1a6a2806f0e14501ebd367a6ddc33928c085",
+            "status": "passed",
+            "summary": "Source artifact matches recorded provenance."
+          }
+        },
+        "markdown_sidecar": {
+          "status": "passed",
+          "summary": "Markdown sidecar matches recorded gate audit JSON.",
+          "path": "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.md",
+          "exists": true
+        },
+        "next_actions": [
+          "Use this gate audit handoff as current only for the recorded source artifact revisions."
+        ],
+        "do_not_continue_reason": "Gate audit package provenance and non-executing safety checks passed.",
+        "summary": "Gate audit verification matches the recorded decision-record status report.",
+        "failed_conditions": [],
+        "recorded_verification_status": "passed",
+        "recorded_next_missing_gate": "model_path_decision_validation",
+        "recorded_ready_for_decision_validation": true,
+        "current_verification_status": "passed",
+        "current_next_missing_gate": "model_path_decision_validation"
+      },
+      "markdown_sidecar": {
+        "status": "passed",
+        "summary": "Markdown sidecar matches recorded decision-record status JSON.",
+        "path": "runs/needs_attention/phase_5_decision_record_status_current/phase5_decision_record_status.md",
+        "exists": true
+      },
+      "next_actions": [
+        "Use this decision-record status package only for the recorded source artifact revisions."
+      ],
+      "do_not_continue_reason": "Decision-record status package provenance and Markdown checks passed."
+    },
+    "next_action_packet": {
+      "gate": "model_path_decision_validation",
+      "status": "needs_attention",
+      "required_inputs": [
+        "phase5_model_path_decision_request.json",
+        "filled_human_decision_record.json",
+        "phase5_model_path_decision_validation_output"
+      ],
+      "safe_command_templates": [
+        "python -m stable_core.cli phase5-validate-model-path-decision --request <phase5_model_path_decision_request.json> --decision-record <filled_human_decision_record.json> --output <phase5_model_path_decision_validation_output>",
+        "Fill exactly one JSON file copied from runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates/ before validation."
+      ],
+      "expected_artifacts": [
+        "phase5_model_path_decision_validation.json"
+      ],
+      "forbidden_actions": [
+        "Do not run the real model or benchmark from this gate audit.",
+        "Do not edit project_config or export environment variables from this gate audit.",
+        "Do not submit remote jobs or write raw_outputs.jsonl from this gate audit.",
+        "Do not treat unfilled template files as human approval.",
+        "Do not treat model-path approval as permission to run the real smoke.",
+        "Do not apply approved paths to project_config or environment variables from this gate audit."
+      ]
+    },
+    "next_actions": [
+      "Fill exactly one copied decision record template before running phase5-validate-model-path-decision."
+    ],
+    "do_not_continue_reason": "Phase 5 remains stopped at the human model-path decision gate."
+  },
+  "next_actions": [
+    "Fill exactly one prepared record under decision_records/ with approver and rationale.",
+    "Run phase5-decision-record-status against the prepared decision_records directory before validation.",
+    "Do not edit config, export env vars, submit jobs, run models, run benchmarks, or write raw outputs from this workspace."
+  ],
+  "do_not_continue_reason": "Human decision workspace is prepared, but no filled decision record has been validated."
+}

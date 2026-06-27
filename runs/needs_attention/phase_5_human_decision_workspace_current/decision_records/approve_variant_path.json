@@ -1,0 +1,7 @@
+{
+  "decision": "approve_variant_path",
+  "approver": null,
+  "approved_model_path": "/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours",
+  "approved_benchmark_root": "/home/vepfs/data/work1/auto-research-test1/benchmarks",
+  "rationale": null
+}

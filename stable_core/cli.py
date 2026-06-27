@@ -21,6 +21,7 @@ from stable_core.validation.phase5_readiness import (
     build_phase5_approved_decision_readiness,
     build_phase5_config_representation_proposal,
     build_phase5_current_handoff,
+    build_phase5_human_decision_workspace,
     build_phase5_explicit_model_path_probe,
     build_phase5_model_path_decision_request,
     build_phase5_path_probe,
@@ -198,6 +199,15 @@ def build_parser() -> argparse.ArgumentParser:
     phase5_current_handoff_parser.add_argument("--gate-audit", required=True)
     phase5_current_handoff_parser.add_argument("--decision-status", required=True)
     phase5_current_handoff_parser.add_argument("--output-dir", required=True)
+
+    phase5_prepare_decision_workspace_parser = subparsers.add_parser(
+        "phase5-prepare-decision-workspace",
+        help="Prepare fillable copies of Phase 5 decision templates without approving or executing anything.",
+    )
+    phase5_prepare_decision_workspace_parser.add_argument("--request", required=True)
+    phase5_prepare_decision_workspace_parser.add_argument("--records-dir", required=True)
+    phase5_prepare_decision_workspace_parser.add_argument("--current-handoff", required=True)
+    phase5_prepare_decision_workspace_parser.add_argument("--output-dir", required=True)
 
     phase5_approved_decision_readiness_parser = subparsers.add_parser(
         "phase5-approved-decision-readiness",
@@ -604,6 +614,38 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "status": report["status"],
                     "verification_status": report["verification_status"],
                     "next_missing_gate": report["next_missing_gate"],
+                    "ready_for_decision_validation": report["ready_for_decision_validation"],
+                    "ready_for_real_smoke": report["ready_for_real_smoke"],
+                    "write_config": report["write_config"],
+                    "exports_applied": report["exports_applied"],
+                    **safety_flags,
+                },
+                ensure_ascii=False,
+            )
+        )
+        return _exit_code(str(report["verification_status"]))
+    if args.command == "phase5-prepare-decision-workspace":
+        try:
+            report = build_phase5_human_decision_workspace(
+                request_path=args.request,
+                records_dir=args.records_dir,
+                current_handoff_path=args.current_handoff,
+                output_dir=args.output_dir,
+            )
+        except Exception as exc:
+            print(json.dumps({"command": "phase5-prepare-decision-workspace", "status": "failed", "error": str(exc)}, ensure_ascii=False))
+            return 1
+        safety_flags = report["safety_flags"]
+        print(
+            json.dumps(
+                {
+                    "command": "phase5-prepare-decision-workspace",
+                    "status": report["status"],
+                    "verification_status": report["verification_status"],
+                    "template_count": report["template_count"],
+                    "prepared_record_count": report["prepared_record_count"],
+                    "filled_candidate_count": report["filled_candidate_count"],
+                    "expected_fill_count": report["expected_fill_count"],
                     "ready_for_decision_validation": report["ready_for_decision_validation"],
                     "ready_for_real_smoke": report["ready_for_real_smoke"],
                     "write_config": report["write_config"],

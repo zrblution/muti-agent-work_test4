@@ -766,3 +766,26 @@ Local verification for this follow-up:
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.security.secret_scan --paths AGENTS.md README.md docs project_config stable_core adapters experiments research_tools tests runs/codex_tasks runs/needs_attention runs/subagent_reports --output /tmp/phase5_current_handoff_secret_scan.json`: `passed`, no findings.
 - `find . -type f -size +5M -not -path './.git/*' -print`: no output.
 - `git diff --check`: passed.
+
+## Human Decision Workspace Follow-Up
+
+`phase5-prepare-decision-workspace --request <phase5_model_path_decision_request.json> --records-dir <decision_record_templates> --current-handoff <phase5_current_handoff.json> --output-dir <dir>` now prepares fillable copies of the three model-path decision templates under `decision_records/`. It writes `phase5_human_decision_workspace.json` plus `phase5_human_decision_workspace.md`, verifies the current handoff first, does not overwrite existing prepared records, and keeps `status: needs_attention`, `ready_for_decision_validation: false`, `ready_for_real_smoke: false`, `write_config: false`, `exports_applied: false`, and all execution safety flags false.
+
+The committed workspace lives under `runs/needs_attention/phase_5_human_decision_workspace_current/`. It contains three unfilled prepared records and records `expected_fill_count: 1`. `phase5-decision-record-status` now treats unselected unfilled workspace copies as unfilled handoff records instead of invalid candidates, so exactly one filled prepared record can proceed to non-executing `phase5-validate-model-path-decision` while the other two remain unfilled.
+
+This workspace is review evidence only. It does not approve a model path, mutate config, export env vars, read `.env`, open execution gates, load weights, run generation, submit jobs, run benchmarks, or write raw outputs.
+
+Local verification for this follow-up:
+
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_prepare_decision_workspace_cli_writes_fillable_copies tests/test_config_cli.py::test_phase5_committed_human_decision_workspace_current_is_unfilled -q`: initially `2 failed` because `phase5-prepare-decision-workspace` was not registered and the committed workspace did not exist; after adding the command and generating the package, `2 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_decision_record_status_accepts_one_filled_workspace_record -q`: initially `1 failed` because two unselected workspace records were classified as invalid candidates; after classifying records that only lack human-fill fields as unfilled handoff records, `1 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_prepare_decision_workspace_cli_writes_fillable_copies tests/test_config_cli.py::test_phase5_decision_record_status_accepts_one_filled_workspace_record tests/test_config_cli.py::test_phase5_committed_human_decision_workspace_current_is_unfilled -q`: `3 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py -q`: `65 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py tests/test_qwen3_vl_adapter.py tests/test_fake_adapters.py tests/test_landmark_gate.py tests/test_runner.py -q`: `113 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest -q`: `146 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli phase5-prepare-decision-workspace --request runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json --records-dir runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates --current-handoff runs/needs_attention/phase_5_current_handoff/phase5_current_handoff.json --output-dir /tmp/phase5_human_decision_workspace_smoke`: `needs_attention`, `verification_status: passed`, three prepared records, zero filled candidates, `expected_fill_count: 1`, `ready_for_decision_validation: false`, `ready_for_real_smoke: false`, and all execution safety flags false.
+- temporary one-filled workspace `phase5-decision-record-status`: `passed`, `filled_candidate_count: 1`, `template_unfilled_count: 2`, `invalid_candidate_count: 0`, `ready_for_decision_validation: true`, `ready_for_real_smoke: false`, and all execution safety flags false.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli validate-config`: `passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.security.secret_scan --paths AGENTS.md README.md docs project_config stable_core adapters experiments research_tools tests runs/codex_tasks runs/needs_attention runs/subagent_reports --output /tmp/phase5_human_decision_workspace_secret_scan.json`: `passed`, no findings.
+- `find . -type f -size +5M -not -path './.git/*' -print`: no output.
+- `git diff --check`: passed.

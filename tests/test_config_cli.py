@@ -2360,6 +2360,181 @@ def test_phase5_committed_current_handoff_artifact_is_needs_attention() -> None:
     assert "ready_for_real_smoke: `false`" in markdown
 
 
+def test_phase5_prepare_decision_workspace_cli_writes_fillable_copies(tmp_path: Path) -> None:
+    request_path = (
+        REPO_ROOT
+        / "runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json"
+    )
+    records_dir = REPO_ROOT / "runs/needs_attention/phase_5_model_path_decision_request/decision_record_templates"
+    handoff_path = REPO_ROOT / "runs/needs_attention/phase_5_current_handoff/phase5_current_handoff.json"
+    output_dir = tmp_path / "phase5_human_decision_workspace"
+
+    result = run_cli(
+        "phase5-prepare-decision-workspace",
+        "--request",
+        str(request_path),
+        "--records-dir",
+        str(records_dir),
+        "--current-handoff",
+        str(handoff_path),
+        "--output-dir",
+        str(output_dir),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["command"] == "phase5-prepare-decision-workspace"
+    assert payload["status"] == "needs_attention"
+    assert payload["verification_status"] == "passed"
+    assert payload["template_count"] == 3
+    assert payload["prepared_record_count"] == 3
+    assert payload["filled_candidate_count"] == 0
+    assert payload["expected_fill_count"] == 1
+    assert payload["ready_for_decision_validation"] is False
+    assert payload["ready_for_real_smoke"] is False
+    assert payload["write_config"] is False
+    assert payload["exports_applied"] is False
+    assert payload["executed_real_model"] is False
+    assert payload["executed_real_benchmark"] is False
+    assert payload["submitted_remote_job"] is False
+    assert payload["raw_outputs_written"] is False
+
+    workspace_path = output_dir / "phase5_human_decision_workspace.json"
+    markdown_path = output_dir / "phase5_human_decision_workspace.md"
+    workspace = json.loads(workspace_path.read_text(encoding="utf-8"))
+    markdown = markdown_path.read_text(encoding="utf-8")
+    assert workspace["phase"] == "Phase 5"
+    assert workspace["mode"] == "human_decision_workspace"
+    assert workspace["status"] == "needs_attention"
+    assert workspace["verification_status"] == "passed"
+    assert workspace["request_path"] == str(request_path)
+    assert workspace["records_dir"] == str(records_dir)
+    assert workspace["current_handoff_path"] == str(handoff_path)
+    assert workspace["template_count"] == 3
+    assert workspace["prepared_record_count"] == 3
+    assert workspace["filled_candidate_count"] == 0
+    assert workspace["expected_fill_count"] == 1
+    assert workspace["ready_for_decision_validation"] is False
+    assert workspace["ready_for_real_smoke"] is False
+    assert workspace["safety_flags"] == _phase5_safety_flags()
+    assert workspace["checks"]["current_handoff"]["status"] == "passed"
+    assert workspace["checks"]["source_templates"]["status"] == "passed"
+    assert workspace["checks"]["prepared_records_unfilled"]["status"] == "passed"
+    prepared_names = {Path(record["prepared_path"]).name for record in workspace["prepared_records"]}
+    assert prepared_names == {
+        "approve_variant_path.json",
+        "provide_base_model_root.json",
+        "reject_variant_path.json",
+    }
+    for record in workspace["prepared_records"]:
+        prepared = json.loads(Path(record["prepared_path"]).read_text(encoding="utf-8"))
+        source = json.loads(Path(record["source_template_path"]).read_text(encoding="utf-8"))
+        assert prepared == source
+        assert prepared["approver"] is None
+        assert prepared["rationale"] is None
+    assert "Status: `needs_attention`" in markdown
+    assert "verification_status: `passed`" in markdown
+    assert "Fill exactly one prepared record" in markdown
+
+
+def test_phase5_decision_record_status_accepts_one_filled_workspace_record(tmp_path: Path) -> None:
+    artifact_dir = REPO_ROOT / "runs/needs_attention/phase_5_model_path_decision_request"
+    request_path = artifact_dir / "phase5_model_path_decision_request.json"
+    records_dir = artifact_dir / "decision_record_templates"
+    handoff_path = REPO_ROOT / "runs/needs_attention/phase_5_current_handoff/phase5_current_handoff.json"
+    audit_path = REPO_ROOT / "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.json"
+    workspace_dir = tmp_path / "phase5_human_decision_workspace"
+    phase5_module.build_phase5_human_decision_workspace(
+        request_path=request_path,
+        records_dir=records_dir,
+        current_handoff_path=handoff_path,
+        output_dir=workspace_dir,
+    )
+    request = json.loads(request_path.read_text(encoding="utf-8"))
+    approval_path = workspace_dir / "decision_records/approve_variant_path.json"
+    approval = json.loads(approval_path.read_text(encoding="utf-8"))
+    approval["approver"] = "phase5-human-reviewer"
+    approval["rationale"] = "Reviewed exact variant path for the Phase 5 handoff."
+    approval["approved_model_path"] = request["target"]["model_path"]
+    approval["approved_benchmark_root"] = request["target"]["benchmark_root"]
+    _write_json(approval_path, approval)
+    output_path = tmp_path / "phase5_decision_record_status.json"
+
+    result = run_cli(
+        "phase5-decision-record-status",
+        "--request",
+        str(request_path),
+        "--records-dir",
+        str(workspace_dir / "decision_records"),
+        "--audit",
+        str(audit_path),
+        "--output",
+        str(output_path),
+    )
+
+    assert result.returncode == 0, result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["command"] == "phase5-decision-record-status"
+    assert payload["status"] == "passed"
+    assert payload["filled_candidate_count"] == 1
+    assert payload["template_unfilled_count"] == 2
+    assert payload["invalid_candidate_count"] == 0
+    assert payload["ready_for_decision_validation"] is True
+    assert payload["ready_for_real_smoke"] is False
+    assert payload["write_config"] is False
+    assert payload["exports_applied"] is False
+
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    assert report["status"] == "passed"
+    assert report["selected_decision_record_path"] == str(approval_path)
+    assert report["filled_candidate_count"] == 1
+    assert report["template_unfilled_count"] == 2
+    assert report["invalid_candidate_count"] == 0
+    classifications = {Path(record["path"]).name: record["classification"] for record in report["records"]}
+    assert classifications["approve_variant_path.json"] == "filled_candidate"
+    assert classifications["provide_base_model_root.json"] == "template_unfilled"
+    assert classifications["reject_variant_path.json"] == "template_unfilled"
+
+
+def test_phase5_committed_human_decision_workspace_current_is_unfilled() -> None:
+    workspace_path = (
+        REPO_ROOT
+        / "runs/needs_attention/phase_5_human_decision_workspace_current/phase5_human_decision_workspace.json"
+    )
+    markdown_path = workspace_path.with_suffix(".md")
+
+    assert workspace_path.exists()
+    assert markdown_path.exists()
+    workspace = json.loads(workspace_path.read_text(encoding="utf-8"))
+    markdown = markdown_path.read_text(encoding="utf-8")
+    assert workspace["phase"] == "Phase 5"
+    assert workspace["mode"] == "human_decision_workspace"
+    assert workspace["status"] == "needs_attention"
+    assert workspace["verification_status"] == "passed"
+    assert workspace["current_handoff_path"] == (
+        "runs/needs_attention/phase_5_current_handoff/phase5_current_handoff.json"
+    )
+    assert workspace["template_count"] == 3
+    assert workspace["prepared_record_count"] == 3
+    assert workspace["filled_candidate_count"] == 0
+    assert workspace["expected_fill_count"] == 1
+    assert workspace["ready_for_decision_validation"] is False
+    assert workspace["ready_for_real_smoke"] is False
+    assert workspace["write_config"] is False
+    assert workspace["exports_applied"] is False
+    assert workspace["safety_flags"] == _phase5_safety_flags()
+    assert workspace["checks"]["current_handoff"]["status"] == "passed"
+    assert workspace["checks"]["prepared_records_unfilled"]["status"] == "passed"
+    assert {Path(record["prepared_path"]).name for record in workspace["prepared_records"]} == {
+        "approve_variant_path.json",
+        "provide_base_model_root.json",
+        "reject_variant_path.json",
+    }
+    assert "Status: `needs_attention`" in markdown
+    assert "expected_fill_count: `1`" in markdown
+    assert "ready_for_real_smoke: `false`" in markdown
+
+
 def test_phase5_committed_decision_record_templates_are_unfilled_handoff_files() -> None:
     artifact_dir = REPO_ROOT / "runs/needs_attention/phase_5_model_path_decision_request"
     decision_request_path = artifact_dir / "phase5_model_path_decision_request.json"

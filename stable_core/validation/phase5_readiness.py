@@ -766,6 +766,226 @@ def build_phase5_current_handoff(
     return report
 
 
+def build_phase5_human_decision_workspace(
+    *,
+    request_path: str | Path,
+    records_dir: str | Path,
+    current_handoff_path: str | Path,
+    output_dir: str | Path,
+) -> dict[str, Any]:
+    request_file = Path(request_path)
+    records_path = Path(records_dir)
+    handoff_file = Path(current_handoff_path)
+    output_path = Path(output_dir)
+    prepared_records_dir = output_path / "decision_records"
+    request = json.loads(request_file.read_text(encoding="utf-8"))
+    current_handoff = json.loads(handoff_file.read_text(encoding="utf-8"))
+    source_templates = _human_decision_workspace_source_templates(records_path)
+    prepared_records = _prepare_human_decision_records(
+        source_templates=source_templates,
+        prepared_records_dir=prepared_records_dir,
+    )
+    filled_candidate_count = _human_decision_workspace_filled_count(prepared_records)
+    checks = {
+        "request": _human_decision_workspace_request_check(request),
+        "current_handoff": _human_decision_workspace_current_handoff_check(current_handoff),
+        "source_templates": _human_decision_workspace_source_templates_check(
+            request=request,
+            source_templates=source_templates,
+        ),
+        "prepared_records_unfilled": _human_decision_workspace_prepared_records_check(prepared_records),
+        "non_executing_safety": _human_decision_workspace_non_executing_safety_check(current_handoff),
+    }
+    verification_status = _checks_status(checks)
+    workspace = {
+        "phase": "Phase 5",
+        "mode": "human_decision_workspace",
+        "status": "failed" if verification_status == "failed" else "needs_attention",
+        "verification_status": verification_status,
+        "created_at": utc_now(),
+        "git_commit": current_git_commit(Path.cwd()),
+        "request_path": str(request_file),
+        "records_dir": str(records_path),
+        "current_handoff_path": str(handoff_file),
+        "prepared_records_dir": str(prepared_records_dir),
+        "template_count": len(source_templates),
+        "prepared_record_count": len(prepared_records),
+        "filled_candidate_count": filled_candidate_count,
+        "expected_fill_count": 1,
+        "ready_for_decision_validation": False,
+        "ready_for_real_smoke": False,
+        "write_config": False,
+        "exports_applied": False,
+        "safety_flags": dict(SAFETY_FLAGS),
+        "checks": checks,
+        "source_templates": source_templates,
+        "prepared_records": prepared_records,
+        "current_handoff": current_handoff,
+        "next_actions": _human_decision_workspace_next_actions(verification_status),
+        "do_not_continue_reason": _human_decision_workspace_stop_reason(verification_status),
+    }
+    _write_human_decision_workspace_package(output_path, workspace)
+    return workspace
+
+
+def _human_decision_workspace_source_templates(records_path: Path) -> list[dict[str, Any]]:
+    templates: list[dict[str, Any]] = []
+    for path in sorted(records_path.glob("*.template.json")):
+        if not path.is_file():
+            continue
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        templates.append(
+            {
+                "decision": payload.get("decision"),
+                "source_template_path": str(path),
+                "source_sha256": sha256_file(path),
+                "template": payload,
+            }
+        )
+    return templates
+
+
+def _prepare_human_decision_records(
+    *,
+    source_templates: list[dict[str, Any]],
+    prepared_records_dir: Path,
+) -> list[dict[str, Any]]:
+    prepared_records_dir.mkdir(parents=True, exist_ok=True)
+    prepared_records: list[dict[str, Any]] = []
+    for source in source_templates:
+        source_path = Path(str(source["source_template_path"]))
+        prepared_name = source_path.name.replace(".template.json", ".json")
+        prepared_path = prepared_records_dir / prepared_name
+        if not prepared_path.exists():
+            write_json(prepared_path, source["template"])
+        prepared_payload = json.loads(prepared_path.read_text(encoding="utf-8"))
+        prepared_records.append(
+            {
+                "decision": prepared_payload.get("decision"),
+                "source_template_path": str(source_path),
+                "prepared_path": str(prepared_path),
+                "prepared_sha256": sha256_file(prepared_path),
+                "approver": prepared_payload.get("approver"),
+                "rationale": prepared_payload.get("rationale"),
+                "is_filled_candidate": _has_text(prepared_payload.get("approver"))
+                and _has_text(prepared_payload.get("rationale")),
+            }
+        )
+    return prepared_records
+
+
+def _human_decision_workspace_filled_count(prepared_records: list[dict[str, Any]]) -> int:
+    return sum(1 for record in prepared_records if record.get("is_filled_candidate") is True)
+
+
+def _human_decision_workspace_request_check(request: dict[str, Any]) -> dict[str, Any]:
+    return _audit_required_conditions(
+        [
+            (request.get("phase") == "Phase 5", "Request phase is Phase 5."),
+            (request.get("mode") == "model_path_decision_request", "Request is a model-path decision request."),
+            (request.get("approval_status") == "pending", "Request still awaits a human decision."),
+            (_audit_safety_flags_false(request), "Request records all execution safety flags false."),
+        ],
+        "Decision request is a pending non-executing Phase 5 handoff.",
+    )
+
+
+def _human_decision_workspace_current_handoff_check(current_handoff: dict[str, Any]) -> dict[str, Any]:
+    return _audit_required_conditions(
+        [
+            (
+                current_handoff.get("mode") == "current_handoff_verification",
+                "Current handoff mode is current_handoff_verification.",
+            ),
+            (current_handoff.get("status") == "needs_attention", "Current handoff remains needs_attention."),
+            (current_handoff.get("verification_status") == "passed", "Current handoff verification passed."),
+            (
+                current_handoff.get("next_missing_gate") == "model_path_decision_validation",
+                "Current handoff points to model_path_decision_validation.",
+            ),
+            (
+                current_handoff.get("ready_for_decision_validation") is False,
+                "Current handoff has no filled decision record ready for validation.",
+            ),
+            (
+                current_handoff.get("ready_for_real_smoke") is False,
+                "Current handoff does not authorize real smoke.",
+            ),
+        ],
+        "Current handoff is valid for preparing a human decision workspace.",
+    )
+
+
+def _human_decision_workspace_source_templates_check(
+    *,
+    request: dict[str, Any],
+    source_templates: list[dict[str, Any]],
+) -> dict[str, Any]:
+    requested = request.get("requested_decision", {})
+    expected_templates = requested.get("decision_record_templates", []) if isinstance(requested, dict) else []
+    expected_decisions = {
+        str(template.get("decision"))
+        for template in expected_templates
+        if isinstance(template, dict) and _has_text(template.get("decision"))
+    }
+    current_decisions = {
+        str(template.get("decision"))
+        for template in source_templates
+        if _has_text(template.get("decision"))
+    }
+    return _audit_required_conditions(
+        [
+            (len(source_templates) == 3, "Exactly three decision templates are available."),
+            (current_decisions == expected_decisions, "Template decisions match the decision request."),
+        ],
+        "Source decision templates match the pending decision request.",
+    )
+
+
+def _human_decision_workspace_prepared_records_check(prepared_records: list[dict[str, Any]]) -> dict[str, Any]:
+    filled_count = _human_decision_workspace_filled_count(prepared_records)
+    names = [Path(str(record.get("prepared_path"))).name for record in prepared_records]
+    return _audit_required_conditions(
+        [
+            (len(prepared_records) == 3, "Exactly three prepared decision records were written."),
+            (filled_count == 0, "Prepared records are still unfilled."),
+            (all(not name.endswith(".template.json") for name in names), "Prepared records are fillable copies."),
+        ],
+        "Prepared decision records are unfilled fillable copies.",
+    )
+
+
+def _human_decision_workspace_non_executing_safety_check(current_handoff: dict[str, Any]) -> dict[str, Any]:
+    return _audit_required_conditions(
+        [
+            (current_handoff.get("ready_for_real_smoke") is False, "Current handoff keeps ready_for_real_smoke false."),
+            (current_handoff.get("write_config") is False, "Current handoff keeps write_config false."),
+            (current_handoff.get("exports_applied") is False, "Current handoff keeps exports_applied false."),
+            (_audit_safety_flags_false(current_handoff), "Current handoff records all execution safety flags false."),
+        ],
+        "Human decision workspace preserves non-executing safety.",
+    )
+
+
+def _human_decision_workspace_next_actions(verification_status: str) -> list[str]:
+    if verification_status != "passed":
+        return [
+            "Regenerate the current Phase 5 handoff before preparing human decision records.",
+            "Do not fill or validate decision records until the workspace verification passes.",
+        ]
+    return [
+        "Fill exactly one prepared record under decision_records/ with approver and rationale.",
+        "Run phase5-decision-record-status against the prepared decision_records directory before validation.",
+        "Do not edit config, export env vars, submit jobs, run models, run benchmarks, or write raw outputs from this workspace.",
+    ]
+
+
+def _human_decision_workspace_stop_reason(verification_status: str) -> str:
+    if verification_status == "passed":
+        return "Human decision workspace is prepared, but no filled decision record has been validated."
+    return "Human decision workspace verification failed."
+
+
 def _current_handoff_gate_alignment_check(
     *,
     audit_path: Path,
@@ -1011,7 +1231,7 @@ def _inspect_phase5_decision_record(
     failed_checks = [name for name, check in checks.items() if check.get("status") == "failed"]
     validation_status = _decision_validation_status(checks, decision)
     approval_status = _decision_approval_status(validation_status, decision)
-    if path.name.endswith(".template.json") and {"approver_present", "rationale_present"}.intersection(failed_checks):
+    if _decision_record_is_unfilled_handoff(path, failed_checks):
         classification = "template_unfilled"
         status = "needs_attention"
         summary = "Decision record template is still unfilled."
@@ -1033,6 +1253,16 @@ def _inspect_phase5_decision_record(
         "checks": checks,
         "summary": summary,
     }
+
+
+def _decision_record_is_unfilled_handoff(path: Path, failed_checks: list[str]) -> bool:
+    unfilled_checks = {"approver_present", "rationale_present", "provided_model_root_present"}
+    human_fields_missing = {"approver_present", "rationale_present"}.intersection(failed_checks)
+    if not human_fields_missing:
+        return False
+    if not set(failed_checks).issubset(unfilled_checks):
+        return False
+    return path.name.endswith(".template.json") or path.suffix == ".json"
 
 
 def _decision_record_gate_audit_check(
@@ -2610,6 +2840,62 @@ def _write_current_handoff_package(output_dir: Path, report: dict[str, Any]) -> 
     output_dir.mkdir(parents=True, exist_ok=True)
     write_json(output_dir / "phase5_current_handoff.json", report)
     write_text(output_dir / "phase5_current_handoff.md", _current_handoff_markdown(report))
+
+
+def _write_human_decision_workspace_package(output_dir: Path, workspace: dict[str, Any]) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    write_json(output_dir / "phase5_human_decision_workspace.json", workspace)
+    write_text(output_dir / "phase5_human_decision_workspace.md", _human_decision_workspace_markdown(workspace))
+
+
+def _human_decision_workspace_markdown(workspace: dict[str, Any]) -> str:
+    safety_lines = [
+        f"- {name}: `{str(value).lower()}`"
+        for name, value in workspace["safety_flags"].items()
+    ]
+    check_lines = [
+        f"- {name}: `{payload.get('status')}`"
+        for name, payload in workspace["checks"].items()
+    ]
+    prepared_lines = [
+        f"- `{Path(str(record['prepared_path'])).name}` from `{record['source_template_path']}` filled `{str(record['is_filled_candidate']).lower()}`"
+        for record in workspace.get("prepared_records", [])
+    ]
+    next_action_lines = [
+        f"- {action}"
+        for action in workspace.get("next_actions", [])
+    ]
+    return (
+        "# Phase 5 Human Decision Workspace\n\n"
+        f"Status: `{workspace['status']}`\n\n"
+        f"verification_status: `{workspace['verification_status']}`\n\n"
+        f"request_path: `{workspace['request_path']}`\n\n"
+        f"records_dir: `{workspace['records_dir']}`\n\n"
+        f"current_handoff_path: `{workspace['current_handoff_path']}`\n\n"
+        f"prepared_records_dir: `{workspace['prepared_records_dir']}`\n\n"
+        f"template_count: `{workspace['template_count']}`\n\n"
+        f"prepared_record_count: `{workspace['prepared_record_count']}`\n\n"
+        f"filled_candidate_count: `{workspace['filled_candidate_count']}`\n\n"
+        f"expected_fill_count: `{workspace['expected_fill_count']}`\n\n"
+        f"ready_for_decision_validation: `{str(workspace['ready_for_decision_validation']).lower()}`\n\n"
+        f"ready_for_real_smoke: `{str(workspace['ready_for_real_smoke']).lower()}`\n\n"
+        f"write_config: `{str(workspace['write_config']).lower()}`\n\n"
+        f"exports_applied: `{str(workspace['exports_applied']).lower()}`\n\n"
+        "## Checks\n\n"
+        + "\n".join(check_lines)
+        + "\n\n"
+        "## Prepared Records\n\n"
+        + ("\n".join(prepared_lines) if prepared_lines else "- none")
+        + "\n\n"
+        "## Safety Flags\n\n"
+        + "\n".join(safety_lines)
+        + "\n\n"
+        "## Next Actions\n\n"
+        + ("\n".join(next_action_lines) if next_action_lines else "- none")
+        + "\n\n"
+        "## Stop Reason\n\n"
+        f"{workspace['do_not_continue_reason']}\n"
+    )
 
 
 def _current_handoff_markdown(report: dict[str, Any]) -> str:
