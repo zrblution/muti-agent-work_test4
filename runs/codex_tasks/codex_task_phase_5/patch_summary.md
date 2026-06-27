@@ -747,3 +747,22 @@ Local verification for this follow-up:
 - `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.security.secret_scan --paths AGENTS.md README.md docs project_config stable_core adapters experiments research_tools tests runs/codex_tasks runs/needs_attention runs/subagent_reports --output /tmp/phase5_decision_record_status_verification_current_secret_scan.json`: `passed`, no findings.
 - `find . -type f -size +5M -not -path './.git/*' -print`: no output.
 - `git diff --check`: passed.
+
+## Current Handoff Consolidation Follow-Up
+
+`phase5-current-handoff --gate-audit <phase5_gate_audit.json> --decision-status <phase5_decision_record_status.json> --output-dir <dir>` now verifies the current gate-audit package and decision-record status package together, then writes `phase5_current_handoff.json` plus `phase5_current_handoff.md`. The handoff keeps top-level `status: needs_attention`, records `verification_status: passed` only when both packages verify and align on `model_path_decision_validation`, and preserves `ready_for_decision_validation: false`, `ready_for_real_smoke: false`, `write_config: false`, `exports_applied: false`, and all execution safety flags false.
+
+The committed current handoff lives under `runs/needs_attention/phase_5_current_handoff/`. It is review evidence only. It does not approve a model path, mutate config, export env vars, read `.env`, open execution gates, load weights, run generation, submit jobs, run benchmarks, or write raw outputs.
+
+Local verification for this follow-up:
+
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_current_handoff_cli_summarizes_current_gate tests/test_config_cli.py::test_phase5_committed_current_handoff_artifact_is_needs_attention -q`: initially `2 failed` because `phase5-current-handoff` was not registered and the committed current handoff artifact did not exist; after adding the command and generating the package, `2 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py::test_phase5_current_handoff_cli_summarizes_current_gate tests/test_config_cli.py::test_phase5_committed_current_handoff_artifact_is_needs_attention tests/test_config_cli.py::test_phase5_verify_decision_record_status_accepts_current_package tests/test_config_cli.py::test_phase5_verify_gate_audit_accepts_current_handoff -q`: `4 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py -q`: `62 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest tests/test_config_cli.py tests/test_qwen3_vl_adapter.py tests/test_fake_adapters.py tests/test_landmark_gate.py tests/test_runner.py -q`: `110 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m pytest -q`: `143 passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli phase5-current-handoff --gate-audit runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.json --decision-status runs/needs_attention/phase_5_decision_record_status_current/phase5_decision_record_status.json --output-dir /tmp/phase5_current_handoff_smoke`: `needs_attention`, `verification_status: passed`, next missing gate `model_path_decision_validation`, `ready_for_decision_validation: false`, `ready_for_real_smoke: false`, and all execution safety flags false.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.cli validate-config`: `passed`.
+- `/tmp/mllm_multiagent_pytest_env/bin/python -m stable_core.security.secret_scan --paths AGENTS.md README.md docs project_config stable_core adapters experiments research_tools tests runs/codex_tasks runs/needs_attention runs/subagent_reports --output /tmp/phase5_current_handoff_secret_scan.json`: `passed`, no findings.
+- `find . -type f -size +5M -not -path './.git/*' -print`: no output.
+- `git diff --check`: passed.

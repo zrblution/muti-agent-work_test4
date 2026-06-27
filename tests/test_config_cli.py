@@ -2272,6 +2272,94 @@ def test_phase5_committed_decision_record_status_verification_current_is_passed(
     )
 
 
+def test_phase5_current_handoff_cli_summarizes_current_gate(tmp_path: Path) -> None:
+    gate_audit_path = REPO_ROOT / "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.json"
+    status_path = (
+        REPO_ROOT
+        / "runs/needs_attention/phase_5_decision_record_status_current/phase5_decision_record_status.json"
+    )
+    output_dir = tmp_path / "phase5_current_handoff"
+
+    result = run_cli(
+        "phase5-current-handoff",
+        "--gate-audit",
+        str(gate_audit_path),
+        "--decision-status",
+        str(status_path),
+        "--output-dir",
+        str(output_dir),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["command"] == "phase5-current-handoff"
+    assert payload["status"] == "needs_attention"
+    assert payload["verification_status"] == "passed"
+    assert payload["next_missing_gate"] == "model_path_decision_validation"
+    assert payload["ready_for_decision_validation"] is False
+    assert payload["ready_for_real_smoke"] is False
+    assert payload["write_config"] is False
+    assert payload["exports_applied"] is False
+    assert payload["executed_real_model"] is False
+    assert payload["executed_real_benchmark"] is False
+    assert payload["submitted_remote_job"] is False
+    assert payload["raw_outputs_written"] is False
+
+    report_path = output_dir / "phase5_current_handoff.json"
+    markdown_path = output_dir / "phase5_current_handoff.md"
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    markdown = markdown_path.read_text(encoding="utf-8")
+    assert report["phase"] == "Phase 5"
+    assert report["mode"] == "current_handoff_verification"
+    assert report["status"] == "needs_attention"
+    assert report["verification_status"] == "passed"
+    assert report["gate_audit_path"] == str(gate_audit_path)
+    assert report["decision_status_path"] == str(status_path)
+    assert report["next_missing_gate"] == "model_path_decision_validation"
+    assert report["decision_status_report_status"] == "needs_attention"
+    assert report["record_count"] == 3
+    assert report["ready_for_decision_validation"] is False
+    assert report["ready_for_real_smoke"] is False
+    assert report["write_config"] is False
+    assert report["exports_applied"] is False
+    assert report["safety_flags"] == _phase5_safety_flags()
+    assert report["checks"]["gate_audit_verification"]["status"] == "passed"
+    assert report["checks"]["decision_record_status_verification"]["status"] == "passed"
+    assert report["checks"]["gate_alignment"]["status"] == "passed"
+    assert report["checks"]["non_executing_safety"]["status"] == "passed"
+    assert "Status: `needs_attention`" in markdown
+    assert "verification_status: `passed`" in markdown
+    assert "next_missing_gate: `model_path_decision_validation`" in markdown
+    assert "Fill exactly one copied decision record template" in markdown
+
+
+def test_phase5_committed_current_handoff_artifact_is_needs_attention() -> None:
+    handoff_path = REPO_ROOT / "runs/needs_attention/phase_5_current_handoff/phase5_current_handoff.json"
+    markdown_path = handoff_path.with_suffix(".md")
+
+    assert handoff_path.exists()
+    assert markdown_path.exists()
+    report = json.loads(handoff_path.read_text(encoding="utf-8"))
+    markdown = markdown_path.read_text(encoding="utf-8")
+    assert report["phase"] == "Phase 5"
+    assert report["mode"] == "current_handoff_verification"
+    assert report["status"] == "needs_attention"
+    assert report["verification_status"] == "passed"
+    assert report["next_missing_gate"] == "model_path_decision_validation"
+    assert report["gate_audit_verification"]["status"] == "passed"
+    assert report["decision_record_status_verification"]["status"] == "passed"
+    assert report["decision_status_report_status"] == "needs_attention"
+    assert report["record_count"] == 3
+    assert report["ready_for_decision_validation"] is False
+    assert report["ready_for_real_smoke"] is False
+    assert report["write_config"] is False
+    assert report["exports_applied"] is False
+    assert report["safety_flags"] == _phase5_safety_flags()
+    assert "Status: `needs_attention`" in markdown
+    assert "verification_status: `passed`" in markdown
+    assert "ready_for_real_smoke: `false`" in markdown
+
+
 def test_phase5_committed_decision_record_templates_are_unfilled_handoff_files() -> None:
     artifact_dir = REPO_ROOT / "runs/needs_attention/phase_5_model_path_decision_request"
     decision_request_path = artifact_dir / "phase5_model_path_decision_request.json"

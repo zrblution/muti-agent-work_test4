@@ -20,6 +20,7 @@ from stable_core.validation.phase5_readiness import (
     build_phase5_gate_audit,
     build_phase5_approved_decision_readiness,
     build_phase5_config_representation_proposal,
+    build_phase5_current_handoff,
     build_phase5_explicit_model_path_probe,
     build_phase5_model_path_decision_request,
     build_phase5_path_probe,
@@ -189,6 +190,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     phase5_verify_decision_record_status_parser.add_argument("--status", required=True)
     phase5_verify_decision_record_status_parser.add_argument("--output", default=None)
+
+    phase5_current_handoff_parser = subparsers.add_parser(
+        "phase5-current-handoff",
+        help="Write a read-only current Phase 5 handoff report from verified gate and decision-status packages.",
+    )
+    phase5_current_handoff_parser.add_argument("--gate-audit", required=True)
+    phase5_current_handoff_parser.add_argument("--decision-status", required=True)
+    phase5_current_handoff_parser.add_argument("--output-dir", required=True)
 
     phase5_approved_decision_readiness_parser = subparsers.add_parser(
         "phase5-approved-decision-readiness",
@@ -577,6 +586,34 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         )
         return _exit_code(str(report["status"]))
+    if args.command == "phase5-current-handoff":
+        try:
+            report = build_phase5_current_handoff(
+                gate_audit_path=args.gate_audit,
+                decision_status_path=args.decision_status,
+                output_dir=args.output_dir,
+            )
+        except Exception as exc:
+            print(json.dumps({"command": "phase5-current-handoff", "status": "failed", "error": str(exc)}, ensure_ascii=False))
+            return 1
+        safety_flags = report["safety_flags"]
+        print(
+            json.dumps(
+                {
+                    "command": "phase5-current-handoff",
+                    "status": report["status"],
+                    "verification_status": report["verification_status"],
+                    "next_missing_gate": report["next_missing_gate"],
+                    "ready_for_decision_validation": report["ready_for_decision_validation"],
+                    "ready_for_real_smoke": report["ready_for_real_smoke"],
+                    "write_config": report["write_config"],
+                    "exports_applied": report["exports_applied"],
+                    **safety_flags,
+                },
+                ensure_ascii=False,
+            )
+        )
+        return _exit_code(str(report["verification_status"]))
     if args.command == "phase5-approved-decision-readiness":
         try:
             report = build_phase5_approved_decision_readiness(

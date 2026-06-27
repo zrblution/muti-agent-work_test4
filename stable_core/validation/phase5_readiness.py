@@ -704,6 +704,145 @@ def verify_phase5_decision_record_status_package(
     return report
 
 
+def build_phase5_current_handoff(
+    *,
+    gate_audit_path: str | Path,
+    decision_status_path: str | Path,
+    output_dir: str | Path | None = None,
+) -> dict[str, Any]:
+    audit_path = Path(gate_audit_path)
+    status_path = Path(decision_status_path)
+    audit = json.loads(audit_path.read_text(encoding="utf-8"))
+    status_report = json.loads(status_path.read_text(encoding="utf-8"))
+    gate_audit_verification = verify_phase5_gate_audit_package(audit_path=audit_path)
+    decision_status_verification = verify_phase5_decision_record_status_package(status_path=status_path)
+    checks = {
+        "gate_audit_verification": _check(
+            gate_audit_verification.get("status") == "passed",
+            "Current gate-audit package verifies as current.",
+        ),
+        "decision_record_status_verification": _check(
+            decision_status_verification.get("status") == "passed",
+            "Current decision-record status package verifies as current.",
+        ),
+        "gate_alignment": _current_handoff_gate_alignment_check(
+            audit_path=audit_path,
+            status_report=status_report,
+            gate_audit_verification=gate_audit_verification,
+            decision_status_verification=decision_status_verification,
+        ),
+        "non_executing_safety": _current_handoff_non_executing_safety_check(
+            audit=audit,
+            status_report=status_report,
+        ),
+    }
+    verification_status = _checks_status(checks)
+    report = {
+        "phase": "Phase 5",
+        "mode": "current_handoff_verification",
+        "status": "failed" if verification_status == "failed" else "needs_attention",
+        "verification_status": verification_status,
+        "created_at": utc_now(),
+        "git_commit": current_git_commit(Path.cwd()),
+        "gate_audit_path": str(audit_path),
+        "decision_status_path": str(status_path),
+        "next_missing_gate": gate_audit_verification.get("next_missing_gate"),
+        "decision_status_report_status": decision_status_verification.get("status_report_status"),
+        "record_count": decision_status_verification.get("record_count"),
+        "ready_for_decision_validation": decision_status_verification.get("ready_for_decision_validation"),
+        "ready_for_real_smoke": False,
+        "write_config": False,
+        "exports_applied": False,
+        "safety_flags": dict(SAFETY_FLAGS),
+        "checks": checks,
+        "gate_audit_verification": gate_audit_verification,
+        "decision_record_status_verification": decision_status_verification,
+        "next_action_packet": audit.get("next_action_packet") if isinstance(audit.get("next_action_packet"), dict) else {},
+        "next_actions": _current_handoff_next_actions(verification_status, status_report),
+        "do_not_continue_reason": _current_handoff_stop_reason(verification_status),
+    }
+    if output_dir is not None:
+        _write_current_handoff_package(Path(output_dir), report)
+    return report
+
+
+def _current_handoff_gate_alignment_check(
+    *,
+    audit_path: Path,
+    status_report: dict[str, Any],
+    gate_audit_verification: dict[str, Any],
+    decision_status_verification: dict[str, Any],
+) -> dict[str, Any]:
+    recorded_gate_path = status_report.get("gate_audit_path")
+    gate_path_matches = _has_text(recorded_gate_path) and Path(str(recorded_gate_path)).resolve() == audit_path.resolve()
+    return _audit_required_conditions(
+        [
+            (
+                gate_audit_verification.get("next_missing_gate") == "model_path_decision_validation",
+                "Gate audit still points to model_path_decision_validation.",
+            ),
+            (
+                decision_status_verification.get("status_report_status") == "needs_attention",
+                "Decision-record status remains a needs_attention human handoff.",
+            ),
+            (
+                decision_status_verification.get("ready_for_decision_validation") is False,
+                "No filled decision record is marked ready for validation.",
+            ),
+            (
+                decision_status_verification.get("ready_for_real_smoke") is False,
+                "Decision-record status does not authorize the real smoke.",
+            ),
+            (gate_path_matches, "Decision-record status references the same gate audit package."),
+        ],
+        "Current Phase 5 handoff still stops at the human model-path decision gate.",
+    )
+
+
+def _current_handoff_non_executing_safety_check(
+    *,
+    audit: dict[str, Any],
+    status_report: dict[str, Any],
+) -> dict[str, Any]:
+    return _audit_required_conditions(
+        [
+            (audit.get("ready_for_real_smoke") is False, "Gate audit keeps ready_for_real_smoke false."),
+            (audit.get("write_config") is False, "Gate audit keeps write_config false."),
+            (audit.get("exports_applied") is False, "Gate audit keeps exports_applied false."),
+            (_audit_safety_flags_false(audit), "Gate audit records all execution safety flags false."),
+            (
+                status_report.get("ready_for_real_smoke") is False,
+                "Decision-record status keeps ready_for_real_smoke false.",
+            ),
+            (status_report.get("write_config") is False, "Decision-record status keeps write_config false."),
+            (status_report.get("exports_applied") is False, "Decision-record status keeps exports_applied false."),
+            (
+                _audit_safety_flags_false(status_report),
+                "Decision-record status records all execution safety flags false.",
+            ),
+        ],
+        "Current handoff preserves all non-executing safety flags.",
+    )
+
+
+def _current_handoff_next_actions(verification_status: str, status_report: dict[str, Any]) -> list[str]:
+    if verification_status != "passed":
+        return [
+            "Regenerate the gate-audit and decision-record status packages before using this handoff.",
+            "Do not fill or validate a decision record until the current handoff verifies.",
+        ]
+    actions = status_report.get("next_actions")
+    if isinstance(actions, list) and actions:
+        return [str(action) for action in actions if _has_text(action)]
+    return ["Fill exactly one copied decision record template before running phase5-validate-model-path-decision."]
+
+
+def _current_handoff_stop_reason(verification_status: str) -> str:
+    if verification_status == "passed":
+        return "Phase 5 remains stopped at the human model-path decision gate."
+    return "Current Phase 5 handoff package verification failed."
+
+
 def _readiness_status(checks: dict[str, dict[str, Any]], execution_authorization: dict[str, Any]) -> str:
     statuses = [str(check.get("status")) for check in checks.values()]
     execution_status = str(execution_authorization.get("status"))
@@ -2465,6 +2604,77 @@ def _write_decision_record_status_package(output_dir: Path, report: dict[str, An
     output_dir.mkdir(parents=True, exist_ok=True)
     write_json(output_dir / "phase5_decision_record_status.json", report)
     write_text(output_dir / "phase5_decision_record_status.md", _decision_record_status_markdown(report))
+
+
+def _write_current_handoff_package(output_dir: Path, report: dict[str, Any]) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    write_json(output_dir / "phase5_current_handoff.json", report)
+    write_text(output_dir / "phase5_current_handoff.md", _current_handoff_markdown(report))
+
+
+def _current_handoff_markdown(report: dict[str, Any]) -> str:
+    safety_lines = [
+        f"- {name}: `{str(value).lower()}`"
+        for name, value in report["safety_flags"].items()
+    ]
+    check_lines = [
+        f"- {name}: `{payload.get('status')}`"
+        for name, payload in report["checks"].items()
+    ]
+    next_action_lines = [
+        f"- {action}"
+        for action in report.get("next_actions", [])
+    ]
+    packet = report.get("next_action_packet", {})
+    required_inputs = [
+        f"- `{value}`"
+        for value in packet.get("required_inputs", [])
+    ] if isinstance(packet, dict) else []
+    safe_commands = [
+        f"- `{value}`"
+        for value in packet.get("safe_command_templates", [])
+    ] if isinstance(packet, dict) else []
+    forbidden_actions = [
+        f"- {value}"
+        for value in packet.get("forbidden_actions", [])
+    ] if isinstance(packet, dict) else []
+    return (
+        "# Phase 5 Current Handoff\n\n"
+        f"Status: `{report['status']}`\n\n"
+        f"verification_status: `{report['verification_status']}`\n\n"
+        f"next_missing_gate: `{report['next_missing_gate']}`\n\n"
+        f"decision_status_report_status: `{report['decision_status_report_status']}`\n\n"
+        f"record_count: `{report['record_count']}`\n\n"
+        f"ready_for_decision_validation: `{str(report['ready_for_decision_validation']).lower()}`\n\n"
+        f"ready_for_real_smoke: `{str(report['ready_for_real_smoke']).lower()}`\n\n"
+        f"write_config: `{str(report['write_config']).lower()}`\n\n"
+        f"exports_applied: `{str(report['exports_applied']).lower()}`\n\n"
+        "## Source Packages\n\n"
+        f"- gate_audit_path: `{report['gate_audit_path']}`\n"
+        f"- decision_status_path: `{report['decision_status_path']}`\n\n"
+        "## Checks\n\n"
+        + "\n".join(check_lines)
+        + "\n\n"
+        "## Safety Flags\n\n"
+        + "\n".join(safety_lines)
+        + "\n\n"
+        "## Next Actions\n\n"
+        + ("\n".join(next_action_lines) if next_action_lines else "- none")
+        + "\n\n"
+        "## Next Action Packet\n\n"
+        f"- gate: `{packet.get('gate') if isinstance(packet, dict) else None}`\n\n"
+        "### Required Inputs\n\n"
+        + ("\n".join(required_inputs) if required_inputs else "- none")
+        + "\n\n"
+        "### Safe Command Templates\n\n"
+        + ("\n".join(safe_commands) if safe_commands else "- none")
+        + "\n\n"
+        "### Forbidden Actions\n\n"
+        + ("\n".join(forbidden_actions) if forbidden_actions else "- none")
+        + "\n\n"
+        "## Stop Reason\n\n"
+        f"{report['do_not_continue_reason']}\n"
+    )
 
 
 def _decision_record_status_markdown(report: dict[str, Any]) -> str:
