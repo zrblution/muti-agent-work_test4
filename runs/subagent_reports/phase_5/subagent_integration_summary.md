@@ -168,6 +168,12 @@ Server verification generated `/tmp/phase5_model_path_decision_request_server/ph
 
 This still does not resolve the Phase 5 blocker without an actual human decision. It does not mutate config, export env vars, read `.env`, load weights, run generation, submit jobs, run benchmarks, open process gates, or write raw outputs.
 
+## Approved Decision Readiness Follow-Up
+
+`phase5-approved-decision-readiness` now converts a validated approval report into a non-executing readiness bundle. It records the approved exact model path and benchmark root, plus the remaining config-review and gate-review actions.
+
+The bundle deliberately keeps `ready_for_real_smoke: false`. A human approval record alone is not enough to run; config representation, safe path probes, `phase5-readiness`, and remote/GPU/process-submission gates still need separate review.
+
 ## Worker Execution Loop Follow-Up
 
 The whitelisted worker now calls the model and benchmark runtime methods after validation and adapter runtime gates pass. The success path writes raw outputs, normalized outputs, metrics, failure cases, experiment summary, reproducibility notes, run manifest, and artifact manifest. It refuses to overwrite existing `raw_outputs.jsonl`.

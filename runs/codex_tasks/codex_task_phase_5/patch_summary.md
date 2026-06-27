@@ -44,6 +44,7 @@ This phase now contains two related records:
 - a follow-up explicit model-path probe for review-only variant validation without requiring `REMOTE_MODEL_ROOT`.
 - a follow-up model-path decision request packet that records a pending human decision for an exact variant path without approving, mutating config, or executing anything.
 - a follow-up model-path decision validator that checks a human-supplied decision record against a pending request without mutating config or opening execution.
+- a follow-up approved-decision readiness bundle that records approved exact paths and remaining gates without treating approval as execution permission.
 
 - model: `qwen3_vl_2b_instruct`
 - benchmark: `pope`
@@ -113,6 +114,8 @@ This phase now contains two related records:
 - `stable_core.cli phase5-model-path-decision-request`
 - `stable_core.validation.phase5_readiness.validate_phase5_model_path_decision`
 - `stable_core.cli phase5-validate-model-path-decision`
+- `stable_core.validation.phase5_readiness.build_phase5_approved_decision_readiness`
+- `stable_core.cli phase5-approved-decision-readiness`
 
 ## Gate Commands
 
@@ -268,6 +271,12 @@ This phase now contains two related records:
 - `validate_phase5_model_path_decision(...)` with a mismatched approval path
   - status: initially failed because the validator did not exist, then passed after adding mismatch checks
   - purpose: reject invalid approval records before any config representation or execution gate can change
+- `phase5-approved-decision-readiness` with a temporary approved validation report
+  - status: initially failed because the CLI and builder did not exist, then passed after adding the readiness bundle
+  - purpose: record approved exact paths and remaining gate actions while preserving `ready_for_real_smoke: false`
+- `build_phase5_approved_decision_readiness(...)` with an invalid validation report
+  - status: initially failed because the builder did not exist, then passed after adding invalid-report checks
+  - purpose: prevent invalid approvals from reaching config-review or execution planning
 - server `phase5-probe-explicit-model-path` for `/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours` plus `/home/vepfs/data/work1/auto-research-test1/benchmarks`
   - status: `passed`
   - output: `/tmp/phase5_explicit_model_path_probe_server.json`

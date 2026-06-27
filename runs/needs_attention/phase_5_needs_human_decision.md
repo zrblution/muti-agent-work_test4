@@ -31,6 +31,7 @@ Phase 5: minimal real smoke for `qwen3_vl_2b_instruct` + `pope` with `limit=8` a
 - `phase5-model-path-decision-request` can now package an exact-path probe into a JSON and Markdown decision request with `approval_status: pending`, allowed decisions, and an approval-record template. This is still review-only and does not approve a path, mutate config, run a model, run a benchmark, submit a job, or write raw outputs.
 - Server packet generation for `/home/vepfs/data/LLM_HM_3_models/output-model/Qwen3-VL-2B-3epoch/Ours` plus `/home/vepfs/data/work1/auto-research-test1/benchmarks` wrote `/tmp/phase5_model_path_decision_request_server/phase5_model_path_decision_request.json` and `.md`. The packet is still `approval_status: pending`, with `probe.status: passed`, `requires_human_approval: true`, and all execution safety flags false.
 - `phase5-validate-model-path-decision` can now validate a human-supplied decision record against the pending request. A matching approval record can validate as `passed`, but this command still does not approve by itself, mutate config, open execution gates, load a model, run a benchmark, submit a job, or write raw outputs.
+- `phase5-approved-decision-readiness` can now create a non-executing readiness bundle from a validated approval report. It records approved exact paths and next actions, but keeps `ready_for_real_smoke: false` until config representation, readiness, and execution gates are reviewed.
 
 ## Human Decisions Required
 
@@ -39,6 +40,7 @@ Phase 5: minimal real smoke for `qwen3_vl_2b_instruct` + `pope` with `limit=8` a
 - Decide whether any `model_like_variant` path is an acceptable substitute for the configured base `Qwen3-VL-2B-Instruct`; do not treat variants as the Phase 5 target without explicit approval.
 - If a variant is being considered, review the `phase5-model-path-decision-request` packet and record one of the allowed decisions: `approve_variant_path`, `reject_variant_path`, or `provide_base_model_root`.
 - Validate any human decision record with `phase5-validate-model-path-decision` before updating config representation or opening execution gates.
+- Generate `phase5-approved-decision-readiness` after a validated approval to review exact paths and remaining gate actions before any config or process-submission change.
 - Provide a narrower approved model search root if the existing broad roots are not exhaustive enough; two broad roots hit the discovery entry cap.
 - Confirm the resolved Qwen3-VL directory contains the required offline model inventory, including `config.json`.
 - Confirm the resolved POPE directory contains benchmark metadata or sample files with an accepted suffix such as `.json`, `.jsonl`, `.tsv`, `.csv`, `.txt`, `.yaml`, or `.yml`.
@@ -55,6 +57,7 @@ python -m stable_core.cli phase5-discover-model-candidates qwen3_vl_2b_instruct 
 python -m stable_core.cli phase5-probe-explicit-model-path --model qwen3_vl_2b_instruct --benchmark pope --model-path <reviewed_variant_or_exact_model_path> --benchmark-root <candidate_REMOTE_BENCHMARK_ROOT> --output /tmp/phase5_explicit_model_path_probe.json
 python -m stable_core.cli phase5-model-path-decision-request --model qwen3_vl_2b_instruct --benchmark pope --model-path <reviewed_variant_or_exact_model_path> --benchmark-root <candidate_REMOTE_BENCHMARK_ROOT> --output-dir /tmp/phase5_model_path_decision_request
 python -m stable_core.cli phase5-validate-model-path-decision --request /tmp/phase5_model_path_decision_request/phase5_model_path_decision_request.json --decision-record <human_decision_record.json> --output /tmp/phase5_model_path_decision_validation.json
+python -m stable_core.cli phase5-approved-decision-readiness --decision-validation /tmp/phase5_model_path_decision_validation.json --output-dir /tmp/phase5_approved_decision_readiness
 python -m stable_core.cli phase5-probe-paths --model qwen3_vl_2b_instruct --benchmark pope --model-root <candidate_REMOTE_MODEL_ROOT> --benchmark-root <candidate_REMOTE_BENCHMARK_ROOT> --output /tmp/phase5_candidate_paths.json
 python -m stable_core.cli validate-model qwen3_vl_2b_instruct
 python -m stable_core.cli validate-benchmark pope

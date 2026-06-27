@@ -289,6 +289,47 @@ def validate_phase5_model_path_decision(
     return report
 
 
+def build_phase5_approved_decision_readiness(
+    *,
+    decision_validation_path: str | Path,
+    output_dir: str | Path,
+) -> dict[str, Any]:
+    validation_file = Path(decision_validation_path)
+    validation_report = json.loads(validation_file.read_text(encoding="utf-8"))
+    checks = _approved_decision_readiness_checks(validation_report)
+    status = "failed" if any(check.get("status") == "failed" for check in checks.values()) else "needs_attention"
+    target = validation_report.get("target", {})
+    decision = validation_report.get("decision", {})
+    bundle = {
+        "phase": "Phase 5",
+        "mode": "approved_model_path_readiness",
+        "status": status,
+        "approval_status": validation_report.get("approval_status", "unknown"),
+        "ready_for_real_smoke": False,
+        "created_at": utc_now(),
+        "git_commit": current_git_commit(Path.cwd()),
+        "decision_validation_path": str(validation_file),
+        "target": {
+            "model_id": target.get("model_id"),
+            "benchmark_id": target.get("benchmark_id"),
+        },
+        "approved_paths": {
+            "model_path": decision.get("approved_model_path") or target.get("model_path"),
+            "benchmark_root": decision.get("approved_benchmark_root") or target.get("benchmark_root"),
+        },
+        "decision_validation": validation_report,
+        "checks": checks,
+        "safety_flags": dict(SAFETY_FLAGS),
+        "next_actions": _approved_decision_readiness_next_actions(status),
+        "do_not_continue_reason": _approved_decision_readiness_stop_reason(status),
+    }
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    write_json(output_path / "phase5_approved_decision_readiness.json", bundle)
+    write_text(output_path / "phase5_approved_decision_readiness.md", _approved_decision_readiness_markdown(bundle))
+    return bundle
+
+
 def _readiness_status(checks: dict[str, dict[str, Any]], execution_authorization: dict[str, Any]) -> str:
     statuses = [str(check.get("status")) for check in checks.values()]
     execution_status = str(execution_authorization.get("status"))
@@ -410,6 +451,49 @@ def _decision_validation_stop_reason(status: str, decision: str) -> str | None:
     if decision == "approve_variant_path":
         return None
     return "A valid approval for an executable Phase 5 model path has not been recorded."
+
+
+def _approved_decision_readiness_checks(validation_report: dict[str, Any]) -> dict[str, dict[str, str]]:
+    decision = validation_report.get("decision", {})
+    return {
+        "decision_validation": _check(
+            validation_report.get("mode") == "model_path_decision_validation"
+            and validation_report.get("status") == "passed",
+            "Decision validation report must be a passed Phase 5 model-path decision validation.",
+        ),
+        "approval_status": _check(
+            validation_report.get("approval_status") == "approved",
+            "Decision validation must record approval_status approved.",
+        ),
+        "decision_type": _check(
+            decision.get("decision") == "approve_variant_path",
+            "Readiness can only be prepared for an approved exact variant path.",
+        ),
+        "approved_model_path_present": _check(
+            bool(str(decision.get("approved_model_path", "")).strip()),
+            "Approved model path must be present.",
+        ),
+        "approved_benchmark_root_present": _check(
+            bool(str(decision.get("approved_benchmark_root", "")).strip()),
+            "Approved benchmark root must be present.",
+        ),
+    }
+
+
+def _approved_decision_readiness_next_actions(status: str) -> list[str]:
+    if status == "failed":
+        return ["Fix or regenerate the decision validation report before preparing Phase 5 path readiness."]
+    return [
+        "Review how the approved exact model path will be represented before changing config.",
+        "Rerun safe path probes and phase5-readiness after config representation is reviewed.",
+        "Open remote, GPU, and process-submission gates only after readiness and config review pass.",
+    ]
+
+
+def _approved_decision_readiness_stop_reason(status: str) -> str:
+    if status == "failed":
+        return "The approved-decision readiness bundle could not validate the human decision report."
+    return "The approved path still needs config representation review and gated readiness before any real smoke."
 
 
 def _next_actions(checks: dict[str, dict[str, Any]], execution_authorization: dict[str, Any]) -> list[str]:
@@ -627,6 +711,39 @@ def _model_path_decision_request_markdown(bundle: dict[str, Any]) -> str:
         + "\n\n"
         "## Safety Flags\n\n"
         + "\n".join(safety_lines)
+        + "\n\n"
+        "## Stop Reason\n\n"
+        f"{bundle['do_not_continue_reason']}\n"
+    )
+
+
+def _approved_decision_readiness_markdown(bundle: dict[str, Any]) -> str:
+    approved_paths = bundle["approved_paths"]
+    check_lines = [
+        f"- {name}: `{payload.get('status')}`"
+        for name, payload in bundle["checks"].items()
+    ]
+    safety_lines = [
+        f"- {name}: `{str(value).lower()}`"
+        for name, value in bundle["safety_flags"].items()
+    ]
+    next_action_lines = [f"- {action}" for action in bundle["next_actions"]]
+    return (
+        "# Phase 5 Approved Decision Readiness\n\n"
+        f"Status: `{bundle['status']}`\n\n"
+        f"approval_status: `{bundle['approval_status']}`\n\n"
+        f"ready_for_real_smoke: `{str(bundle['ready_for_real_smoke']).lower()}`\n\n"
+        "## Approved Paths\n\n"
+        f"- model_path: `{approved_paths.get('model_path')}`\n"
+        f"- benchmark_root: `{approved_paths.get('benchmark_root')}`\n\n"
+        "## Checks\n\n"
+        + "\n".join(check_lines)
+        + "\n\n"
+        "## Safety Flags\n\n"
+        + "\n".join(safety_lines)
+        + "\n\n"
+        "## Next Actions\n\n"
+        + "\n".join(next_action_lines)
         + "\n\n"
         "## Stop Reason\n\n"
         f"{bundle['do_not_continue_reason']}\n"

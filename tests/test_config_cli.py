@@ -785,6 +785,125 @@ def test_phase5_validate_model_path_decision_rejects_mismatched_approval_path(tm
     assert json.loads(output_path.read_text(encoding="utf-8"))["approval_status"] == "invalid"
 
 
+def test_phase5_approved_decision_readiness_cli_writes_non_executing_bundle(tmp_path: Path) -> None:
+    decision_validation_path = tmp_path / "decision_validation.json"
+    output_dir = tmp_path / "approved_readiness"
+    decision_validation_path.write_text(
+        json.dumps(
+            {
+                "phase": "Phase 5",
+                "mode": "model_path_decision_validation",
+                "status": "passed",
+                "approval_status": "approved",
+                "target": {
+                    "model_id": "qwen3_vl_2b_instruct",
+                    "benchmark_id": "pope",
+                    "model_path": "/models/variant/Ours",
+                    "benchmark_root": "/benchmarks",
+                },
+                "decision": {
+                    "decision": "approve_variant_path",
+                    "approver": "human-reviewer",
+                    "approved_model_path": "/models/variant/Ours",
+                    "approved_benchmark_root": "/benchmarks",
+                    "rationale": "Approved for readiness-planning test.",
+                },
+                "checks": {
+                    "approved_model_path_matches": {"status": "passed"},
+                    "approved_benchmark_root_matches": {"status": "passed"},
+                },
+                "safety_flags": {
+                    "executed_real_model": False,
+                    "executed_real_benchmark": False,
+                    "submitted_remote_job": False,
+                    "raw_outputs_written": False,
+                    "write_config": False,
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = run_cli(
+        "phase5-approved-decision-readiness",
+        "--decision-validation",
+        str(decision_validation_path),
+        "--output-dir",
+        str(output_dir),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    report = json.loads((output_dir / "phase5_approved_decision_readiness.json").read_text(encoding="utf-8"))
+    markdown = (output_dir / "phase5_approved_decision_readiness.md").read_text(encoding="utf-8")
+    assert payload["command"] == "phase5-approved-decision-readiness"
+    assert payload["status"] == "needs_attention"
+    assert payload["approval_status"] == "approved"
+    assert payload["ready_for_real_smoke"] is False
+    assert report["status"] == "needs_attention"
+    assert report["approval_status"] == "approved"
+    assert report["ready_for_real_smoke"] is False
+    assert report["approved_paths"]["model_path"] == "/models/variant/Ours"
+    assert report["approved_paths"]["benchmark_root"] == "/benchmarks"
+    assert report["checks"]["decision_validation"]["status"] == "passed"
+    assert report["safety_flags"]["submitted_remote_job"] is False
+    assert report["safety_flags"]["write_config"] is False
+    assert "ready_for_real_smoke: `false`" in markdown
+    assert "raw_outputs.jsonl" not in {path.name for path in output_dir.iterdir()}
+
+
+def test_phase5_approved_decision_readiness_rejects_invalid_validation_report(tmp_path: Path) -> None:
+    decision_validation_path = tmp_path / "decision_validation.json"
+    output_dir = tmp_path / "approved_readiness"
+    decision_validation_path.write_text(
+        json.dumps(
+            {
+                "phase": "Phase 5",
+                "mode": "model_path_decision_validation",
+                "status": "failed",
+                "approval_status": "invalid",
+                "target": {
+                    "model_id": "qwen3_vl_2b_instruct",
+                    "benchmark_id": "pope",
+                    "model_path": "/models/variant/Ours",
+                    "benchmark_root": "/benchmarks",
+                },
+                "decision": {
+                    "decision": "approve_variant_path",
+                    "approved_model_path": "/models/other/Ours",
+                    "approved_benchmark_root": "/benchmarks",
+                },
+                "checks": {
+                    "approved_model_path_matches": {"status": "failed"},
+                    "approved_benchmark_root_matches": {"status": "passed"},
+                },
+                "safety_flags": {
+                    "executed_real_model": False,
+                    "executed_real_benchmark": False,
+                    "submitted_remote_job": False,
+                    "raw_outputs_written": False,
+                    "write_config": False,
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    report = phase5_module.build_phase5_approved_decision_readiness(
+        decision_validation_path=decision_validation_path,
+        output_dir=output_dir,
+    )
+
+    assert report["status"] == "failed"
+    assert report["approval_status"] == "invalid"
+    assert report["ready_for_real_smoke"] is False
+    assert report["checks"]["decision_validation"]["status"] == "failed"
+    assert report["safety_flags"]["write_config"] is False
+    assert json.loads((output_dir / "phase5_approved_decision_readiness.json").read_text(encoding="utf-8"))["status"] == "failed"
+
+
 def test_phase5_discover_model_candidates_finds_configured_root_candidate(tmp_path: Path) -> None:
     model_root = tmp_path / "candidate_models"
     model_path = model_root / "Qwen3-VL-2B-Instruct"
