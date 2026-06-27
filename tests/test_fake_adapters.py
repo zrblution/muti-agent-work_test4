@@ -202,6 +202,55 @@ def test_pope_adapter_builds_requests_from_json_suffix_line_delimited_objects(tm
     assert requests[1].metadata["reference_answer"] == "no"
 
 
+def test_pope_adapter_prefers_coco_pope_samples_and_resolves_official_images(tmp_path: Path) -> None:
+    benchmark_path = tmp_path / "pope"
+    caption_path = benchmark_path / "caption_data"
+    output_path = benchmark_path / "output" / "coco"
+    image_path = benchmark_path / "images" / "coco_official_val2014"
+    caption_path.mkdir(parents=True)
+    output_path.mkdir(parents=True)
+    image_path.mkdir(parents=True)
+    (caption_path / "Instruction1_instructblip.json").write_text(
+        json.dumps({"question_id": 0, "image_id": 40468, "prompt": "caption", "text": "caption text"}) + "\n",
+        encoding="utf-8",
+    )
+    (output_path / "coco_pope_random.json").write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "question_id": 1,
+                        "image": "COCO_val2014_000000310196.jpg",
+                        "text": "Is there a snowboard in the image?",
+                        "label": "yes",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "question_id": 2,
+                        "image": "COCO_val2014_000000405762.jpg",
+                        "text": "Is there a dog in the image?",
+                        "label": "no",
+                    }
+                ),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (image_path / "COCO_val2014_000000310196.jpg").write_bytes(b"image")
+    (image_path / "COCO_val2014_000000405762.jpg").write_bytes(b"image")
+
+    requests = POPEAdapter({"path": str(benchmark_path)}).build_requests(split="validation", limit=2)
+
+    assert [request.sample_id for request in requests] == ["1", "2"]
+    assert requests[0].prompt == "Is there a snowboard in the image?"
+    assert requests[0].metadata["reference_answer"] == "yes"
+    assert requests[0].metadata["source_file"] == "output/coco/coco_pope_random.json"
+    assert requests[0].image_path == str(image_path / "COCO_val2014_000000310196.jpg")
+    assert requests[1].image_path == str(image_path / "COCO_val2014_000000405762.jpg")
+
+
 def test_pope_adapter_normalizes_metrics_and_failure_cases(tmp_path: Path) -> None:
     adapter = POPEAdapter()
     rows = [

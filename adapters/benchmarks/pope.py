@@ -10,6 +10,14 @@ from adapters.path_resolution import resolve_env_path
 from stable_core.schemas.common import GenerationOutput, GenerationRequest
 
 
+PREFERRED_SAMPLE_FILES = (
+    "output/coco/coco_pope_random.json",
+    "output/coco/coco_pope_popular.json",
+    "output/coco/coco_pope_adversarial.json",
+    "POPEv2/dataset/annotations.json",
+)
+
+
 class POPEAdapter(ValidateOnlyBenchmarkAdapter):
     benchmark_id = "pope"
     display_name = "POPE"
@@ -101,7 +109,7 @@ class POPEAdapter(ValidateOnlyBenchmarkAdapter):
         unsafe_files = unsafe_required_files(configured_files)
         if unsafe_files:
             raise RuntimeError(f"POPE benchmark required_files contains unsafe required file paths: {unsafe_files}")
-        candidate_names = configured_files or discover_benchmark_metadata(benchmark_path)
+        candidate_names = configured_files or _preferred_sample_names(benchmark_path) or discover_benchmark_metadata(benchmark_path)
         sample_files = [
             benchmark_path / name
             for name in candidate_names
@@ -121,6 +129,10 @@ class POPEAdapter(ValidateOnlyBenchmarkAdapter):
         if not rows:
             raise RuntimeError("POPE sample files did not contain any JSON object samples.")
         return rows
+
+
+def _preferred_sample_names(benchmark_path: Path) -> list[str]:
+    return [name for name in PREFERRED_SAMPLE_FILES if (benchmark_path / name).is_file()]
 
 
 def _read_samples(path: Path) -> list[dict[str, Any]]:
@@ -181,7 +193,26 @@ def _resolve_image_path(root: Path, image_value: Any) -> str | None:
     if image_value in {None, ""}:
         return None
     image_path = Path(str(image_value))
-    return str(image_path if image_path.is_absolute() else root / image_path)
+    candidates = _image_path_candidates(root, image_path)
+    for candidate in candidates:
+        if candidate.is_file():
+            return str(candidate)
+    return str(candidates[0])
+
+
+def _image_path_candidates(root: Path, image_path: Path) -> list[Path]:
+    if image_path.is_absolute():
+        relative = Path(str(image_path).lstrip("/"))
+    else:
+        relative = image_path
+    candidates = [root / relative]
+    name = relative.name
+    stem = relative.stem
+    if name.startswith("COCO_val2014_"):
+        candidates.append(root / "images" / "coco_official_val2014" / name)
+    elif stem.isdigit():
+        candidates.append(root / "images" / "coco_official_val2014" / f"COCO_val2014_{int(stem):012d}.jpg")
+    return candidates
 
 
 def _normalize_yes_no(text: str) -> str:
