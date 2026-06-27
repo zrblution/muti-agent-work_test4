@@ -1,0 +1,11 @@
+{
+  "decision": "keep_execution_closed",
+  "reviewer": null,
+  "reason": null,
+  "next_review_condition": null,
+  "acknowledgements": {
+    "phase5_remains_needs_attention": true,
+    "phase6_must_not_start": true,
+    "no_real_model_or_benchmark_execution_is_authorized": true
+  }
+}

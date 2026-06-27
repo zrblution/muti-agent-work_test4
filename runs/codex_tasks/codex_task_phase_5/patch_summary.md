@@ -803,3 +803,13 @@ New committed evidence under `runs/needs_attention/phase_5_base_model_root_decis
 - `phase5_base_model_root_decision_handoff.md`: concise handoff for the current blocker and next required human decisions.
 
 This follow-up does not mutate config, export env vars, read `.env`, open gates, load weights, run generation, submit jobs, run benchmarks, or write raw outputs. The next required decisions are config/env representation for the validated roots and explicit authorization for remote execution, GPU budget, and process submission.
+
+## Execution Authorization Request Follow-Up
+
+Added `runs/needs_attention/phase_5_execution_authorization_request_current/` as the current human handoff for the execution-authorization blocker. The package includes:
+
+- `phase5_execution_authorization_request.json` and `.md`: `needs_attention`, `authorization_status: pending`, validated root and readiness evidence, source-artifact hashes, closed gate states, safe next actions, forbidden actions, and all execution safety flags false.
+- `decision_record_templates/authorize_remote_execution.template.json`: an unfilled scoped authorization template for the reviewed Qwen3-VL + POPE limit=8 smoke only.
+- `decision_record_templates/keep_execution_closed.template.json`: an unfilled template to explicitly keep Phase 5 stopped at `needs_attention`.
+
+This follow-up is not authorization. It does not mutate config, export env vars, read `.env`, open gates, load weights, run generation, submit jobs, run benchmarks, write raw outputs, or start Phase 6.

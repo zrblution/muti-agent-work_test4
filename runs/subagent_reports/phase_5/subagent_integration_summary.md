@@ -277,3 +277,9 @@ The decision-record status package under `runs/needs_attention/phase_5_base_mode
 Server read-only validation with the provided roots passed through `phase5-probe-paths`: model inventory, benchmark inventory, Qwen runtime dependency checks, no-load model validation, and benchmark validation all passed. A follow-up server `phase5-readiness` bundle still stops at `needs_attention` because execution authorization gates remain closed: `runner_mode: local_only`, `allow_real_gpu_jobs: false`, and `allow_process_submission: false`.
 
 No subagent report conflict changes from this update. The integration decision is to preserve Phase 5 in `needs_attention`, update the human handoff to say the model-root decision has been filled, and keep the next required human decisions scoped to config/env representation and explicit remote/GPU/process authorization. No `.env` was read, no config was edited, no environment variables were persisted, no process was submitted, no model or benchmark was executed, and no raw outputs were written.
+
+## Execution Authorization Request Integration
+
+`runs/needs_attention/phase_5_execution_authorization_request_current/` now captures the next non-executing human handoff. It references the committed base-root probe, readiness bundle, and base-root decision validation by sha256; it also includes unfilled templates for `authorize_remote_execution` and `keep_execution_closed`.
+
+This resolves ambiguity in the current handoff without opening any gate. The only admissible next action is human review of exactly one authorization decision record, followed by a fresh server-side `phase5-readiness` run before any controlled worker submission is considered.

@@ -1,0 +1,24 @@
+{
+  "decision": "authorize_remote_execution",
+  "approver": null,
+  "approved_remote_model_root": "/home/tos_lx/basemodel",
+  "approved_remote_benchmark_root": "/home/vepfs/data/work1/auto-research-test1/benchmarks",
+  "approved_runner_mode": "remote_enabled",
+  "allow_real_gpu_jobs": true,
+  "allow_process_submission": true,
+  "scope": {
+    "model": "qwen3_vl_2b_instruct",
+    "benchmark": "pope",
+    "limit": 8,
+    "instrumentation": "none",
+    "worker": "experiments/landmark_baselines/run_landmark.py"
+  },
+  "rationale": null,
+  "acknowledgements": {
+    "approved_roots_must_be_revalidated_before_execution": true,
+    "authorization_is_limited_to_phase5_limit8_smoke": true,
+    "raw_outputs_must_not_be_overwritten": true,
+    "large_artifacts_are_manifest_only": true,
+    "run_directory_must_be_preserved_for_validate_run": true
+  }
+}

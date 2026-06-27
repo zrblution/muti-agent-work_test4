@@ -55,6 +55,7 @@ Phase 5: minimal real smoke for `qwen3_vl_2b_instruct` + `pope` with `limit=8` a
 - The next human decisions are no longer to fill the model-path decision workspace. They are to explicitly approve how these validated roots should be represented in config or environment, and separately approve opening the remote execution, GPU budget, and process-submission gates.
 - Do not fill a second model-path decision record unless replacing the current `provide_base_model_root` choice and rerunning the decision-record status check.
 - Current base-root decision evidence is stored under `runs/needs_attention/phase_5_base_model_root_decision_current/`.
+- Current execution-authorization handoff is stored under `runs/needs_attention/phase_5_execution_authorization_request_current/`. It has unfilled templates for either authorizing the reviewed Phase 5 smoke gates or keeping execution closed.
 
 - Provide approved server environment values for `REMOTE_MODEL_ROOT` and `REMOTE_BENCHMARK_ROOT` without committing secrets or large artifacts.
 - Review `phase5-discover-model-candidates` output before approving any `REMOTE_MODEL_ROOT` value.

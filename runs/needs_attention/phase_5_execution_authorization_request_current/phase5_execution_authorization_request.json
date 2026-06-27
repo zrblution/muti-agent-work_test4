@@ -1,0 +1,80 @@
+{
+  "command": "manual_phase5_execution_authorization_request",
+  "status": "needs_attention",
+  "phase": "phase_5",
+  "target": {
+    "model": "qwen3_vl_2b_instruct",
+    "benchmark": "pope",
+    "limit": 8,
+    "instrumentation": "none"
+  },
+  "authorization_status": "pending",
+  "allowed_decisions": [
+    "authorize_remote_execution",
+    "keep_execution_closed"
+  ],
+  "validated_environment": {
+    "remote_model_root": "/home/tos_lx/basemodel",
+    "remote_benchmark_root": "/home/vepfs/data/work1/auto-research-test1/benchmarks",
+    "model_inventory_path": "/home/tos_lx/basemodel/Qwen3-VL-2B-Instruct",
+    "benchmark_inventory_path": "/home/vepfs/data/work1/auto-research-test1/benchmarks/POPE",
+    "model_probe_status": "passed",
+    "benchmark_probe_status": "passed",
+    "model_runtime_dependencies_status": "passed",
+    "model_validation_status": "passed",
+    "benchmark_validation_status": "passed"
+  },
+  "current_execution_gates": {
+    "runner_mode": "local_only",
+    "allow_real_gpu_jobs": false,
+    "allow_process_submission": false,
+    "submitted_process": false
+  },
+  "required_human_authorizations": [
+    "Approve how the validated model and benchmark roots may be represented in config or one-off environment values.",
+    "Approve setting runner_mode to remote_enabled for the reviewed Phase 5 worker only.",
+    "Approve setting allow_real_gpu_jobs to true for the Qwen3-VL + POPE limit=8 smoke only.",
+    "Approve setting allow_process_submission to true for the reviewed whitelisted worker only."
+  ],
+  "source_artifacts": {
+    "base_model_root_probe": {
+      "path": "runs/needs_attention/phase_5_base_model_root_decision_current/phase5_provided_base_model_root_probe.json",
+      "sha256": "b6dc27d91221f427d21c5ef60d1fbfe6aea6435664c8acec81017131ac64e7df"
+    },
+    "phase5_readiness": {
+      "path": "runs/needs_attention/phase_5_base_model_root_decision_current/phase5_readiness/phase5_readiness.json",
+      "sha256": "09ea6247a3da35d22a11df50b452209a4bfb3343a60f29f2e551ca72278ee31b"
+    },
+    "base_model_root_decision_validation": {
+      "path": "runs/needs_attention/phase_5_base_model_root_decision_current/phase5_model_path_decision_validation.json",
+      "sha256": "3946952d4d30e09edd60528685986c6c9e63e99abf881d20f543ae4fc7a7b66e"
+    }
+  },
+  "decision_record_templates": {
+    "authorize_remote_execution": "decision_record_templates/authorize_remote_execution.template.json",
+    "keep_execution_closed": "decision_record_templates/keep_execution_closed.template.json"
+  },
+  "safe_next_actions": [
+    "Fill exactly one decision record template from this request.",
+    "Before any real smoke run, rerun phase5-readiness in the server execution environment with the approved config or one-off env representation.",
+    "If execution is authorized, use only the reviewed RemoteRunner worker and preserve the resulting run directory for validate-run, poll, parse-results, and final phase5-gate-audit evidence."
+  ],
+  "forbidden_actions": [
+    "Do not treat this request as authorization.",
+    "Do not edit project_config from this request alone.",
+    "Do not export environment variables from this request alone.",
+    "Do not submit a process or remote job from this request.",
+    "Do not run the real model or benchmark from this request.",
+    "Do not write or overwrite raw_outputs.jsonl from this request."
+  ],
+  "safety_flags": {
+    "executed_real_model": false,
+    "executed_real_benchmark": false,
+    "submitted_remote_job": false,
+    "raw_outputs_written": false,
+    "write_config": false,
+    "exports_applied": false
+  },
+  "ready_for_real_smoke": false,
+  "do_not_continue_reason": "Execution authorization is pending human review."
+}
