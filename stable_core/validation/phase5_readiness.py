@@ -1242,6 +1242,7 @@ def _gate_audit_next_action_packet(
         "Do not edit project_config or export environment variables from this gate audit.",
         "Do not submit remote jobs or write raw_outputs.jsonl from this gate audit.",
         "Do not treat unfilled template files as human approval.",
+        "Do not treat model-path approval as permission to run the real smoke.",
     ]
     if status == "failed":
         return {
@@ -1311,6 +1312,27 @@ def _gate_audit_next_action_packet(
             ],
             "expected_artifacts": [
                 "phase5_model_path_decision_validation.json",
+            ],
+            "forbidden_actions": forbidden_actions,
+        }
+    if next_missing_gate == "approved_decision_readiness":
+        return {
+            "gate": "approved_decision_readiness",
+            "status": "needs_attention",
+            "required_inputs": [
+                "phase5_model_path_decision_validation.json",
+                "approved_decision_readiness_output_dir",
+            ],
+            "safe_command_templates": [
+                (
+                    "python -m stable_core.cli phase5-approved-decision-readiness "
+                    "--decision-validation <phase5_model_path_decision_validation.json> "
+                    "--output-dir <approved_decision_readiness_output_dir>"
+                )
+            ],
+            "expected_artifacts": [
+                "phase5_approved_decision_readiness.json",
+                "phase5_approved_decision_readiness.md",
             ],
             "forbidden_actions": forbidden_actions,
         }

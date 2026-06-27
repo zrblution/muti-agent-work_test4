@@ -1629,6 +1629,106 @@ def test_phase5_unfilled_base_root_template_does_not_validate(tmp_path: Path) ->
     assert report["safety_flags"]["submitted_remote_job"] is False
 
 
+def test_phase5_gate_audit_advances_to_approved_readiness_packet(tmp_path: Path) -> None:
+    request_path = tmp_path / "phase5_model_path_decision_request.json"
+    decision_validation_path = tmp_path / "phase5_model_path_decision_validation.json"
+    output_path = tmp_path / "phase5_gate_audit.json"
+    target = {"model_id": "qwen3_vl_2b_instruct", "benchmark_id": "pope"}
+    safety_flags = {
+        "executed_real_model": False,
+        "executed_real_benchmark": False,
+        "submitted_remote_job": False,
+        "raw_outputs_written": False,
+        "write_config": False,
+    }
+    request_path.write_text(
+        json.dumps(
+            {
+                "phase": "Phase 5",
+                "mode": "model_path_decision_request",
+                "status": "needs_attention",
+                "approval_status": "pending",
+                "target": {
+                    **target,
+                    "model_path": "/models/variant/Ours",
+                    "benchmark_root": "/benchmarks",
+                },
+                "safety_flags": safety_flags,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    decision_validation_path.write_text(
+        json.dumps(
+            {
+                "phase": "Phase 5",
+                "mode": "model_path_decision_validation",
+                "status": "passed",
+                "approval_status": "approved",
+                "target": {
+                    **target,
+                    "model_path": "/models/variant/Ours",
+                    "benchmark_root": "/benchmarks",
+                },
+                "decision": {
+                    "decision": "approve_variant_path",
+                    "approved_model_path": "/models/variant/Ours",
+                    "approved_benchmark_root": "/benchmarks",
+                },
+                "safety_flags": safety_flags,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = run_cli(
+        "phase5-gate-audit",
+        "--model",
+        "qwen3_vl_2b_instruct",
+        "--benchmark",
+        "pope",
+        "--limit",
+        "8",
+        "--instrumentation",
+        "none",
+        "--decision-request",
+        str(request_path),
+        "--decision-validation",
+        str(decision_validation_path),
+        "--output",
+        str(output_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["status"] == "needs_attention"
+    assert payload["next_missing_gate"] == "approved_decision_readiness"
+    assert report["gate_checks"]["model_path_decision_request"]["status"] == "passed"
+    assert report["gate_checks"]["model_path_decision_validation"]["status"] == "passed"
+    assert report["gate_checks"]["approved_decision_readiness"]["status"] == "missing"
+    packet = report["next_action_packet"]
+    assert packet["gate"] == "approved_decision_readiness"
+    assert packet["required_inputs"] == [
+        "phase5_model_path_decision_validation.json",
+        "approved_decision_readiness_output_dir",
+    ]
+    assert packet["expected_artifacts"] == [
+        "phase5_approved_decision_readiness.json",
+        "phase5_approved_decision_readiness.md",
+    ]
+    assert any(
+        "phase5-approved-decision-readiness --decision-validation <phase5_model_path_decision_validation.json>"
+        in command
+        for command in packet["safe_command_templates"]
+    )
+    assert "Do not treat model-path approval as permission to run the real smoke." in packet["forbidden_actions"]
+    assert report["ready_for_real_smoke"] is False
+    assert report["safety_flags"]["submitted_remote_job"] is False
+
+
 def test_phase5_gate_audit_accepts_review_chain_but_stops_at_readiness(tmp_path: Path) -> None:
     request_path = tmp_path / "phase5_model_path_decision_request.json"
     decision_validation_path = tmp_path / "phase5_model_path_decision_validation.json"
