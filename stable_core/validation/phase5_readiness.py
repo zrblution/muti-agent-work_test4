@@ -298,6 +298,7 @@ def inspect_phase5_model_path_decision_records(
     *,
     request_path: str | Path,
     records_dir: str | Path,
+    audit_path: str | Path | None = None,
     output: str | Path | None = None,
 ) -> dict[str, Any]:
     request_file = Path(request_path)
@@ -315,8 +316,19 @@ def inspect_phase5_model_path_decision_records(
     filled_candidates = [record for record in records if record.get("classification") == "filled_candidate"]
     template_unfilled = [record for record in records if record.get("classification") == "template_unfilled"]
     invalid_candidates = [record for record in records if record.get("classification") == "invalid_candidate"]
-    ready_for_decision_validation = len(filled_candidates) == 1 and not invalid_candidates
-    status = "passed" if ready_for_decision_validation else "failed" if invalid_candidates else "needs_attention"
+    gate_audit_verification = verify_phase5_gate_audit_package(audit_path=audit_path) if audit_path is not None else None
+    gate_audit_check = _decision_record_gate_audit_check(gate_audit_verification, request_file)
+    ready_for_decision_validation = (
+        len(filled_candidates) == 1
+        and not invalid_candidates
+        and gate_audit_check["ready_for_decision_validation"]
+    )
+    if gate_audit_check["status"] == "failed" or invalid_candidates:
+        status = "failed"
+    elif ready_for_decision_validation:
+        status = "passed"
+    else:
+        status = "needs_attention"
     selected_path = filled_candidates[0]["path"] if ready_for_decision_validation else None
     report = {
         "phase": "Phase 5",
@@ -331,6 +343,11 @@ def inspect_phase5_model_path_decision_records(
         "filled_candidate_count": len(filled_candidates),
         "template_unfilled_count": len(template_unfilled),
         "invalid_candidate_count": len(invalid_candidates),
+        "gate_audit_path": str(Path(audit_path)) if audit_path is not None else None,
+        "gate_audit_verification_status": gate_audit_check["verification_status"],
+        "gate_audit_next_missing_gate": gate_audit_check["next_missing_gate"],
+        "gate_audit_ready_for_decision_validation": gate_audit_check["ready_for_decision_validation"],
+        "gate_audit_verification": gate_audit_verification,
         "ready_for_decision_validation": ready_for_decision_validation,
         "ready_for_real_smoke": False,
         "write_config": False,
@@ -338,8 +355,8 @@ def inspect_phase5_model_path_decision_records(
         "selected_decision_record_path": selected_path,
         "records": records,
         "safety_flags": dict(SAFETY_FLAGS),
-        "next_actions": _decision_record_status_next_actions(status, filled_candidates, invalid_candidates),
-        "do_not_continue_reason": _decision_record_status_stop_reason(status, filled_candidates, invalid_candidates),
+        "next_actions": _decision_record_status_next_actions(status, filled_candidates, invalid_candidates, gate_audit_check),
+        "do_not_continue_reason": _decision_record_status_stop_reason(status, filled_candidates, invalid_candidates, gate_audit_check),
     }
     if output is not None:
         write_json(Path(output), report)
@@ -825,11 +842,54 @@ def _inspect_phase5_decision_record(
     }
 
 
+def _decision_record_gate_audit_check(
+    gate_audit_verification: dict[str, Any] | None,
+    request_file: Path,
+) -> dict[str, Any]:
+    if gate_audit_verification is None:
+        return {
+            "status": "not_provided",
+            "verification_status": "not_provided",
+            "next_missing_gate": None,
+            "ready_for_decision_validation": True,
+            "summary": "No gate audit was supplied; preserving legacy decision-record status behavior.",
+        }
+    verification_status = str(gate_audit_verification.get("status"))
+    next_missing_gate = gate_audit_verification.get("next_missing_gate")
+    source_artifacts = gate_audit_verification.get("source_artifacts", {})
+    model_path_request = source_artifacts.get("model_path_decision_request", {}) if isinstance(source_artifacts, dict) else {}
+    recorded_request_path = model_path_request.get("path") if isinstance(model_path_request, dict) else None
+    path_matches = False
+    if _has_text(recorded_request_path):
+        path_matches = Path(str(recorded_request_path)).resolve() == request_file.resolve()
+    ready = verification_status == "passed" and next_missing_gate == "model_path_decision_validation" and path_matches
+    failed_reasons = []
+    if verification_status != "passed":
+        failed_reasons.append("gate audit verification did not pass")
+    if next_missing_gate != "model_path_decision_validation":
+        failed_reasons.append("gate audit does not point to model_path_decision_validation")
+    if not path_matches:
+        failed_reasons.append("gate audit source request does not match the requested decision packet")
+    return {
+        "status": "passed" if ready else "failed",
+        "verification_status": verification_status,
+        "next_missing_gate": next_missing_gate,
+        "ready_for_decision_validation": ready,
+        "summary": "Gate audit is current for model-path decision validation." if ready else "; ".join(failed_reasons),
+    }
+
+
 def _decision_record_status_next_actions(
     status: str,
     filled_candidates: list[dict[str, Any]],
     invalid_candidates: list[dict[str, Any]],
+    gate_audit_check: dict[str, Any],
 ) -> list[str]:
+    if gate_audit_check["status"] == "failed":
+        return [
+            "Regenerate or repair the Phase 5 gate audit package before using this decision record for human action.",
+            "Do not run phase5-validate-model-path-decision until the audit package verifies as current.",
+        ]
     if invalid_candidates:
         return ["Fix or remove invalid decision record candidates before validating the Phase 5 model-path decision."]
     if len(filled_candidates) == 1:
@@ -851,9 +911,12 @@ def _decision_record_status_stop_reason(
     status: str,
     filled_candidates: list[dict[str, Any]],
     invalid_candidates: list[dict[str, Any]],
+    gate_audit_check: dict[str, Any],
 ) -> str:
     if status == "passed":
         return "Exactly one filled decision record is ready for non-executing validation."
+    if gate_audit_check["status"] == "failed":
+        return f"The Phase 5 gate audit is not current for this decision handoff: {gate_audit_check['summary']}."
     if invalid_candidates:
         return "At least one decision record candidate is invalid."
     if len(filled_candidates) > 1:

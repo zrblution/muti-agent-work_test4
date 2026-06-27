@@ -178,6 +178,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     phase5_decision_record_status_parser.add_argument("--request", required=True)
     phase5_decision_record_status_parser.add_argument("--records-dir", required=True)
+    phase5_decision_record_status_parser.add_argument("--audit", default=None)
     phase5_decision_record_status_parser.add_argument("--output", default=None)
 
     phase5_approved_decision_readiness_parser = subparsers.add_parser(
@@ -508,6 +509,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             report = inspect_phase5_model_path_decision_records(
                 request_path=args.request,
                 records_dir=args.records_dir,
+                audit_path=args.audit,
                 output=args.output,
             )
         except Exception as exc:
@@ -522,6 +524,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "filled_candidate_count": report["filled_candidate_count"],
                     "template_unfilled_count": report["template_unfilled_count"],
                     "invalid_candidate_count": report["invalid_candidate_count"],
+                    "gate_audit_verification_status": report["gate_audit_verification_status"],
+                    "gate_audit_next_missing_gate": report["gate_audit_next_missing_gate"],
+                    "gate_audit_ready_for_decision_validation": report["gate_audit_ready_for_decision_validation"],
                     "ready_for_decision_validation": report["ready_for_decision_validation"],
                     "ready_for_real_smoke": report["ready_for_real_smoke"],
                     "write_config": report["write_config"],

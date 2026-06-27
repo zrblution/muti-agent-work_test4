@@ -1876,6 +1876,107 @@ def test_phase5_decision_record_status_accepts_one_filled_candidate(tmp_path: Pa
     assert "phase5-validate-model-path-decision" in " ".join(report["next_actions"])
 
 
+def test_phase5_decision_record_status_verifies_current_gate_audit(tmp_path: Path) -> None:
+    artifact_dir = REPO_ROOT / "runs/needs_attention/phase_5_model_path_decision_request"
+    request_path = artifact_dir / "phase5_model_path_decision_request.json"
+    records_dir = artifact_dir / "decision_record_templates"
+    audit_path = REPO_ROOT / "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.json"
+    output_path = tmp_path / "phase5_decision_record_status.json"
+
+    result = run_cli(
+        "phase5-decision-record-status",
+        "--request",
+        str(request_path),
+        "--records-dir",
+        str(records_dir),
+        "--audit",
+        str(audit_path),
+        "--output",
+        str(output_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["command"] == "phase5-decision-record-status"
+    assert payload["status"] == "needs_attention"
+    assert payload["gate_audit_verification_status"] == "passed"
+    assert payload["gate_audit_next_missing_gate"] == "model_path_decision_validation"
+    assert payload["gate_audit_ready_for_decision_validation"] is True
+    assert payload["ready_for_decision_validation"] is False
+    assert payload["ready_for_real_smoke"] is False
+    assert payload["executed_real_model"] is False
+    assert payload["executed_real_benchmark"] is False
+    assert payload["submitted_remote_job"] is False
+    assert payload["raw_outputs_written"] is False
+
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    assert report["gate_audit_path"] == str(audit_path)
+    assert report["gate_audit_verification_status"] == "passed"
+    assert report["gate_audit_ready_for_decision_validation"] is True
+    assert report["gate_audit_verification"]["checks"]["source_artifacts"]["status"] == "passed"
+
+
+def test_phase5_decision_record_status_rejects_stale_gate_audit_for_filled_candidate(tmp_path: Path) -> None:
+    artifact_dir = REPO_ROOT / "runs/needs_attention/phase_5_model_path_decision_request"
+    request_path = artifact_dir / "phase5_model_path_decision_request.json"
+    request = json.loads(request_path.read_text(encoding="utf-8"))
+    records_dir = tmp_path / "records"
+    records_dir.mkdir()
+    decision_path = records_dir / "approve_variant_path.json"
+    _write_json(
+        decision_path,
+        {
+            "decision": "approve_variant_path",
+            "approver": "phase5-human-reviewer",
+            "approved_model_path": request["target"]["model_path"],
+            "approved_benchmark_root": request["target"]["benchmark_root"],
+            "rationale": "Reviewed exact variant path for the Phase 5 handoff.",
+        },
+    )
+    source_audit = REPO_ROOT / "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.json"
+    stale_audit = tmp_path / "phase5_gate_audit.json"
+    stale_markdown = tmp_path / "phase5_gate_audit.md"
+    audit_payload = json.loads(source_audit.read_text(encoding="utf-8"))
+    audit_payload["source_artifacts"]["model_path_decision_request"]["sha256"] = "0" * 64
+    _write_json(stale_audit, audit_payload)
+    stale_markdown.write_text(source_audit.with_suffix(".md").read_text(encoding="utf-8"), encoding="utf-8")
+    output_path = tmp_path / "phase5_decision_record_status.json"
+
+    result = run_cli(
+        "phase5-decision-record-status",
+        "--request",
+        str(request_path),
+        "--records-dir",
+        str(records_dir),
+        "--audit",
+        str(stale_audit),
+        "--output",
+        str(output_path),
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["command"] == "phase5-decision-record-status"
+    assert payload["status"] == "failed"
+    assert payload["filled_candidate_count"] == 1
+    assert payload["gate_audit_verification_status"] == "failed"
+    assert payload["gate_audit_ready_for_decision_validation"] is False
+    assert payload["ready_for_decision_validation"] is False
+    assert payload["ready_for_real_smoke"] is False
+    assert payload["write_config"] is False
+    assert payload["exports_applied"] is False
+    assert payload["executed_real_model"] is False
+    assert payload["executed_real_benchmark"] is False
+    assert payload["submitted_remote_job"] is False
+    assert payload["raw_outputs_written"] is False
+
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    assert report["status"] == "failed"
+    assert report["selected_decision_record_path"] is None
+    assert report["gate_audit_verification"]["checks"]["source_artifacts"]["status"] == "failed"
+    assert "Regenerate or repair" in " ".join(report["next_actions"])
+
+
 def test_phase5_committed_decision_record_templates_are_unfilled_handoff_files() -> None:
     artifact_dir = REPO_ROOT / "runs/needs_attention/phase_5_model_path_decision_request"
     decision_request_path = artifact_dir / "phase5_model_path_decision_request.json"
