@@ -1613,6 +1613,95 @@ def test_phase5_committed_current_gate_audit_points_to_decision_validation() -> 
     assert "raw_outputs.jsonl" not in {path.name for path in audit_dir.iterdir()}
 
 
+def test_phase5_verify_gate_audit_accepts_current_handoff(tmp_path: Path) -> None:
+    audit_path = REPO_ROOT / "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.json"
+    output_path = tmp_path / "phase5_gate_audit_verify.json"
+
+    result = run_cli(
+        "phase5-verify-gate-audit",
+        "--audit",
+        str(audit_path),
+        "--output",
+        str(output_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["command"] == "phase5-verify-gate-audit"
+    assert payload["status"] == "passed"
+    assert payload["source_artifact_count"] == 1
+    assert payload["ready_for_real_smoke"] is False
+    assert payload["write_config"] is False
+    assert payload["exports_applied"] is False
+    assert payload["executed_real_model"] is False
+    assert payload["executed_real_benchmark"] is False
+    assert payload["submitted_remote_job"] is False
+    assert payload["raw_outputs_written"] is False
+
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    assert report["status"] == "passed"
+    assert report["audit_path"] == str(audit_path)
+    assert report["source_artifact_count"] == 1
+    assert report["checks"]["audit_identity"]["status"] == "passed"
+    assert report["checks"]["non_executing_safety"]["status"] == "passed"
+    assert report["checks"]["next_action_packet"]["status"] == "passed"
+    assert report["checks"]["source_artifacts"]["status"] == "passed"
+    source_check = report["source_artifacts"]["model_path_decision_request"]
+    decision_request_path = (
+        REPO_ROOT
+        / "runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json"
+    )
+    assert source_check["status"] == "passed"
+    assert source_check["path"] == str(
+        Path("runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json")
+    )
+    assert source_check["expected_sha256"] == sha256_file(decision_request_path)
+    assert source_check["actual_sha256"] == sha256_file(decision_request_path)
+
+
+def test_phase5_verify_gate_audit_rejects_stale_source_hash(tmp_path: Path) -> None:
+    audit_path = REPO_ROOT / "runs/needs_attention/phase_5_gate_audit_current/phase5_gate_audit.json"
+    stale_audit_path = tmp_path / "phase5_gate_audit_stale.json"
+    output_path = tmp_path / "phase5_gate_audit_verify.json"
+    report = json.loads(audit_path.read_text(encoding="utf-8"))
+    report["source_artifacts"]["model_path_decision_request"]["sha256"] = "0" * 64
+    _write_json(stale_audit_path, report)
+
+    result = run_cli(
+        "phase5-verify-gate-audit",
+        "--audit",
+        str(stale_audit_path),
+        "--output",
+        str(output_path),
+    )
+
+    assert result.returncode == 1, result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["command"] == "phase5-verify-gate-audit"
+    assert payload["status"] == "failed"
+    assert payload["source_artifact_count"] == 1
+    assert payload["ready_for_real_smoke"] is False
+    assert payload["write_config"] is False
+    assert payload["exports_applied"] is False
+    assert payload["executed_real_model"] is False
+    assert payload["executed_real_benchmark"] is False
+    assert payload["submitted_remote_job"] is False
+    assert payload["raw_outputs_written"] is False
+
+    verification = json.loads(output_path.read_text(encoding="utf-8"))
+    assert verification["status"] == "failed"
+    assert verification["checks"]["source_artifacts"]["status"] == "failed"
+    source_check = verification["source_artifacts"]["model_path_decision_request"]
+    decision_request_path = (
+        REPO_ROOT
+        / "runs/needs_attention/phase_5_model_path_decision_request/phase5_model_path_decision_request.json"
+    )
+    assert source_check["status"] == "failed"
+    assert source_check["expected_sha256"] == "0" * 64
+    assert source_check["actual_sha256"] == sha256_file(decision_request_path)
+    assert "sha256 mismatch" in source_check["summary"]
+
+
 def test_phase5_committed_decision_record_templates_are_unfilled_handoff_files() -> None:
     artifact_dir = REPO_ROOT / "runs/needs_attention/phase_5_model_path_decision_request"
     decision_request_path = artifact_dir / "phase5_model_path_decision_request.json"

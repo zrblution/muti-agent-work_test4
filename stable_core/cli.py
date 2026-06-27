@@ -26,6 +26,7 @@ from stable_core.validation.phase5_readiness import (
     build_phase5_readiness_bundle,
     validate_phase5_config_representation_decision,
     validate_phase5_model_path_decision,
+    verify_phase5_gate_audit_package,
 )
 from stable_core.validation.preflight import run_preflight
 
@@ -210,6 +211,13 @@ def build_parser() -> argparse.ArgumentParser:
     phase5_gate_audit_parser.add_argument("--runs-root", default=str(DEFAULT_RUNS_ROOT))
     phase5_gate_audit_parser.add_argument("--output", default=None)
     phase5_gate_audit_parser.add_argument("--output-dir", default=None)
+
+    phase5_verify_gate_audit_parser = subparsers.add_parser(
+        "phase5-verify-gate-audit",
+        help="Verify a recorded Phase 5 gate audit package without executing it.",
+    )
+    phase5_verify_gate_audit_parser.add_argument("--audit", required=True)
+    phase5_verify_gate_audit_parser.add_argument("--output", default=None)
 
     phase5_discover_model_parser = subparsers.add_parser("phase5-discover-model-candidates", help="Discover reviewable Phase 5 model path candidates under explicit search roots.")
     phase5_discover_model_parser.add_argument("model_id")
@@ -590,6 +598,32 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "ready_for_real_smoke": report["ready_for_real_smoke"],
                     "next_missing_gate": report["next_missing_gate"],
                     "phase5_terminal_outcome": report["phase5_terminal_outcome"],
+                    "write_config": report["write_config"],
+                    "exports_applied": report["exports_applied"],
+                    **safety_flags,
+                },
+                ensure_ascii=False,
+            )
+        )
+        return _exit_code(str(report["status"]))
+    if args.command == "phase5-verify-gate-audit":
+        try:
+            report = verify_phase5_gate_audit_package(
+                audit_path=args.audit,
+                output=args.output,
+            )
+        except Exception as exc:
+            print(json.dumps({"command": "phase5-verify-gate-audit", "status": "failed", "error": str(exc)}, ensure_ascii=False))
+            return 1
+        safety_flags = report["safety_flags"]
+        print(
+            json.dumps(
+                {
+                    "command": "phase5-verify-gate-audit",
+                    "status": report["status"],
+                    "audit_path": report["audit_path"],
+                    "source_artifact_count": report["source_artifact_count"],
+                    "ready_for_real_smoke": report["ready_for_real_smoke"],
                     "write_config": report["write_config"],
                     "exports_applied": report["exports_applied"],
                     **safety_flags,

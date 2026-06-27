@@ -538,6 +538,46 @@ def build_phase5_gate_audit(
     return report
 
 
+def verify_phase5_gate_audit_package(
+    *,
+    audit_path: str | Path,
+    output: str | Path | None = None,
+) -> dict[str, Any]:
+    path = Path(audit_path)
+    loaded = json.loads(path.read_text(encoding="utf-8"))
+    audit = loaded if isinstance(loaded, dict) else {}
+    source_artifact_checks = _verify_gate_audit_source_artifacts(audit.get("source_artifacts", {}))
+    checks = {
+        "audit_identity": _verify_gate_audit_identity(audit),
+        "non_executing_safety": _verify_gate_audit_non_executing_safety(audit),
+        "next_action_packet": _verify_gate_audit_next_action_packet(audit.get("next_action_packet")),
+        "source_artifacts": _verify_gate_audit_source_artifact_status(source_artifact_checks),
+    }
+    status = _checks_status(checks)
+    report = {
+        "phase": "Phase 5",
+        "mode": "gate_audit_verification",
+        "status": status,
+        "created_at": utc_now(),
+        "git_commit": current_git_commit(Path.cwd()),
+        "audit_path": str(path),
+        "audit_status": audit.get("status"),
+        "next_missing_gate": audit.get("next_missing_gate"),
+        "ready_for_real_smoke": audit.get("ready_for_real_smoke"),
+        "write_config": audit.get("write_config"),
+        "exports_applied": audit.get("exports_applied"),
+        "safety_flags": audit.get("safety_flags") if isinstance(audit.get("safety_flags"), dict) else {},
+        "source_artifact_count": len(source_artifact_checks),
+        "checks": checks,
+        "source_artifacts": source_artifact_checks,
+        "next_actions": _verify_gate_audit_next_actions(status),
+        "do_not_continue_reason": _verify_gate_audit_stop_reason(status, checks),
+    }
+    if output is not None:
+        write_json(Path(output), report)
+    return report
+
+
 def _readiness_status(checks: dict[str, dict[str, Any]], execution_authorization: dict[str, Any]) -> str:
     statuses = [str(check.get("status")) for check in checks.values()]
     execution_status = str(execution_authorization.get("status"))
@@ -1184,6 +1224,158 @@ def _gate_audit_source_artifacts(paths: dict[str, str | Path | None]) -> dict[st
             artifact["sha256"] = sha256_file(path)
         artifacts[name] = artifact
     return artifacts
+
+
+def _verify_gate_audit_identity(audit: dict[str, Any]) -> dict[str, Any]:
+    return _audit_required_conditions(
+        [
+            (audit.get("phase") == "Phase 5", "Audit package phase is Phase 5."),
+            (audit.get("mode") == "gate_audit", "Audit package mode is gate_audit."),
+            (_has_text(audit.get("status")), "Audit package records a status."),
+        ],
+        "Audit package identity is a Phase 5 gate audit.",
+    )
+
+
+def _verify_gate_audit_non_executing_safety(audit: dict[str, Any]) -> dict[str, Any]:
+    safety_flags = audit.get("safety_flags")
+    conditions = [
+        (audit.get("ready_for_real_smoke") is False, "ready_for_real_smoke remains false."),
+        (audit.get("write_config") is False, "write_config remains false."),
+        (audit.get("exports_applied") is False, "exports_applied remains false."),
+        (isinstance(safety_flags, dict), "safety_flags is recorded as an object."),
+    ]
+    if isinstance(safety_flags, dict):
+        conditions.extend(
+            (safety_flags.get(name) is False, f"{name} remains false.")
+            for name in SAFETY_FLAGS
+        )
+    return _audit_required_conditions(
+        conditions,
+        "Gate audit package preserves all non-executing safety flags.",
+    )
+
+
+def _verify_gate_audit_next_action_packet(packet: Any) -> dict[str, Any]:
+    if not isinstance(packet, dict):
+        return {
+            "status": "failed",
+            "summary": "next_action_packet must be an object.",
+            "failed_conditions": ["next_action_packet must be an object."],
+        }
+    return _audit_required_conditions(
+        [
+            (_has_text(packet.get("gate")), "next_action_packet records a gate."),
+            (isinstance(packet.get("required_inputs"), list), "required_inputs is a list."),
+            (isinstance(packet.get("safe_command_templates"), list), "safe_command_templates is a list."),
+            (isinstance(packet.get("expected_artifacts"), list), "expected_artifacts is a list."),
+            (isinstance(packet.get("forbidden_actions"), list), "forbidden_actions is a list."),
+        ],
+        "Gate audit package includes a structured next_action_packet.",
+    )
+
+
+def _verify_gate_audit_source_artifacts(source_artifacts: Any) -> dict[str, dict[str, Any]]:
+    if not isinstance(source_artifacts, dict):
+        return {
+            "__source_artifacts__": {
+                "status": "failed",
+                "summary": "source_artifacts must be an object.",
+            }
+        }
+    checks: dict[str, dict[str, Any]] = {}
+    for name, artifact in source_artifacts.items():
+        check_name = str(name)
+        if not isinstance(artifact, dict):
+            checks[check_name] = {
+                "status": "failed",
+                "summary": "Source artifact entry must be an object.",
+            }
+            continue
+        raw_path = artifact.get("path")
+        if not _has_text(raw_path):
+            checks[check_name] = {
+                "status": "failed",
+                "path": raw_path,
+                "summary": "Source artifact path is missing.",
+            }
+            continue
+        path = Path(str(raw_path))
+        actual_exists = path.exists()
+        expected_exists = artifact.get("exists")
+        expected_sha256 = artifact.get("sha256")
+        actual_sha256 = sha256_file(path) if path.is_file() else None
+        check = {
+            "path": str(raw_path),
+            "expected_exists": expected_exists,
+            "actual_exists": actual_exists,
+            "expected_sha256": expected_sha256,
+            "actual_sha256": actual_sha256,
+        }
+        if expected_exists is not True:
+            checks[check_name] = {
+                **check,
+                "status": "failed",
+                "summary": "Source artifact was not recorded as existing.",
+            }
+            continue
+        if not actual_exists:
+            checks[check_name] = {
+                **check,
+                "status": "failed",
+                "summary": "Source artifact path no longer exists.",
+            }
+            continue
+        if expected_sha256 and expected_sha256 != actual_sha256:
+            checks[check_name] = {
+                **check,
+                "status": "failed",
+                "summary": "Source artifact sha256 mismatch.",
+            }
+            continue
+        checks[check_name] = {
+            **check,
+            "status": "passed",
+            "summary": "Source artifact matches recorded provenance.",
+        }
+    return checks
+
+
+def _verify_gate_audit_source_artifact_status(source_checks: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    failed = [
+        f"{name}: {check.get('summary')}"
+        for name, check in source_checks.items()
+        if check.get("status") != "passed"
+    ]
+    if failed:
+        return {
+            "status": "failed",
+            "summary": failed[0],
+            "failed_conditions": failed,
+        }
+    return {
+        "status": "passed",
+        "summary": "All recorded source artifacts match current files.",
+    }
+
+
+def _verify_gate_audit_next_actions(status: str) -> list[str]:
+    if status == "passed":
+        return ["Use this gate audit handoff as current only for the recorded source artifact revisions."]
+    return ["Regenerate or repair the Phase 5 gate audit package before using it for human action."]
+
+
+def _verify_gate_audit_stop_reason(status: str, checks: dict[str, dict[str, Any]]) -> str:
+    if status == "passed":
+        return "Gate audit package provenance and non-executing safety checks passed."
+    failed = [
+        f"{name}: {check.get('summary')}"
+        for name, check in checks.items()
+        if check.get("status") == "failed"
+    ]
+    if failed:
+        return failed[0]
+    return "Gate audit package verification needs attention."
 
 
 def _audit_required_conditions(conditions: list[tuple[bool, str]], success_summary: str) -> dict[str, Any]:
