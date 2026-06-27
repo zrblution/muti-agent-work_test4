@@ -180,6 +180,12 @@ The bundle deliberately keeps `ready_for_real_smoke: false`. A human approval re
 
 The proposal does not edit `project_config`, export env vars, read `.env`, open gates, load weights, run generation, submit jobs, run benchmarks, or write raw outputs. It exists to prevent a validated approval from turning into an implicit config mutation.
 
+## Config Representation Decision Validation Follow-Up
+
+`phase5-validate-config-representation-decision` now validates an external human choice against a config representation proposal. It checks that the selected option is declared by the proposal, reviewer and rationale are present, and the approved model path plus benchmark root match the proposal exactly.
+
+This still does not resolve the Phase 5 blocker. The validation output keeps `ready_for_real_smoke: false`, `write_config: false`, and `exports_applied: false`; it does not edit `project_config`, export env vars, read `.env`, open gates, load weights, run generation, submit jobs, run benchmarks, or write raw outputs.
+
 ## Worker Execution Loop Follow-Up
 
 The whitelisted worker now calls the model and benchmark runtime methods after validation and adapter runtime gates pass. The success path writes raw outputs, normalized outputs, metrics, failure cases, experiment summary, reproducibility notes, run manifest, and artifact manifest. It refuses to overwrite existing `raw_outputs.jsonl`.

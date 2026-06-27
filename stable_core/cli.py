@@ -23,6 +23,7 @@ from stable_core.validation.phase5_readiness import (
     build_phase5_model_path_decision_request,
     build_phase5_path_probe,
     build_phase5_readiness_bundle,
+    validate_phase5_config_representation_decision,
     validate_phase5_model_path_decision,
 )
 from stable_core.validation.preflight import run_preflight
@@ -181,6 +182,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     phase5_config_representation_parser.add_argument("--approved-readiness", required=True)
     phase5_config_representation_parser.add_argument("--output-dir", required=True)
+
+    phase5_validate_config_representation_parser = subparsers.add_parser(
+        "phase5-validate-config-representation-decision",
+        help="Validate a human config-representation decision against a Phase 5 proposal without executing it.",
+    )
+    phase5_validate_config_representation_parser.add_argument("--proposal", required=True)
+    phase5_validate_config_representation_parser.add_argument("--decision-record", required=True)
+    phase5_validate_config_representation_parser.add_argument("--output", default=None)
 
     phase5_discover_model_parser = subparsers.add_parser("phase5-discover-model-candidates", help="Discover reviewable Phase 5 model path candidates under explicit search roots.")
     phase5_discover_model_parser.add_argument("model_id")
@@ -495,6 +504,33 @@ def main(argv: Sequence[str] | None = None) -> int:
                 {
                     "command": "phase5-config-representation-proposal",
                     "status": report["status"],
+                    "ready_for_real_smoke": report["ready_for_real_smoke"],
+                    "write_config": report["write_config"],
+                    "exports_applied": report["exports_applied"],
+                    **safety_flags,
+                },
+                ensure_ascii=False,
+            )
+        )
+        return _exit_code(str(report["status"]))
+    if args.command == "phase5-validate-config-representation-decision":
+        try:
+            report = validate_phase5_config_representation_decision(
+                proposal_path=args.proposal,
+                decision_record_path=args.decision_record,
+                output=args.output,
+            )
+        except Exception as exc:
+            print(json.dumps({"command": "phase5-validate-config-representation-decision", "status": "failed", "error": str(exc)}, ensure_ascii=False))
+            return 1
+        safety_flags = report["safety_flags"]
+        print(
+            json.dumps(
+                {
+                    "command": "phase5-validate-config-representation-decision",
+                    "status": report["status"],
+                    "config_review_status": report["config_review_status"],
+                    "selected_option": report["selected_option"].get("name"),
                     "ready_for_real_smoke": report["ready_for_real_smoke"],
                     "write_config": report["write_config"],
                     "exports_applied": report["exports_applied"],

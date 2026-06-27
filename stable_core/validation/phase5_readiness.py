@@ -378,6 +378,50 @@ def build_phase5_config_representation_proposal(
     return bundle
 
 
+def validate_phase5_config_representation_decision(
+    *,
+    proposal_path: str | Path,
+    decision_record_path: str | Path,
+    output: str | Path | None = None,
+) -> dict[str, Any]:
+    proposal_file = Path(proposal_path)
+    decision_file = Path(decision_record_path)
+    proposal = json.loads(proposal_file.read_text(encoding="utf-8"))
+    decision_record = json.loads(decision_file.read_text(encoding="utf-8"))
+    selected_name = str(decision_record.get("selected_option", ""))
+    selected_option = _find_representation_option(proposal.get("representation_options", []), selected_name)
+    checks = _config_representation_decision_checks(
+        proposal=proposal,
+        decision_record=decision_record,
+        selected_option=selected_option,
+    )
+    status = "failed" if any(check.get("status") == "failed" for check in checks.values()) else "passed"
+    report = {
+        "phase": "Phase 5",
+        "mode": "config_representation_decision_validation",
+        "status": status,
+        "config_review_status": "approved" if status == "passed" else "invalid",
+        "ready_for_real_smoke": False,
+        "write_config": False,
+        "exports_applied": False,
+        "created_at": utc_now(),
+        "git_commit": current_git_commit(Path.cwd()),
+        "proposal_path": str(proposal_file),
+        "decision_record_path": str(decision_file),
+        "target": proposal.get("target", {}),
+        "approved_paths": proposal.get("approved_paths", {}),
+        "selected_option": selected_option if selected_option is not None else {"name": selected_name},
+        "decision": decision_record,
+        "checks": checks,
+        "safety_flags": dict(SAFETY_FLAGS),
+        "next_actions": _config_representation_decision_next_actions(status),
+        "do_not_continue_reason": _config_representation_decision_stop_reason(status),
+    }
+    if output is not None:
+        write_json(Path(output), report)
+    return report
+
+
 def _readiness_status(checks: dict[str, dict[str, Any]], execution_authorization: dict[str, Any]) -> str:
     statuses = [str(check.get("status")) for check in checks.values()]
     execution_status = str(execution_authorization.get("status"))
@@ -651,6 +695,116 @@ def _config_representation_stop_reason(status: str) -> str:
     if status == "failed":
         return "Config representation proposal could not validate the approved readiness bundle."
     return "Config representation is proposed for review only; no config or execution gate has changed."
+
+
+def _find_representation_option(options: Any, selected_name: str) -> dict[str, Any] | None:
+    if not isinstance(options, list):
+        return None
+    for option in options:
+        if isinstance(option, dict) and option.get("name") == selected_name:
+            return option
+    return None
+
+
+def _config_representation_decision_checks(
+    *,
+    proposal: dict[str, Any],
+    decision_record: dict[str, Any],
+    selected_option: dict[str, Any] | None,
+) -> dict[str, dict[str, str]]:
+    selected_name = str(decision_record.get("selected_option", ""))
+    expected_model_path = _selected_option_model_path(selected_option)
+    expected_benchmark_root = str(proposal.get("approved_paths", {}).get("benchmark_root", ""))
+    approved_model_path = _decision_approved_model_path(decision_record)
+    approved_benchmark_root = _decision_approved_benchmark_root(decision_record)
+    checks = {
+        "proposal_mode": _check(
+            proposal.get("mode") == "config_representation_proposal",
+            "Proposal is a Phase 5 config representation proposal.",
+        ),
+        "proposal_status": _check(
+            proposal.get("status") == "needs_attention",
+            "Proposal must be a review-only needs_attention artifact.",
+        ),
+        "proposal_non_executing": _check(
+            proposal.get("ready_for_real_smoke") is False
+            and proposal.get("write_config") is False
+            and proposal.get("exports_applied") is False,
+            "Proposal must not already mark execution, config writes, or env exports as ready.",
+        ),
+        "selected_option_declared": _check(
+            selected_option is not None,
+            "Selected option must be one of the representation options declared by the proposal.",
+        ),
+        "reviewer_present": _check(
+            bool(_decision_reviewer(decision_record)),
+            "Decision record names a human reviewer.",
+        ),
+        "rationale_present": _check(
+            bool(str(decision_record.get("rationale", "")).strip()),
+            "Decision record includes a rationale.",
+        ),
+    }
+    if selected_option is not None and expected_model_path:
+        checks["approved_model_path_matches"] = _check(
+            approved_model_path == expected_model_path,
+            "Approved model path or models.yaml local_path must match the selected proposal option exactly.",
+        )
+    if selected_option is not None and expected_benchmark_root:
+        checks["approved_benchmark_root_matches"] = _check(
+            approved_benchmark_root == expected_benchmark_root,
+            "Approved benchmark root must match the proposal exactly.",
+        )
+    if not selected_name:
+        checks["selected_option_present"] = _check(False, "Decision record must name selected_option.")
+    return checks
+
+
+def _selected_option_model_path(selected_option: dict[str, Any] | None) -> str:
+    if selected_option is None:
+        return ""
+    proposed_models_yaml = selected_option.get("proposed_models_yaml", {})
+    if isinstance(proposed_models_yaml, dict):
+        return str(proposed_models_yaml.get("local_path", ""))
+    return ""
+
+
+def _decision_approved_model_path(decision_record: dict[str, Any]) -> str:
+    if decision_record.get("approved_model_path"):
+        return str(decision_record.get("approved_model_path"))
+    approved_models_yaml = decision_record.get("approved_models_yaml", {})
+    if isinstance(approved_models_yaml, dict):
+        return str(approved_models_yaml.get("local_path", ""))
+    return ""
+
+
+def _decision_approved_benchmark_root(decision_record: dict[str, Any]) -> str:
+    if decision_record.get("approved_benchmark_root"):
+        return str(decision_record.get("approved_benchmark_root"))
+    approved_env = decision_record.get("approved_env", {})
+    if isinstance(approved_env, dict):
+        return str(approved_env.get("REMOTE_BENCHMARK_ROOT", ""))
+    return ""
+
+
+def _decision_reviewer(decision_record: dict[str, Any]) -> str:
+    return str(decision_record.get("reviewer") or decision_record.get("approver") or "").strip()
+
+
+def _config_representation_decision_next_actions(status: str) -> list[str]:
+    if status == "failed":
+        return ["Fix the config representation decision record before editing project_config or exporting env vars."]
+    return [
+        "Treat the selected representation as reviewed input only; this command did not edit config or export env vars.",
+        "After any separate config/env change, rerun safe path probes, phase5-readiness, and validation gates.",
+        "Keep remote, GPU, and process-submission gates closed until the full Phase 5 readiness gate passes.",
+    ]
+
+
+def _config_representation_decision_stop_reason(status: str) -> str:
+    if status == "failed":
+        return "The config representation decision record is invalid."
+    return "Config representation review is validated, but no config, env, or execution gate has changed."
 
 
 def _next_actions(checks: dict[str, dict[str, Any]], execution_authorization: dict[str, Any]) -> list[str]:

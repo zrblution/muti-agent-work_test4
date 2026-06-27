@@ -1014,6 +1014,182 @@ def test_phase5_config_representation_proposal_rejects_unapproved_readiness(tmp_
     assert json.loads((output_dir / "phase5_config_representation_proposal.json").read_text(encoding="utf-8"))["status"] == "failed"
 
 
+def test_phase5_validate_config_representation_decision_cli_accepts_explicit_override(tmp_path: Path) -> None:
+    proposal_path = tmp_path / "phase5_config_representation_proposal.json"
+    decision_path = tmp_path / "human_config_representation_decision.json"
+    output_path = tmp_path / "phase5_config_representation_decision_validation.json"
+    proposal_path.write_text(
+        json.dumps(
+            {
+                "phase": "Phase 5",
+                "mode": "config_representation_proposal",
+                "status": "needs_attention",
+                "approval_status": "approved",
+                "ready_for_real_smoke": False,
+                "write_config": False,
+                "exports_applied": False,
+                "target": {
+                    "model_id": "qwen3_vl_2b_instruct",
+                    "benchmark_id": "pope",
+                },
+                "approved_paths": {
+                    "model_path": "/models/variant/Ours",
+                    "benchmark_root": "/benchmarks",
+                },
+                "proposed_env": {
+                    "model": {},
+                    "benchmark": {"REMOTE_BENCHMARK_ROOT": "/benchmarks"},
+                },
+                "representation_options": [
+                    {
+                        "name": "explicit_local_path_override",
+                        "requires_config_review": True,
+                        "summary": "Represent the approved exact model path directly in model config after review.",
+                        "proposed_models_yaml": {"local_path": "/models/variant/Ours"},
+                    },
+                    {
+                        "name": "materialize_under_configured_root",
+                        "requires_config_review": True,
+                        "summary": "Place or link the approved model under a reviewed root.",
+                        "proposed_models_yaml": {"local_path": "${REMOTE_MODEL_ROOT}/Qwen3-VL-2B-Instruct"},
+                    },
+                ],
+                "checks": {
+                    "approved_readiness": {"status": "passed"},
+                    "model_configured_root_contract": {"status": "needs_review"},
+                },
+                "safety_flags": {
+                    "executed_real_model": False,
+                    "executed_real_benchmark": False,
+                    "submitted_remote_job": False,
+                    "raw_outputs_written": False,
+                    "write_config": False,
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    decision_path.write_text(
+        json.dumps(
+            {
+                "selected_option": "explicit_local_path_override",
+                "reviewer": "phase5-human-review",
+                "approved_model_path": "/models/variant/Ours",
+                "approved_benchmark_root": "/benchmarks",
+                "rationale": "Use the reviewed exact path for the next config-representation step.",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = run_cli(
+        "phase5-validate-config-representation-decision",
+        "--proposal",
+        str(proposal_path),
+        "--decision-record",
+        str(decision_path),
+        "--output",
+        str(output_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["command"] == "phase5-validate-config-representation-decision"
+    assert payload["status"] == "passed"
+    assert payload["config_review_status"] == "approved"
+    assert payload["selected_option"] == "explicit_local_path_override"
+    assert payload["ready_for_real_smoke"] is False
+    assert payload["write_config"] is False
+    assert payload["exports_applied"] is False
+    assert report["mode"] == "config_representation_decision_validation"
+    assert report["selected_option"]["name"] == "explicit_local_path_override"
+    assert report["checks"]["selected_option_declared"]["status"] == "passed"
+    assert report["checks"]["approved_model_path_matches"]["status"] == "passed"
+    assert report["checks"]["approved_benchmark_root_matches"]["status"] == "passed"
+    assert report["safety_flags"]["write_config"] is False
+    assert report["ready_for_real_smoke"] is False
+    assert report["write_config"] is False
+    assert report["exports_applied"] is False
+    assert "raw_outputs.jsonl" not in {path.name for path in tmp_path.iterdir()}
+
+
+def test_phase5_validate_config_representation_decision_rejects_mismatched_model_path(tmp_path: Path) -> None:
+    proposal_path = tmp_path / "phase5_config_representation_proposal.json"
+    decision_path = tmp_path / "human_config_representation_decision.json"
+    output_path = tmp_path / "phase5_config_representation_decision_validation.json"
+    proposal_path.write_text(
+        json.dumps(
+            {
+                "phase": "Phase 5",
+                "mode": "config_representation_proposal",
+                "status": "needs_attention",
+                "ready_for_real_smoke": False,
+                "write_config": False,
+                "exports_applied": False,
+                "target": {
+                    "model_id": "qwen3_vl_2b_instruct",
+                    "benchmark_id": "pope",
+                },
+                "approved_paths": {
+                    "model_path": "/models/variant/Ours",
+                    "benchmark_root": "/benchmarks",
+                },
+                "proposed_env": {
+                    "model": {},
+                    "benchmark": {"REMOTE_BENCHMARK_ROOT": "/benchmarks"},
+                },
+                "representation_options": [
+                    {
+                        "name": "explicit_local_path_override",
+                        "requires_config_review": True,
+                        "proposed_models_yaml": {"local_path": "/models/variant/Ours"},
+                    }
+                ],
+                "safety_flags": {
+                    "executed_real_model": False,
+                    "executed_real_benchmark": False,
+                    "submitted_remote_job": False,
+                    "raw_outputs_written": False,
+                    "write_config": False,
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    decision_path.write_text(
+        json.dumps(
+            {
+                "selected_option": "explicit_local_path_override",
+                "reviewer": "phase5-human-review",
+                "approved_model_path": "/models/other/Ours",
+                "approved_benchmark_root": "/benchmarks",
+                "rationale": "Mismatch should be rejected.",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    report = phase5_module.validate_phase5_config_representation_decision(
+        proposal_path=proposal_path,
+        decision_record_path=decision_path,
+        output=output_path,
+    )
+
+    assert report["status"] == "failed"
+    assert report["config_review_status"] == "invalid"
+    assert report["checks"]["approved_model_path_matches"]["status"] == "failed"
+    assert report["checks"]["approved_benchmark_root_matches"]["status"] == "passed"
+    assert report["safety_flags"]["write_config"] is False
+    assert report["write_config"] is False
+    assert report["exports_applied"] is False
+    assert json.loads(output_path.read_text(encoding="utf-8"))["status"] == "failed"
+
+
 def test_phase5_discover_model_candidates_finds_configured_root_candidate(tmp_path: Path) -> None:
     model_root = tmp_path / "candidate_models"
     model_path = model_root / "Qwen3-VL-2B-Instruct"
